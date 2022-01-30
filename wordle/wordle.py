@@ -1,4 +1,4 @@
-import numpy as np
+#import numpy as np
 import dictionary
 import sys
 
@@ -39,7 +39,11 @@ def compute_index_from_guess(input_guess, input_solution):
 
 # Count the number of remaining choices in each bucket for a given guess
 def distribution(guess, words):
-    dist = np.zeros(pow(3,5))
+    # create an array of length 3^5=243 containing all zeros. Each entry
+    # represnts the number or words in the dictionary that would result in each
+    # of the 243 possible hints
+    dist = [0 for _ in range(pow(3,5))]
+    # count the number of words that satisfy each hint
     for solution in words:
         dist[compute_index_from_guess(guess, solution)] += 1
     return dist
@@ -48,7 +52,7 @@ def distribution(guess, words):
 def get_best_guess(words):
     max_bucket_size={}
     for guess in words:
-        max_bucket_size[guess] = np.max(distribution(guess, words))
+        max_bucket_size[guess] = max(distribution(guess, words))
     return sorted(max_bucket_size.items(), key=lambda item: item[1])[0][0]
 
 # Split the set of words into subsets that all correspond to the same hint
