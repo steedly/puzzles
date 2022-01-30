@@ -1,0 +1,403 @@
+arise depth: 0
+🟨🟨🟨⬜⬜: radio depth: 1
+ 🟨🟨⬜🟨⬜: tiara depth: 2
+⬜🟨⬜⬜🟨: retro depth: 1
+ 🟨🟨⬜⬜🟨: mover depth: 2
+  ⬜🟩⬜🟩🟩: power depth: 3
+   ⬜🟩⬜🟩🟩: joker depth: 4
+  ⬜🟩🟩🟩🟩: cover depth: 3
+  ⬜🟨⬜🟩🟩: older depth: 3
+ 🟨🟨⬜⬜⬜: elder depth: 2
+  ⬜🟩⬜🟩🟩: flyer depth: 3
+  ⬜⬜⬜🟩🟩: cyber depth: 3
+ 🟨🟩⬜⬜⬜: never depth: 2
+  ⬜🟩⬜⬜🟨: derby depth: 3
+  ⬜🟩⬜🟩🟩: defer depth: 3
+  ⬜🟩⬜⬜🟩: lemur depth: 3
+ 🟨🟩⬜🟩⬜: merry depth: 2
+ ⬜🟨⬜🟩⬜: every depth: 2
+ 🟩🟩⬜⬜⬜: reply depth: 2
+ 🟨🟨🟨⬜⬜: threw depth: 2
+ 🟩🟨⬜🟨🟨: roger depth: 2
+ 🟨🟨🟩⬜🟨: otter depth: 2
+ 🟩🟩⬜🟨⬜: refer depth: 2
+⬜⬜🟨🟩⬜: tipsy depth: 1
+⬜⬜⬜⬜⬜: could depth: 1
+ 🟩⬜🟩🟨⬜: clung depth: 2
+ ⬜🟩🟩⬜🟩: found depth: 2
+  ⬜🟩🟩🟩🟩: bound depth: 3
+ ⬜🟩⬜⬜⬜: boozy depth: 2
+ ⬜🟩⬜🟨⬜: lofty depth: 2
+ ⬜🟨🟨⬜⬜: outgo depth: 2
+ ⬜⬜🟨🟨⬜: lumpy depth: 2
+ 🟩🟨⬜🟨⬜: cloth depth: 2
+ ⬜🟩🟩⬜⬜: youth depth: 2
+ ⬜🟩⬜🟩⬜: folly depth: 2
+  ⬜🟩🟩🟩🟩: holly depth: 3
+  ⬜🟩⬜🟩🟩: nobly depth: 3
+ 🟩⬜🟩⬜⬜: chump depth: 2
+ 🟨⬜🟨⬜⬜: hutch depth: 2
+  ⬜🟩⬜🟩🟩: bunch depth: 3
+ 🟨🟩🟩⬜⬜: pouch depth: 2
+ ⬜🟨⬜🟨⬜: blown depth: 2
+ ⬜🟨⬜🟨🟩: blond depth: 2
+ ⬜⬜🟩🟨⬜: bluff depth: 2
+ ⬜⬜🟨⬜⬜: puffy depth: 2
+  ⬜🟩⬜⬜🟩: mummy depth: 3
+  ⬜🟩🟨⬜🟩: fuzzy depth: 3
+ ⬜⬜🟨🟩⬜: bully depth: 2
+ ⬜🟨⬜⬜⬜: photo depth: 2
+ ⬜🟩⬜⬜🟨: goody depth: 2
+ 🟨🟩⬜⬜⬜: notch depth: 2
+ 🟨⬜🟨🟨⬜: mulch depth: 2
+ 🟩🟩🟩⬜⬜: couch depth: 2
+ ⬜⬜🟨⬜🟨: dumpy depth: 2
+🟩⬜⬜⬜🟩: alone depth: 1
+ 🟩⬜⬜⬜🟩: agate depth: 2
+ 🟩⬜🟩⬜🟩: abode depth: 2
+ 🟩🟨⬜⬜🟩: apple depth: 2
+⬜⬜⬜🟩⬜: floss depth: 1
+🟨⬜⬜⬜⬜: natal depth: 1
+ ⬜🟩🟩⬜⬜: hatch depth: 2
+  ⬜🟩🟩🟩🟩: catch depth: 3
+   ⬜🟩🟩🟩🟩: batch depth: 4
+  ⬜🟩🟩⬜⬜: tatty depth: 3
+ ⬜⬜⬜🟩🟩: local depth: 2
+ ⬜🟩⬜🟨⬜: mamma depth: 2
+ 🟨🟩🟨⬜⬜: tangy depth: 2
+  🟨🟩🟨⬜⬜: daunt depth: 3
+ ⬜🟩⬜⬜🟨: dally depth: 2
+ ⬜🟩⬜⬜⬜: bawdy depth: 2
+  ⬜🟩⬜🟩🟩: caddy depth: 3
+  ⬜🟩⬜⬜🟩: jazzy depth: 3
+ ⬜🟨⬜⬜⬜: champ depth: 2
+ 🟨🟨🟨⬜⬜: twang depth: 2
+ ⬜🟨⬜⬜🟨: chalk depth: 2
+ 🟨🟩⬜⬜⬜: candy depth: 2
+ ⬜⬜🟨🟩🟨: gloat depth: 2
+ ⬜🟩⬜🟩⬜: madam depth: 2
+ 🟨🟨⬜⬜🟨: blank depth: 2
+  ⬜🟩🟩🟩🟩: plank depth: 3
+ ⬜🟩🟨⬜🟨: waltz depth: 2
+ 🟨⬜⬜🟩⬜: gonad depth: 2
+ ⬜🟨⬜🟨🟨: koala depth: 2
+ ⬜🟩🟨⬜⬜: tacky depth: 2
+🟨⬜⬜⬜🟩: eagle depth: 1
+ ⬜🟩🟨⬜🟩: gauze depth: 2
+ ⬜🟩⬜🟨🟩: lathe depth: 2
+ ⬜🟩⬜⬜🟩: bathe depth: 2
+ ⬜🟨⬜🟨🟩: blame depth: 2
+  ⬜🟩🟩⬜🟩: plate depth: 3
+ 🟨🟨⬜⬜🟩: heave depth: 2
+ ⬜🟨⬜⬜🟩: chafe depth: 2
+ ⬜🟩⬜🟩🟩: table depth: 2
+⬜🟨⬜🟨🟩: store depth: 1
+ 🟩⬜🟩🟩🟩: score depth: 2
+  🟩⬜🟩🟩🟩: shore depth: 3
+ 🟩⬜⬜🟨🟩: surge depth: 2
+🟨⬜⬜⬜🟨: metal depth: 1
+ ⬜🟨⬜🟨🟩: label depth: 2
+  ⬜🟩⬜🟩🟩: gavel depth: 3
+ ⬜🟩🟨🟨🟨: leant depth: 2
+ ⬜🟩⬜🟩⬜: began depth: 2
+ 🟨🟨⬜🟨⬜: omega depth: 2
+ ⬜🟨🟨🟩⬜: tweak depth: 2
+ ⬜🟩⬜🟨⬜: beady depth: 2
+ ⬜🟨🟨🟩🟨: eclat depth: 2
+ ⬜🟩⬜🟨🟨: leaky depth: 2
+ ⬜🟨⬜🟩🟨: clean depth: 2
+ ⬜🟨⬜🟩⬜: cheap depth: 2
+ ⬜🟨⬜🟨⬜: oaken depth: 2
+ ⬜🟩⬜🟩🟩: pedal depth: 2
+ ⬜🟨🟨🟨⬜: facet depth: 2
+🟨🟨⬜⬜⬜: harry depth: 1
+ ⬜🟩🟩⬜⬜: cargo depth: 2
+ ⬜🟩🟨⬜⬜: valor depth: 2
+ ⬜🟩🟩🟩🟩: parry depth: 2
+ ⬜🟨⬜🟩⬜: quart depth: 2
+ 🟨🟨⬜🟩⬜: chard depth: 2
+ ⬜🟨🟨⬜⬜: molar depth: 2
+ ⬜🟨🟩⬜⬜: coral depth: 2
+ 🟨🟩🟨⬜⬜: ralph depth: 2
+ ⬜🟩🟩⬜🟩: tardy depth: 2
+ ⬜🟩🟨⬜🟩: rally depth: 2
+⬜⬜⬜⬜🟨: towel depth: 1
+ ⬜⬜⬜🟨⬜: needy depth: 2
+ ⬜⬜⬜🟩⬜: cheek depth: 2
+ 🟨⬜⬜🟩⬜: beget depth: 2
+ ⬜⬜⬜🟨🟨: belch depth: 2
+ ⬜⬜⬜🟩🟨: clued depth: 2
+ ⬜🟩⬜🟩⬜: money depth: 2
+  ⬜🟩⬜🟩🟩: gooey depth: 3
+ 🟨⬜⬜🟨🟨: elect depth: 2
+ ⬜🟨⬜🟨⬜: venom depth: 2
+ 🟨⬜⬜🟨⬜: jetty depth: 2
+ ⬜🟩🟨🟩⬜: woken depth: 2
+ ⬜🟩🟩🟩🟩: bowel depth: 2
+ ⬜⬜⬜🟩🟩: level depth: 2
+ 🟩⬜⬜🟨⬜: tenth depth: 2
+ ⬜🟨⬜🟨🟨: cello depth: 2
+⬜⬜🟩🟨⬜: spilt depth: 1
+ 🟩🟩🟩⬜⬜: spiny depth: 2
+ 🟩⬜🟩⬜🟨: sting depth: 2
+ 🟩⬜🟩🟨⬜: sling depth: 2
+ 🟩⬜🟩⬜🟩: stint depth: 2
+ 🟩⬜🟩⬜⬜: suing depth: 2
+🟨🟩⬜⬜🟩: grace depth: 1
+ ⬜🟩🟩🟨🟩: craze depth: 2
+ ⬜🟩🟩⬜🟩: trade depth: 2
+ 🟩🟩🟩⬜🟩: grave depth: 2
+⬜⬜🟩⬜🟨: feign depth: 1
+ 🟨🟨🟩⬜⬜: edify depth: 2
+ ⬜🟨🟩⬜⬜: evict depth: 2
+⬜🟩⬜🟩🟨: cress depth: 1
+⬜🟩⬜🟩⬜: truss depth: 1
+ ⬜🟩⬜🟩🟩: cross depth: 2
+⬜⬜⬜🟨⬜: stock depth: 1
+ 🟩🟩🟩⬜⬜: stoop depth: 2
+ 🟨🟨⬜⬜⬜: musty depth: 2
+ 🟩⬜⬜⬜⬜: slung depth: 2
+ 🟩🟨🟩⬜⬜: sooth depth: 2
+ 🟩⬜🟩⬜⬜: snoop depth: 2
+ 🟩⬜🟨⬜⬜: sound depth: 2
+ 🟩🟩⬜⬜⬜: stung depth: 2
+ 🟨⬜⬜⬜⬜: bushy depth: 2
+ 🟨⬜⬜⬜🟨: husky depth: 2
+ 🟩⬜⬜⬜🟩: skunk depth: 2
+ 🟩⬜🟩🟨⬜: scoop depth: 2
+🟩⬜⬜🟩🟩: amuse depth: 1
+🟨🟨⬜⬜🟨: later depth: 1
+ ⬜🟩⬜🟩🟩: wager depth: 2
+  ⬜🟩🟨🟩🟩: gazer depth: 3
+  ⬜🟩⬜🟩🟩: parer depth: 3
+ ⬜🟨⬜🟨🟨: rehab depth: 2
+ ⬜🟩🟩🟩🟩: hater depth: 2
+ ⬜🟨🟨🟨🟨: terra depth: 2
+ ⬜🟩🟨🟩🟩: taper depth: 2
+ ⬜🟨⬜🟨🟩: cedar depth: 2
+ 🟨🟨⬜🟨🟨: regal depth: 2
+ ⬜🟩⬜🟩🟨: ramen depth: 2
+⬜🟩🟩⬜🟩: tripe depth: 1
+ ⬜🟩🟩⬜🟩: brine depth: 2
+  ⬜🟩🟩⬜🟩: crime depth: 3
+ 🟩🟩🟩⬜🟩: trice depth: 2
+ ⬜🟩🟩🟨🟩: price depth: 2
+⬜⬜🟨⬜🟨: widen depth: 1
+ ⬜🟩⬜🟩🟩: given depth: 2
+ ⬜🟩⬜🟩⬜: filet depth: 2
+ ⬜🟨⬜🟨⬜: ethic depth: 2
+ ⬜🟨🟨🟨⬜: debit depth: 2
+🟨🟩⬜⬜⬜: grant depth: 1
+ ⬜🟩🟩⬜🟨: track depth: 2
+ ⬜🟩🟩⬜⬜: drawl depth: 2
+  ⬜🟩🟩⬜⬜: bravo depth: 3
+ ⬜🟩🟩🟩⬜: drank depth: 2
+ ⬜🟩🟩🟨⬜: drawn depth: 2
+ ⬜🟩🟩⬜🟩: craft depth: 2
+🟨⬜⬜🟨⬜: slant depth: 1
+ 🟩🟨🟨⬜⬜: sadly depth: 2
+ 🟩🟨🟩⬜⬜: scald depth: 2
+ 🟩⬜🟨⬜⬜: savvy depth: 2
+ 🟨⬜🟨⬜🟨: tasty depth: 2
+ 🟩⬜🟩🟨⬜: snaky depth: 2
+ 🟩⬜🟩⬜🟨: stamp depth: 2
+ 🟩⬜🟩⬜⬜: shady depth: 2
+⬜🟨⬜🟨🟨: sever depth: 1
+ 🟩⬜⬜🟩🟩: super depth: 2
+ 🟨⬜⬜🟩🟩: loser depth: 2
+ 🟩🟨⬜🟩🟩: sheer depth: 2
+⬜⬜🟨⬜⬜: until depth: 1
+ ⬜⬜⬜🟩⬜: civic depth: 2
+ ⬜⬜🟨🟨🟨: light depth: 2
+ ⬜⬜🟩🟨⬜: ditto depth: 2
+  ⬜🟩🟩🟩⬜: bitty depth: 3
+  ⬜🟩🟩⬜⬜: hitch depth: 3
+ ⬜🟨⬜🟩⬜: cynic depth: 2
+ ⬜⬜⬜🟨⬜: widow depth: 2
+  ⬜🟩⬜⬜⬜: jiffy depth: 3
+ ⬜🟨🟨🟨⬜: night depth: 2
+ ⬜🟨⬜🟨⬜: windy depth: 2
+  ⬜🟩🟩⬜⬜: bingo depth: 3
+  ⬜🟩🟩⬜🟩: pinky depth: 3
+ ⬜⬜🟨🟩⬜: topic depth: 2
+ ⬜⬜⬜🟨🟨: dimly depth: 2
+  ⬜🟩⬜🟩🟩: billy depth: 3
+ 🟨⬜⬜🟩⬜: cubic depth: 2
+ ⬜⬜🟨🟨⬜: wight depth: 2
+ ⬜⬜⬜🟩🟨: lipid depth: 2
+⬜⬜🟩🟨🟩: spine depth: 1
+ 🟩⬜🟩⬜🟩: smile depth: 2
+🟨⬜🟨⬜⬜: panic depth: 1
+ ⬜🟨⬜🟨⬜: villa depth: 2
+ ⬜🟨⬜🟩⬜: flail depth: 2
+ ⬜🟩⬜🟩⬜: mafia depth: 2
+ ⬜🟨🟨🟨⬜: giant depth: 2
+⬜⬜⬜🟩🟨: guess depth: 1
+⬜🟨⬜⬜⬜: north depth: 1
+ 🟨🟩🟨⬜⬜: mourn depth: 2
+ ⬜🟨🟨⬜⬜: floor depth: 2
+ ⬜🟩🟨🟨⬜: robot depth: 2
+ ⬜🟩🟨⬜⬜: roomy depth: 2
+ ⬜🟩🟩⬜⬜: worry depth: 2
+ ⬜🟨🟨⬜🟨: hydro depth: 2
+ ⬜⬜🟩⬜⬜: curly depth: 2
+ ⬜⬜🟨⬜⬜: rugby depth: 2
+⬜🟨🟨⬜⬜: girth depth: 1
+ 🟨🟩🟨⬜⬜: rigor depth: 2
+ ⬜🟨🟩⬜⬜: lyric depth: 2
+⬜⬜⬜🟨🟨: upset depth: 1
+ ⬜🟩🟨🟨⬜: spell depth: 2
+ ⬜⬜🟨🟩🟩: sleet depth: 2
+ ⬜⬜🟨🟩⬜: seven depth: 2
+ ⬜🟨🟨🟩⬜: sweep depth: 2
+ ⬜⬜🟨🟨⬜: smell depth: 2
+⬜🟩🟩⬜⬜: drink depth: 1
+ ⬜🟩🟩🟩⬜: briny depth: 2
+ ⬜🟩🟩⬜🟩: crick depth: 2
+ ⬜🟩🟩⬜⬜: primo depth: 2
+  ⬜🟩🟩⬜⬜: grill depth: 3
+🟨🟩🟨⬜⬜: train depth: 1
+ ⬜🟩🟩🟩⬜: frail depth: 2
+🟨🟩⬜🟩⬜: brash depth: 1
+⬜⬜⬜⬜🟩: elude depth: 1
+ ⬜⬜🟩⬜🟩: chute depth: 2
+ ⬜🟩⬜⬜🟩: glove depth: 2
+ ⬜⬜⬜⬜🟩: ozone depth: 2
+ 🟨⬜⬜⬜🟩: penne depth: 2
+ ⬜🟩🟩⬜🟩: fluke depth: 2
+ ⬜⬜🟨🟨🟩: budge depth: 2
+  ⬜🟩🟩🟩🟩: fudge depth: 3
+ ⬜🟨⬜⬜🟩: noble depth: 2
+ ⬜🟨🟨⬜🟩: bugle depth: 2
+ ⬜⬜🟨⬜🟩: butte depth: 2
+🟩🟨⬜⬜🟩: azure depth: 1
+⬜🟩⬜⬜🟨: creed depth: 1
+ ⬜🟩🟩🟩⬜: preen depth: 2
+ ⬜🟩🟩🟩🟩: freed depth: 2
+⬜🟨🟩🟨⬜: shirk depth: 1
+⬜⬜🟩⬜⬜: cling depth: 1
+ 🟩🟩🟩⬜⬜: cliff depth: 2
+ 🟩🟨🟩⬜⬜: child depth: 2
+ ⬜⬜🟩🟨⬜: onion depth: 2
+ ⬜⬜🟩🟩⬜: whiny depth: 2
+ ⬜⬜🟩⬜⬜: idiot depth: 2
+ 🟨⬜🟩⬜⬜: which depth: 2
+ ⬜🟨🟩⬜⬜: quill depth: 2
+ ⬜🟩🟩🟩⬜: flint depth: 2
+ ⬜⬜🟩🟩🟩: tying depth: 2
+⬜🟩⬜⬜⬜: drunk depth: 1
+ ⬜🟩⬜⬜⬜: troop depth: 2
+ ⬜🟩🟨⬜⬜: trout depth: 2
+ ⬜🟩🟩🟩⬜: grunt depth: 2
+ 🟩🟩⬜⬜⬜: dryly depth: 2
+ ⬜🟩⬜🟨⬜: crown depth: 2
+ ⬜🟩⬜⬜🟩: crook depth: 2
+ ⬜🟩🟩⬜⬜: truly depth: 2
+ ⬜🟩⬜🟩⬜: wrong depth: 2
+⬜🟨⬜🟨⬜: story depth: 1
+ 🟩⬜⬜🟨⬜: scrub depth: 2
+ 🟩⬜🟩🟩⬜: sworn depth: 2
+ 🟩🟨🟩🟩⬜: short depth: 2
+⬜⬜🟨⬜🟩: untie depth: 1
+ ⬜🟨⬜🟨🟩: hinge depth: 2
+ ⬜⬜⬜🟩🟩: pixie depth: 2
+ ⬜⬜⬜🟨🟩: liege depth: 2
+ ⬜⬜🟩🟨🟩: tithe depth: 2
+🟨🟨⬜🟨⬜: smart depth: 1
+ 🟩⬜🟨🟨⬜: solar depth: 2
+ 🟩⬜🟩🟩⬜: sharp depth: 2
+  🟩⬜🟩🟩⬜: scarf depth: 3
+ 🟩⬜🟨🟨🟨: straw depth: 2
+🟩⬜🟨⬜⬜: admit depth: 1
+ 🟩🟨⬜🟩⬜: audio depth: 2
+ 🟩⬜⬜🟩⬜: again depth: 2
+⬜⬜🟨🟨🟨: stein depth: 1
+⬜🟨⬜⬜🟩: verge depth: 1
+ ⬜🟨🟨⬜🟩: there depth: 2
+ ⬜⬜🟨⬜🟩: ombre depth: 2
+ ⬜⬜🟩⬜🟩: force depth: 2
+🟨⬜🟨🟨⬜: snail depth: 1
+🟨⬜⬜🟨🟨: stead depth: 1
+ 🟩🟩🟩🟩⬜: steak depth: 2
+🟩⬜⬜⬜⬜: aloft depth: 1
+ 🟩🟩⬜⬜⬜: alpha depth: 2
+ 🟩🟨⬜⬜⬜: amply depth: 2
+🟩⬜⬜🟩⬜: amass depth: 1
+⬜🟩⬜⬜🟩: prove depth: 1
+ ⬜🟩🟩⬜🟩: drone depth: 2
+ ⬜🟩🟩🟩🟩: grove depth: 2
+ ⬜🟩⬜⬜🟩: creme depth: 2
+🟨🟩🟩⬜⬜: triad depth: 1
+🟨🟩⬜⬜🟨: break depth: 1
+ ⬜🟩🟩🟩🟩: freak depth: 2
+ ⬜🟩🟩🟩⬜: dream depth: 2
+🟩🟨⬜⬜⬜: agora depth: 1
+ 🟩⬜🟨🟨⬜: actor depth: 2
+ 🟩⬜⬜🟩🟨: alarm depth: 2
+ 🟩⬜🟩🟩⬜: adorn depth: 2
+🟨⬜⬜🟩⬜: slash depth: 1
+ ⬜🟩🟩🟩⬜: clasp depth: 2
+ 🟩⬜🟩🟩🟩: swash depth: 2
+⬜🟩🟨⬜⬜: orbit depth: 1
+⬜🟨🟨⬜🟨: ripen depth: 1
+ 🟨🟩⬜🟩🟨: diner depth: 2
+ 🟨🟩⬜🟩⬜: diver depth: 2
+  ⬜🟩⬜🟩🟩: timer depth: 3
+ 🟨🟨⬜🟩🟨: inner depth: 2
+ 🟩🟩⬜🟩⬜: river depth: 2
+ 🟩🟨⬜🟨⬜: relic depth: 2
+⬜⬜⬜🟨🟩: stoke depth: 1
+ 🟩🟩🟩⬜🟩: stole depth: 2
+ 🟩⬜🟩⬜🟩: shone depth: 2
+⬜🟨🟩⬜⬜: twirl depth: 1
+🟨⬜⬜🟩🟩: lease depth: 1
+⬜⬜🟨🟨⬜: stoic depth: 1
+ 🟩⬜⬜🟨⬜: silky depth: 2
+ 🟨⬜⬜🟨⬜: wispy depth: 2
+ 🟩🟨⬜🟨⬜: sight depth: 2
+⬜⬜🟨🟨🟩: singe depth: 1
+🟩⬜⬜⬜🟨: agent depth: 1
+⬜⬜⬜🟩🟩: goose depth: 1
+ ⬜🟩⬜🟩🟩: house depth: 2
+ ⬜🟩🟩🟩🟩: noose depth: 2
+ ⬜⬜🟩🟩🟩: close depth: 2
+ ⬜⬜⬜🟩🟩: tense depth: 2
+⬜⬜🟩🟩⬜: hoist depth: 1
+🟩🟩⬜⬜⬜: ardor depth: 1
+🟨⬜⬜🟨🟩: haste depth: 1
+ ⬜🟨🟨⬜🟩: space depth: 2
+ 🟨🟨🟨⬜🟩: shade depth: 2
+  🟩🟩🟩⬜🟩: shale depth: 3
+ ⬜🟩🟩🟩🟩: paste depth: 2
+  ⬜🟩🟩🟩🟩: taste depth: 3
+ ⬜🟨🟨🟨🟩: stage depth: 2
+ ⬜🟨🟨🟩🟩: skate depth: 2
+⬜🟨🟨⬜🟩: rifle depth: 1
+🟨🟨⬜🟨🟩: snare depth: 1
+ 🟩⬜🟩🟩🟩: share depth: 2
+⬜⬜🟩⬜🟩: utile depth: 1
+ ⬜⬜🟩🟨🟩: glide depth: 2
+ ⬜⬜🟩⬜🟩: opine depth: 2
+ ⬜🟨🟩⬜🟩: twine depth: 2
+🟩⬜⬜🟨🟨: asset depth: 1
+🟨🟨🟩⬜⬜: fairy depth: 1
+🟨🟨⬜⬜🟩: barge depth: 1
+🟨⬜🟩⬜⬜: faint depth: 1
+🟨🟨⬜🟨🟨: swear depth: 1
+🟩⬜🟩⬜🟩: alive depth: 1
+⬜🟩🟩🟩⬜: prism depth: 1
+🟨🟨⬜🟩⬜: roast depth: 1
+⬜⬜🟩🟨🟨: shied depth: 1
+🟩⬜🟩⬜⬜: align depth: 1
+🟩🟨⬜⬜🟨: after depth: 1
+⬜🟨🟨🟨🟨: resin depth: 1
+⬜🟨⬜🟩🟩: rouse depth: 1
+⬜🟨🟨🟨⬜: strip depth: 1
+⬜🟨🟩⬜🟨: reign depth: 1
+⬜🟩🟩⬜🟨: drier depth: 1
+ 🟨🟩🟩🟩⬜: fried depth: 2
+⬜🟨⬜🟩⬜: burst depth: 1
+🟨⬜🟩⬜🟩: naive depth: 1
+🟨⬜🟨⬜🟨: media depth: 1
+⬜⬜🟩🟩🟩: noise depth: 1
+🟨⬜⬜🟩🟨: yeast depth: 1
