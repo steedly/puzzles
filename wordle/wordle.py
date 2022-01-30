@@ -1,4 +1,3 @@
-#from english_words import english_words_lower_set
 import numpy as np
 import dictionary
 import sys
@@ -38,18 +37,21 @@ def compute_index_from_guess(input_guess, input_solution):
 
     return(index)
 
+# Count the number of remaining choices in each bucket for a given guess
 def distribution(guess, words):
     dist = np.zeros(pow(3,5))
     for solution in words:
         dist[compute_index_from_guess(guess, solution)] += 1
     return dist
 
+# Find the guess that has the smallest number of remaining choices
 def get_best_guess(words):
     max_bucket_size={}
     for guess in words:
         max_bucket_size[guess] = np.max(distribution(guess, words))
     return sorted(max_bucket_size.items(), key=lambda item: item[1])[0][0]
 
+# Split the set of words into subsets that all correspond to the same hint
 def partition(guess, words):
     buckets = {}
     for solution in words:
@@ -60,24 +62,9 @@ def partition(guess, words):
             buckets[idx]=[]
     return buckets
 
-# def partition(guess, words):
-#     buckets = [[] for x in range(pow(3,5))]
-#     for idx in range(len(buckets)):
-#         buckets[idx] = []
-#     for solution in words:
-#         idx = compute_index_from_guess(guess, solution)
-#         buckets[idx].append(solution)
-#     return buckets
-
-# def create_tree(words):
-#     guess = get_best_guess(words)
-#     tree = {}
-#     for index, bucket in enumerate(partition(guess, words)):
-#         if len(bucket) > 1:
-#             tree[index] = create_tree(bucket)
-
-#     return guess, tree
-
+# Split a set of words by choosing the best guess at each level, then
+# recursively run the same algorithm on each subset of the words corresponding
+# to each hint .
 def create_tree(words):
     guess = get_best_guess(words)
     tree = {}
