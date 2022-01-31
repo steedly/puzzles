@@ -1,4 +1,3 @@
-#import numpy as np
 import dictionary
 import sys
 
@@ -63,7 +62,7 @@ def partition(guess, words):
         if idx in buckets:
             buckets[idx].append(solution)
         else:
-            buckets[idx]=[]
+            buckets[idx]=[solution]
     return buckets
 
 # Split a set of words by choosing the best guess at each level, then
@@ -74,7 +73,9 @@ def create_tree(words):
     tree = {}
     buckets = partition(guess, words)
     for k, bucket in buckets.items():
-        if len(bucket) > 1:
+        if k == 0:
+            continue
+        if len(bucket) > 0:
             tree[k] = create_tree(bucket)
 
     return guess, tree
@@ -86,8 +87,8 @@ def create_tree(words):
 #  ⬜ => 2: letter is not in the word 
 #
 # A hint index of 38 maps to a base-3 (ternary) number as follows:
-#   38 =  0 * 3^4 + 1 * 3^3 + 1 * 3^2 + 0 * 3^1 + 2 * 3^0
-# This is 01102 which is printed as 🟩🟨🟨🟩⬜
+#   38 =  2 * 3^0 + 0 * 3^1 + 1 * 3^2 + 1 * 3^3 + 0 * 3^4
+# This is 20110 which is printed as ⬜🟩🟨🟨🟩
 #
 def hint_from_index(index, block_index=0):
     blocks = ['🟩🟩', '🟨🟨', '⬜⬛' ]
