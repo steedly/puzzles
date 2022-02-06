@@ -2,7 +2,11 @@
 Functions to solve wordle
 """
 import sys
+import pickle
+import argparse
+import datetime
 import dictionary
+import numpy as np
 
 def compute_index_from_guess(input_guess, input_solution):
     """
@@ -141,18 +145,66 @@ def print_tree(tree, file=sys.stdout, depth=0):
         # recusviely print the subtree corresponding to possible hint
         print_tree(tree[1][k], file=file, depth=depth+1)
 
-def print_solution(tree, solution_index):
+def print_solution(tree, solution_index, print_guesses=False):
     """
     Print the list of hints for a solution that can be shared
     """
-    solution = dictionary.solutions[solution_index]
-    _, guesses = solve(tree, solution)
+    soln = dictionary.solutions[solution_index]
+    _, guesses = solve(tree, soln)
     print('Wordle ', solution_index, ' ', len(guesses), '/6\n', sep='')
     for guess in guesses:
-        index = compute_index_from_guess(guess, solution)
-        print( hint_from_index(index) )
+        hint = hint_from_index(compute_index_from_guess(guess, solution))
+        if print_guesses:
+            print( hint, guess )
+        else:
+            print( hint )
+
+def get_tree(word_list, name):
+    """
+    create tree from just the solutions
+    """
+    filename = name + '_tree.pkl'
+    try:
+        with open(filename, 'rb') as f:
+            return pickle.load(f)
+    except EnvironmentError: # parent of IOError, OSError *and* WindowsError where available
+        ret = create_tree(word_list)
+        with open(filename, 'wb') as f:
+            pickle.dump(ret, f)
+        return ret
+
+def guess_count_distribution(tree):
+    """
+    Compute distribution of guess counts
+    """
+    solutions = [solve(tree, soln) for soln in dictionary.solutions]
+    counts, _ = zip(*solutions)
+    print(np.histogram(counts, bins=max(counts)-1, density=True)[0]*100)
+    print(sum(counts)/len(dictionary.solutions))
 
 if __name__ == "__main__":
-    tree = create_tree(dictionary.solutions)
-    with open('cheat_sheet.txt', 'wt') as f:
-        print_tree(tree, file=f)
+    parser = argparse.ArgumentParser(description='Solve Wordle')
+    parser.add_argument('--show_guesses', help='show guesses and solution',
+        type=bool, default=False)
+    parser.add_argument('--guess_distribution', help='print distribution of guess count',
+        type=bool, default=False)
+    args = parser.parse_args()
+
+    # create tree from just the solutions
+    solutions_tree = get_tree(dictionary.solutions, 'solutions')
+    with open('solutions_cheat_sheet.txt', 'wt', encoding='utf-8') as f:
+        print_tree(solutions_tree, file=f)
+
+    candidates_tree = get_tree(dictionary.candidates, 'candidates')
+    with open('candidates_cheat_sheet.txt', 'wt', encoding='utf-8') as f:
+        print_tree(candidates_tree, file=f)
+
+    index = (datetime.date.today() - datetime.date(2021,6,19)).days
+    solution = dictionary.solutions[index]
+
+    print_solution(candidates_tree, index, args.show_guesses)
+    print_solution(solutions_tree, index, args.show_guesses)
+
+    if args.guess_distribution:
+        guess_count_distribution(candidates_tree)
+        guess_count_distribution(solutions_tree)
