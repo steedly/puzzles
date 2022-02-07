@@ -2,6 +2,7 @@
 Functions to solve wordle
 """
 import sys
+import math
 import pickle
 import argparse
 import datetime
@@ -56,16 +57,20 @@ def distribution(guess, words):
     # count the number of words that satisfy each hint
     for solution in words:
         dist[compute_index_from_guess(guess, solution)] += 1
+
     return dist
 
 def get_best_guess(words):
     """
-    Find the guess that has the smallest number of remaining choices
+    Find the guess that has the smallest entropy in the remaining buckets
     """
-    max_bucket_size={}
+    entropy={}
     for guess in words:
-        max_bucket_size[guess] = max(distribution(guess, words))
-    return sorted(max_bucket_size.items(), key=lambda item: item[1])[0][0]
+        dist = distribution(guess, words)
+        prob = [d/len(dist) for d in dist]
+        entropy[guess] = sum([p * math.log2(p) if p>0.0 else 0.0 for p in prob])
+
+    return sorted(entropy.items(), key=lambda item: item[1])[0][0]
 
 def partition(guess, words):
     """
@@ -149,8 +154,8 @@ def print_solution(tree, solution_index, print_guesses=False):
     """
     Print the list of hints for a solution that can be shared
     """
-    soln = dictionary.solutions[solution_index]
-    _, guesses = solve(tree, soln)
+    solution = dictionary.solutions[solution_index]
+    _, guesses = solve(tree, solution)
     print('Wordle ', solution_index, ' ', len(guesses), '/6\n', sep='')
     for guess in guesses:
         hint = hint_from_index(compute_index_from_guess(guess, solution))
@@ -159,11 +164,17 @@ def print_solution(tree, solution_index, print_guesses=False):
         else:
             print( hint )
 
-def get_tree(word_list, name):
+def get_tree(word_list, name, recompute=False):
     """
     create tree from just the solutions
     """
     filename = name + '_tree.pkl'
+    if recompute:
+        ret = create_tree(word_list)
+        with open(filename, 'wb') as f:
+            pickle.dump(ret, f)
+        return ret
+
     try:
         with open(filename, 'rb') as f:
             return pickle.load(f)
@@ -182,29 +193,36 @@ def guess_count_distribution(tree):
     print(np.histogram(counts, bins=max(counts)-1, density=True)[0]*100)
     print(sum(counts)/len(dictionary.solutions))
 
-if __name__ == "__main__":
+def main():
+    """
+    main function
+    """
     parser = argparse.ArgumentParser(description='Solve Wordle')
     parser.add_argument('--show_guesses', help='show guesses and solution',
         type=bool, default=False)
     parser.add_argument('--guess_distribution', help='print distribution of guess count',
         type=bool, default=False)
+    parser.add_argument('--recompute', help='recompute trees',
+        type=bool, default=False)
     args = parser.parse_args()
 
+    index = (datetime.date.today() - datetime.date(2021,6,19)).days
+
     # create tree from just the solutions
-    solutions_tree = get_tree(dictionary.solutions, 'solutions')
+    solutions_tree = get_tree(dictionary.solutions, 'solutions', args.recompute)
     with open('solutions_cheat_sheet.txt', 'wt', encoding='utf-8') as f:
         print_tree(solutions_tree, file=f)
+    print_solution(solutions_tree, index, args.show_guesses)
 
-    candidates_tree = get_tree(dictionary.candidates, 'candidates')
+    candidates_tree = get_tree(dictionary.candidates, 'candidates', args.recompute)
     with open('candidates_cheat_sheet.txt', 'wt', encoding='utf-8') as f:
         print_tree(candidates_tree, file=f)
 
-    index = (datetime.date.today() - datetime.date(2021,6,19)).days
-    solution = dictionary.solutions[index]
-
     print_solution(candidates_tree, index, args.show_guesses)
-    print_solution(solutions_tree, index, args.show_guesses)
 
     if args.guess_distribution:
         guess_count_distribution(candidates_tree)
         guess_count_distribution(solutions_tree)
+
+if __name__ == "__main__":
+    main()
