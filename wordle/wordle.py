@@ -60,17 +60,32 @@ def distribution(guess, words):
 
     return dist
 
-def get_best_guess(words):
+def compute_entropy(words):
     """
-    Find the guess that has the smallest entropy in the remaining buckets
+    Find the best-case average tree depth (entropy) associated with each guess.
+    This best case corresponds to all remaining guesses evenly splitting the
+    remaining words at each level of the tree.
     """
     entropy={}
     for guess in words:
         dist = distribution(guess, words)
-        prob = [d/len(dist) for d in dist]
-        entropy[guess] = sum([p * math.log2(p) if p>0.0 else 0.0 for p in prob])
+        prob = [d/len(words) for d in dist]
+        entropy[guess] = -sum([p * math.log2(p) if p>0.0 else 0.0 for p in prob])
 
-    return sorted(entropy.items(), key=lambda item: item[1])[0][0]
+    return entropy
+
+def get_best_guess(words):
+    """
+    Find the guess that has the smallest entropy in the remaining buckets
+    """
+    entropy = compute_entropy(words)
+
+    sorted_entropy = sorted(entropy.items(), key=lambda item: item[1], reverse=True)
+
+    for guess, entropy in sorted_entropy:
+        print(guess, entropy)
+
+    return sorted_entropy[0][0]
 
 def partition(guess, words):
     """
@@ -150,11 +165,11 @@ def print_tree(tree, file=sys.stdout, depth=0):
         # recusviely print the subtree corresponding to possible hint
         print_tree(tree[1][k], file=file, depth=depth+1)
 
-def print_solution(tree, solution_index, print_guesses=False):
+def print_solution(tree, solution_index, print_guesses=False, site='nyt'):
     """
     Print the list of hints for a solution that can be shared
     """
-    solution = dictionary.solutions[solution_index]
+    solution = getattr(dictionary, site).solutions[solution_index]
     _, guesses = solve(tree, solution)
     print('Wordle ', solution_index, ' ', len(guesses), '/6\n', sep='')
     for guess in guesses:
@@ -163,14 +178,15 @@ def print_solution(tree, solution_index, print_guesses=False):
             print( hint, guess )
         else:
             print( hint )
+    print()
 
-def get_tree(word_list, name, recompute=False):
+def get_tree(name, recompute=False, site='nyt'):
     """
     create tree from just the solutions
     """
     filename = name + '_tree.pkl'
     if recompute:
-        ret = create_tree(word_list)
+        ret = create_tree(getattr(getattr(dictionary, site), name))
         with open(filename, 'wb') as f:
             pickle.dump(ret, f)
         return ret
@@ -179,7 +195,7 @@ def get_tree(word_list, name, recompute=False):
         with open(filename, 'rb') as f:
             return pickle.load(f)
     except EnvironmentError: # parent of IOError, OSError *and* WindowsError where available
-        ret = create_tree(word_list)
+        ret = create_tree(getattr(getattr(dictionary, site), name))
         with open(filename, 'wb') as f:
             pickle.dump(ret, f)
         return ret
@@ -203,24 +219,27 @@ def main():
     parser.add_argument('--guess_distribution', help='print distribution of guess count',
         type=bool, default=False)
     parser.add_argument('--recompute', help='recompute trees',
-        type=bool, default=False)
+        type=str, default="")
+    parser.add_argument('--site', help='site [orig|nyt]',
+        type=str, default="nyt")
     args = parser.parse_args()
 
     index = (datetime.date.today() - datetime.date(2021,6,19)).days
 
     # create tree from just the solutions
-    solutions_tree = get_tree(dictionary.solutions, 'solutions', args.recompute)
+    solutions_tree = get_tree('solutions', args.recompute=="solutions", args.site)
     with open('solutions_cheat_sheet.txt', 'wt', encoding='utf-8') as f:
         print_tree(solutions_tree, file=f)
-    print_solution(solutions_tree, index, args.show_guesses)
+    print_solution(solutions_tree, index, args.show_guesses, args.site)
 
-    candidates_tree = get_tree(dictionary.candidates, 'candidates', args.recompute)
+    candidates_tree = get_tree('candidates', args.recompute=="candidates", args.site)
     with open('candidates_cheat_sheet.txt', 'wt', encoding='utf-8') as f:
         print_tree(candidates_tree, file=f)
 
-    print_solution(candidates_tree, index, args.show_guesses)
+    print_solution(candidates_tree, index, args.show_guesses, args.site)
 
     if args.guess_distribution:
+        print(len(dictionary.solutions))
         guess_count_distribution(candidates_tree)
         guess_count_distribution(solutions_tree)
 
