@@ -12,27 +12,29 @@ class Tree
 {
 public:
     int guess_index_;
-    std::map<unsigned char, Tree> children_;
+    double entropy_;
+    int size_;
+    std::map<Hint, Tree> children_;
 
     Tree(
-        const std::vector< std::vector< unsigned char > > &hints,
-        const std::vector< int >  &indices)
-    {
-        guess_index_ = std::get<0>(get_best_guess_index(hints, indices));
+        const std::vector< std::vector< Hint > > &hints,
+        const std::vector< int >  &indices);
 
-        std::array< std::vector< int >, NUM_HINTS > sub_groups_indices;
-        partition( hints[guess_index_], indices, sub_groups_indices);
+private:
+    void Partition(
+        const std::vector< Hint > &hints,
+        const std::vector< int >  &group_indices,
+        std::array< std::vector< int >, Hint::NUM_HINTS > &sub_groups_indices);
 
-        // Skip exact match (h==0)
-        for( unsigned char h=1; h<NUM_HINTS; h++ )
-        {
-            if( sub_groups_indices[h].size() > 0 )
-            {
-                Tree child(hints, sub_groups_indices[h]);
-                // TODO: add position hint
-                children_.insert(
-                    std::pair<unsigned char, Tree>(h, std::move(child)) );
-            }
-        }
-    }
+    // Find the guess that has the smallest entropy in the remaining buckets
+    std::tuple<size_t,double> GetBestGuessIndex(
+        const std::vector< std::vector< Hint > > &hints,
+        const std::vector< int > &indices);
+
+    // Find the best-case average tree depth (entropy) associated with each guess.
+    // This best case corresponds to all remaining guesses evenly splitting the
+    // remaining words at each level of the tree.
+    double ComputeEntropy(
+        const std::array< std::vector< int >, Hint::NUM_HINTS > &sub_groups_indices,
+        size_t num_words);
 };

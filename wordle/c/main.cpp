@@ -10,14 +10,14 @@ using namespace std;
 
 int main()
 {
-    vector< array<char,5> > words;
+    vector<Word> words;
     read_words("../dictionary/orig_solution.csv", words);
 
-    unsigned char hint = compute_hint_from_guess(str_to_word("cigar"), str_to_word("other"));
+    Hint hint = Hint(Word("cigar"), Word("other"));
     cout << "Hint = " << (int)hint << endl;
-    cout << hint_to_str(hint) << endl;
+    cout << (string)hint << endl;
 
-    vector< vector< unsigned char > > hints;
+    vector< vector< Hint > > hints;
     compute_hints(words, hints);
     
     vector< int > indices;
@@ -26,9 +26,8 @@ int main()
     {
         indices[i] = i;
     }
-    auto tuple = get_best_guess_index(hints, indices);
-
-    cout << word_to_str(words[get<0>(tuple)]) << ": " << get<1>(tuple) << endl;
+    // auto tuple = get_best_guess_index(hints, indices);
+    // cout << (string)words[get<0>(tuple)] << ": " << get<1>(tuple) << endl;
 
     cout << "creating tree" << endl;
     Tree tree(hints, indices);
