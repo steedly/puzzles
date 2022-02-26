@@ -1,4 +1,5 @@
 #include <tuple>
+#include <ctime>
 
 #include "io.h"
 #include "tree.h"
@@ -8,26 +9,39 @@
 
 using namespace std;
 
+// Get the index of today's Wordle. There is a new one each day, with index 0
+// starting on June 19, 2021.
+int GetSolutionIndex()
+{
+    // Get current date/time
+    time_t now;
+    time(&now);
+
+    // Find time on June 19, 2021 in the local time zone
+    struct tm start_date = *localtime(&now);
+    start_date.tm_year = 2021-1900;
+    start_date.tm_mon = 6-1;
+    start_date.tm_mday = 19;
+    double secs_per_day = 24*60*60;
+    return  static_cast<int>(difftime(now, mktime(&start_date))/secs_per_day);
+}
+
 int main()
 {
+    // Read dictionary
     vector<Word> words;
     read_words("../dictionary/nyt_solution.csv", words);
-    // cout << "read " << words.size() << " words" << endl;
 
+    // Precompute hints
     vector< vector< Hint > > hints;
     compute_hints(words, hints);
     
-    vector< int > indices;
-    indices.resize(words.size());
-    for( int i=0; i<words.size(); i++ )
-    {
-        indices[i] = i;
-    }
+    // Create solution tree
+    Tree tree(hints);
 
-    Tree tree(hints, indices);
-
+    // Solve today's Wordle
+    int soln_idx = GetSolutionIndex()-1;
     vector< pair< Hint, int> > guesses;
-    int soln_idx = 251;
     tree.Solve(soln_idx, hints, guesses );
     
     cout << "Computerdle " << soln_idx << " " << guesses.size() << "/6" << endl << endl;
