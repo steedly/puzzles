@@ -16,9 +16,15 @@ public:
     int size_;
     std::map<Hint, Tree> children_;
 
+    Tree() {};
     Tree(
         const std::vector< std::vector< Hint > > &hints,
         const std::vector< int >  &indices);
+    
+     void Solve(
+        int soln_idx,
+        const std::vector< std::vector< Hint > > &hints,
+        std::vector< std::pair<Hint, int> > &guesses);
 
 private:
     void Partition(

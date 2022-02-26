@@ -26,7 +26,6 @@ void read_words(const string filename, vector<Word> &words)
         words.push_back(word);
     }
 
-    cout << "read " << words.size() << " words" << endl;
     myfile.close();
 }
 
