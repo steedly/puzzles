@@ -99,3 +99,17 @@ double Tree::ComputeEntropy(
     }
     return e;
 }
+
+void Tree::Solve(
+    int soln_idx,
+    const vector< vector< Hint > > &hints,
+    vector< pair<Hint, int> > &guesses)
+{
+    Hint hint = hints[guess_index_][soln_idx];
+    guesses.push_back(pair<Hint, int>(hint, guess_index_));
+
+    if( (unsigned char)hint != 0 )
+    {
+        children_[(unsigned char)hint].Solve(soln_idx, hints, guesses);
+    }
+}

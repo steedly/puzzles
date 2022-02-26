@@ -11,11 +11,8 @@ using namespace std;
 int main()
 {
     vector<Word> words;
-    read_words("../dictionary/orig_solution.csv", words);
-
-    Hint hint = Hint(Word("cigar"), Word("other"));
-    cout << "Hint = " << (int)hint << endl;
-    cout << (string)hint << endl;
+    read_words("../dictionary/nyt_solution.csv", words);
+    // cout << "read " << words.size() << " words" << endl;
 
     vector< vector< Hint > > hints;
     compute_hints(words, hints);
@@ -26,13 +23,20 @@ int main()
     {
         indices[i] = i;
     }
-    // auto tuple = get_best_guess_index(hints, indices);
-    // cout << (string)words[get<0>(tuple)] << ": " << get<1>(tuple) << endl;
 
-    cout << "creating tree" << endl;
     Tree tree(hints, indices);
-    cout << "printing tree" << endl;
-    PrintTree(words, tree);
+
+    vector< pair< Hint, int> > guesses;
+    int soln_idx = 251;
+    tree.Solve(soln_idx, hints, guesses );
+    
+    cout << "Computerdle " << soln_idx << " " << guesses.size() << "/6" << endl << endl;
+    for ( const auto &g: guesses )
+    {
+        Hint hint = get<0>(g);
+        int guess_idx = get<1>(g);
+        cout << (string)hint << " " << (string)words[guess_idx] << endl;
+    }
 
     return 0;
 }
