@@ -4,7 +4,25 @@
 
 using namespace std;
 
+Tree::Tree (const vector< vector< Hint > > &hints)
+{
+    vector< int >  indices;
+    indices.resize(hints.size());
+    for( int i=0; i<hints.size(); i++ )
+    {
+        indices[i] = i;
+    }
+    Create(hints, indices);
+}
+
 Tree::Tree(
+    const vector< vector< Hint > > &hints,
+    const vector< int >  &indices)
+{
+    Create(hints, indices);
+}
+
+void Tree::Create(
     const vector< vector< Hint > > &hints,
     const vector< int >  &indices)
 {
