@@ -26,13 +26,19 @@ void Tree::Create(
     const vector< vector< Hint > > &hints,
     const vector< int >  &indices)
 {
-    if( indices.size() == 1 )
+    size_ = indices.size();
+    if( size_ == 1 )
     {
         guess_index_ = indices[0];
         return;
     }
 
-    auto guess = GetBestGuessIndex(hints, indices);
+    vector< tuple<int,double> > guesses;
+    GetGuesses(hints, indices, guesses);
+
+    // auto guess = GetBestGuessIndex(hints, indices);
+    auto guess = guesses[0];
+
     guess_index_ = get<0>(guess);
     entropy_ = get<1>(guess);
 
@@ -42,13 +48,10 @@ void Tree::Create(
     // Skip exact match (h==0)
     for( unsigned char h=1; h<Hint::NUM_HINTS; h++ )
     {
-        // cout << (int)h << ": " << sub_groups_indices[h].size() <<  endl;
         if( sub_groups_indices[h].size() > 0 )
         {
             Tree child(hints, sub_groups_indices[h]);
-            // TODO: add position hint
-            children_.insert(
-                pair<Hint, Tree>(h, move(child)) );
+            children_.insert( pair<Hint, Tree>(h, move(child)) );
         }
     }
 }
@@ -56,7 +59,7 @@ void Tree::Create(
 void Tree::Partition(
     const vector< Hint > &hints,
     const vector< int >  &group_indices,
-    array< vector< int >, Hint::NUM_HINTS > &sub_groups_indices)
+    array< vector< int >, Hint::NUM_HINTS > &sub_groups_indices) const
 {
     array< int, Hint::NUM_HINTS > partition_sizes;
     partition_sizes.fill(0);
@@ -80,7 +83,7 @@ void Tree::Partition(
 // Find the guess that has the smallest entropy in the remaining buckets
 tuple<size_t,double> Tree::GetBestGuessIndex(
     const vector< vector< Hint > > &hints,
-    const vector< int > &indices)
+    const vector< int > &indices) const
 {
     size_t num_words = indices.size();
 
@@ -98,12 +101,42 @@ tuple<size_t,double> Tree::GetBestGuessIndex(
     return make_tuple(indices[guess_idx], entropy[guess_idx]);
 }
 
+void Tree::GetGuesses(
+    const vector< vector< Hint > > &hints,
+    const vector< int > &indices,
+    vector< tuple<int,double> > &guesses) const
+{
+    size_t num_words = indices.size();
+
+    guesses.resize(num_words);
+    array< vector< int >, Hint::NUM_HINTS > sub_group_indices;
+    for ( int i=0; i<num_words; i++ )
+    {
+        int index = indices[i];
+        Partition( hints[index], indices, sub_group_indices );
+        double entropy = ComputeEntropy( sub_group_indices, num_words );
+
+        guesses[i] = make_tuple(index, entropy);
+    }
+
+    // Sort based on descending entropy
+    sort(
+        guesses.begin(), guesses.end(),
+        [](const tuple<int,double> & a, const tuple<int,double> & b) -> bool
+        { 
+            return get<1>(a) > get<1>(b);
+        }
+    );
+}
+
+
 // Find the best-case average tree depth (entropy) associated with each guess.
 // This best case corresponds to all remaining guesses evenly splitting the
 // remaining words at each level of the tree.
 double Tree::ComputeEntropy(
-    const array< vector< int >, Hint::NUM_HINTS > &sub_groups_indices,
-    size_t num_words)
+    const array< vector< int >,
+    Hint::NUM_HINTS > &sub_groups_indices,
+    size_t num_words) const
 {
     double e = 0;
     for ( auto &sg : sub_groups_indices )
@@ -116,18 +149,4 @@ double Tree::ComputeEntropy(
         }
     }
     return e;
-}
-
-void Tree::Solve(
-    int soln_idx,
-    const vector< vector< Hint > > &hints,
-    vector< pair<Hint, int> > &guesses)
-{
-    Hint hint = hints[guess_index_][soln_idx];
-    guesses.push_back(pair<Hint, int>(hint, guess_index_));
-
-    if( (unsigned char)hint != 0 )
-    {
-        children_[(unsigned char)hint].Solve(soln_idx, hints, guesses);
-    }
 }

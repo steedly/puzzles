@@ -127,6 +127,6 @@ private:
 void compute_hints(
     const std::vector<Word> &words,
     std::vector< std::vector< Hint > > &hints);
-std::tuple<size_t,double> get_best_guess_index(
-    const std::vector< std::vector< Hint > > &hints,
-    const std::vector< int > &indices);
+// std::tuple<size_t,double> get_best_guess_index(
+//     const std::vector< std::vector< Hint > > &hints,
+//     const std::vector< int > &indices);
