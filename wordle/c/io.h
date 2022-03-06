@@ -12,3 +12,10 @@ void PrintTree(
     const Tree &t,
     Hint hint = Hint(0),
     std::string indent = "");
+
+void PrintSolution(
+    const std::vector< Word > &words,
+    const std::vector< std::vector< Hint > > &hints,
+    const Tree &t,
+    int solution_index,
+    bool show_answer = false);

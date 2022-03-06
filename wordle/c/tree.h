@@ -19,10 +19,20 @@ public:
     Tree() {};
     Tree (const std::vector< std::vector< Hint > > &hints);
     
-     void Solve(
+    template<class Comparator>
+    void Solve(
         int soln_idx,
         const std::vector< std::vector< Hint > > &hints,
-        std::vector< std::pair<Hint, int> > &guesses);
+        Comparator &callback) const
+    {
+        Hint hint = hints[guess_index_][soln_idx];
+        callback(*this);
+
+        if( (unsigned char)hint != 0 )
+        {
+            children_.at((unsigned char)hint).Solve(soln_idx, hints, callback);
+        }
+    };
 
 private:
     Tree(
@@ -36,17 +46,22 @@ private:
     void Partition(
         const std::vector< Hint > &hints,
         const std::vector< int >  &group_indices,
-        std::array< std::vector< int >, Hint::NUM_HINTS > &sub_groups_indices);
+        std::array< std::vector< int >, Hint::NUM_HINTS > &sub_groups_indices) const;
 
     // Find the guess that has the smallest entropy in the remaining buckets
     std::tuple<size_t,double> GetBestGuessIndex(
         const std::vector< std::vector< Hint > > &hints,
-        const std::vector< int > &indices);
+        const std::vector< int > &indices) const;
+
+    void GetGuesses(
+        const std::vector< std::vector< Hint > > &hints,
+        const std::vector< int > &indices,
+        std::vector< std::tuple<int,double> > &guesses) const;
 
     // Find the best-case average tree depth (entropy) associated with each guess.
     // This best case corresponds to all remaining guesses evenly splitting the
     // remaining words at each level of the tree.
     double ComputeEntropy(
         const std::array< std::vector< int >, Hint::NUM_HINTS > &sub_groups_indices,
-        size_t num_words);
+        size_t num_words) const;
 };
