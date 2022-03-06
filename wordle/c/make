@@ -1,0 +1,1 @@
+g++ wordle.cpp io.cpp main.cpp tree.cpp -std=c++11 -o wordle
