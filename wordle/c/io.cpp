@@ -3,6 +3,7 @@
 #include <iostream>
 #include <iomanip>
 
+#include <math.h>
 #include <assert.h>
 
 #include "tree.h"
@@ -74,9 +75,17 @@ public:
         output += (string)hint;
         if (show_answer)
         {
+            double remaining_entropy = 0.0;
+            int child_size = 0;
+            if( (unsigned char)hint != 0 )
+            {
+                child_size = tree.children_.at((unsigned char)hint).size_;
+                remaining_entropy = log2(child_size);
+            }
             output += " " + (string)words[tree.guess_index_];
-            output += " " + to_string(tree.entropy_);
-            output += " " + to_string(tree.size_);
+            output += " Expected: " + to_string(tree.entropy_);
+            output += " Actual: " + to_string(log2(tree.size_) - remaining_entropy);
+            output += " " + to_string(tree.size_) + "->" + to_string(child_size);
             output += "\n";
         }
         else
