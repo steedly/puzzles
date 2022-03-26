@@ -36,11 +36,10 @@ void Tree::Create(
     vector< tuple<int,double> > guesses;
     GetGuesses(hints, indices, guesses);
 
-    // auto guess = GetBestGuessIndex(hints, indices);
     auto guess = guesses[0];
 
     guess_index_ = get<0>(guess);
-    entropy_ = get<1>(guess);
+    entropy_ = log2(indices.size()) - get<1>(guess);
 
     array< vector< int >, Hint::NUM_HINTS > sub_groups_indices;
     Partition( hints[guess_index_], indices, sub_groups_indices);
