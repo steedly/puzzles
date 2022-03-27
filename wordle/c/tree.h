@@ -4,6 +4,8 @@
 #include <utility>
 #include <iostream>
 
+#include <math.h>
+
 #include "wordle.h"
 
 class Tree;
@@ -19,18 +21,57 @@ public:
     Tree() {};
     Tree (const std::vector< std::vector< Hint > > &hints);
     
-    template<class Comparator>
-    void Solve(
+    template<class Callback>
+    int Solve(
         int soln_idx,
         const std::vector< std::vector< Hint > > &hints,
-        Comparator &callback) const
+        Callback &callback) const
     {
         Hint hint = hints[guess_index_][soln_idx];
         callback(*this);
 
-        if( (unsigned char)hint != 0 )
+        if( (unsigned char)hint == 0 )
         {
-            children_.at((unsigned char)hint).Solve(soln_idx, hints, callback);
+            return guess_index_;
+        }
+
+        return children_.at((unsigned char)hint).Solve(soln_idx, hints, callback);
+    };
+
+    static void EvaluateGuesses(
+        int soln_idx,
+        const std::vector< int > &guess_indices,
+        const std::vector< Word > &words,
+        const std::vector< std::vector< Hint > > &hints,
+        std::string &output)
+    {
+        std::vector< int >  indices;
+        indices.resize(hints.size());
+        for( int i=0; i<hints.size(); i++ )
+        {
+            indices[i] = i;
+        }
+
+        for( int guess_index : guess_indices )
+        {
+            Hint hint = hints[guess_index][soln_idx];
+
+            std::array< std::vector< int >, Hint::NUM_HINTS > sub_groups_indices;
+            Partition(hints[guess_index], indices, sub_groups_indices);
+            const std::vector< int > &child = sub_groups_indices[(unsigned char)hint];
+
+            double expected_entropy = ComputeEntropy(sub_groups_indices);
+            double actual_entropy = log2(indices.size()) - log2(child.size());
+
+            output += (std::string)hint;
+            output += " Expected: " + std::to_string(expected_entropy);
+            output += " Actual: " + std::to_string(actual_entropy);
+            output += " " + (std::string)words[guess_index];
+            output += " " + std::to_string(indices.size()) + "->";
+            output += std::to_string(sub_groups_indices[(unsigned char)hint].size());
+            output += "\n";
+
+            indices = child;
         }
     };
 
@@ -43,25 +84,20 @@ private:
         const std::vector< std::vector< Hint > > &hints,
         const std::vector< int >  &indices);
 
-    void Partition(
+    static void Partition(
         const std::vector< Hint > &hints,
         const std::vector< int >  &group_indices,
-        std::array< std::vector< int >, Hint::NUM_HINTS > &sub_groups_indices) const;
+        std::array< std::vector< int >, Hint::NUM_HINTS > &sub_groups_indices);
 
-    // Find the guess that has the smallest entropy in the remaining buckets
-    std::tuple<size_t,double> GetBestGuessIndex(
-        const std::vector< std::vector< Hint > > &hints,
-        const std::vector< int > &indices) const;
-
-    void GetGuesses(
+    static void GetGuesses(
         const std::vector< std::vector< Hint > > &hints,
         const std::vector< int > &indices,
-        std::vector< std::tuple<int,double> > &guesses) const;
+        std::vector< std::tuple<int,double> > &guesses);
 
     // Find the best-case average tree depth (entropy) associated with each guess.
     // This best case corresponds to all remaining guesses evenly splitting the
     // remaining words at each level of the tree.
-    double ComputeEntropy(
-        const std::array< std::vector< int >, Hint::NUM_HINTS > &sub_groups_indices,
-        size_t num_words) const;
+    static double ComputeEntropy(
+        const std::array< std::vector< int >,
+        Hint::NUM_HINTS > &sub_groups_indices);
 };
