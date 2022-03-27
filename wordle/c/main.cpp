@@ -87,6 +87,7 @@ int main(int argc, char** argv)
     }
 
     bool show_answer = result["show_answer"].as<bool>();
+    cout << to_string(show_answer) << endl;
     PrintSolution( words, hints, tree, soln_idx, show_answer);
 
     if (result["print_tree"].as<bool>())
