@@ -106,6 +106,10 @@ public:
         return hint_;
     }
 
+    bool IsCorrect() const
+    {
+        return hint_ == 0;
+    }
     operator std::string() const
     {
         const std::string blocks[3] = {"🟩", "🟨", "⬜"};
@@ -127,6 +131,3 @@ private:
 void compute_hints(
     const std::vector<Word> &words,
     std::vector< std::vector< Hint > > &hints);
-// std::tuple<size_t,double> get_best_guess_index(
-//     const std::vector< std::vector< Hint > > &hints,
-//     const std::vector< int > &indices);

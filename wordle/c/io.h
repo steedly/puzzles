@@ -5,7 +5,7 @@
 #include "tree.h"
 #include "wordle.h"
 
-void read_words(const std::string filename, std::vector<Word> &words);
+void ReadWords(const std::string filename, std::vector<Word> &words);
 
 void PrintTree(
     std::vector<Word> words,
