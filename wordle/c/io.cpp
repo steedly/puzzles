@@ -10,7 +10,7 @@
 
 using namespace std;
 
-void read_words(const string filename, vector<Word> &words)
+void ReadWords(const string filename, vector<Word> &words)
 {
     ifstream myfile;
     myfile.open( filename );
