@@ -39,32 +39,39 @@ public:
     };
 
     static void EvaluateGuesses(
-        int soln_idx,
-        const std::vector< int > &guess_indices,
+        std::string solution,
+        const std::vector< std::string > &guesses,
         const std::vector< Word > &words,
-        const std::vector< std::vector< Hint > > &hints,
         std::string &output)
     {
         std::vector< int >  indices;
-        indices.resize(hints.size());
-        for( int i=0; i<hints.size(); i++ )
+        indices.resize(words.size());
+        for( int i=0; i<words.size(); i++ )
         {
             indices[i] = i;
         }
 
-        for( int guess_index : guess_indices )
+        std::vector< Hint > hints;
+        hints.reserve(words.size());
+        for( const std::string &guess : guesses )
         {
-            Hint hint = hints[guess_index][soln_idx];
+            Hint hint(guess, solution);
+
+            hints.resize(0);
+            for( const auto &word : words )
+            {
+                hints.push_back( Hint(guess, word) );
+            }
 
             std::array< std::vector< int >, Hint::NUM_HINTS > sub_groups_indices;
-            Partition(hints[guess_index], indices, sub_groups_indices);
+            Partition(hints, indices, sub_groups_indices);
             const std::vector< int > &child = sub_groups_indices[(unsigned char)hint];
 
             double expected_entropy = ComputeEntropy(sub_groups_indices);
             double actual_entropy = log2(indices.size()) - log2(child.size());
 
             output += (std::string)hint;
-            output += " " + (std::string)words[guess_index];
+            output += " " + guess;
             output += " Expected: " + std::to_string(expected_entropy);
             output += " Actual: " + std::to_string(actual_entropy);
             output += " " + std::to_string(indices.size()) + "->";
