@@ -22,27 +22,27 @@ def compute_index_from_guess(input_guess, input_solution):
     This function returns the index value by checking each letter in the guess.
     """
     # convert from strings to list of characters
-    soln = [l for l in input_solution]
-    guess = [l for l in input_guess]
+    soln = list(input_solution)
+    guess = list(input_guess)
 
-    index = 0
     # Handle matches
     for idx, letter in enumerate(guess):
-        if soln[idx] is letter:
-            index += 0*pow(3,idx)
+        if soln[idx] == letter:
             soln[idx] = 'S' # mark used (input letters are all lowercase)
             guess[idx] = 'G'  # mark used (input letters are all lowercase)
 
     # Handle rest
-    for idx, letter in enumerate(guess):
-        if letter == 'G':
-            continue
+    scale = 1
+    index = 0
+    for letter in guess:
+        if letter != 'G':
+            if letter in soln:
+                index += scale
+                soln[soln.index(letter)] = 'S' # mark used
+            else:
+                index += 2*scale
 
-        if letter in soln:
-            index += 1*pow(3,idx)
-            soln[soln.index(letter)] = 'S' # mark used
-        else:
-            index += 2*pow(3,idx)
+        scale *= 3
 
     return index
 
@@ -220,15 +220,15 @@ def main():
         type=bool, default=False)
     parser.add_argument('--recompute', help='recompute trees',
         type=str, default="")
-    parser.add_argument('--site', help='site [orig|nyt]',
-        type=str, default="nyt")
+    parser.add_argument('--site', help='which website dictionary to use)',
+        type=str, choices=['orig','nyt'], default="nyt")
     args = parser.parse_args()
 
     index = (datetime.date.today() - datetime.date(2021,6,19)).days
 
     # create tree from just the solutions
     solutions_tree = get_tree('solutions', args.recompute=="solutions", args.site)
-    with open('solutions_cheat_sheet.txt', 'wt', encoding='utf-8') as f:
+    with open(args.site + '_solutions_cheat_sheet.txt', 'wt', encoding='utf-8') as f:
         print_tree(solutions_tree, file=f)
     print_solution(solutions_tree, index, args.show_guesses, args.site)
 
@@ -242,6 +242,13 @@ def main():
         print(len(dictionary.solutions))
         guess_count_distribution(candidates_tree)
         guess_count_distribution(solutions_tree)
+
+    # 11.17 bits in 2309 choices
+    # raise provides 5.878 bits, leaving 5.29 bits
+    print(len(dictionary.nyt.candidates))
+    print(len(dictionary.nyt.solutions))
+    print(len(dictionary.orig.candidates))
+    print(len(dictionary.orig.solutions))
 
 if __name__ == "__main__":
     main()
