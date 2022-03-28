@@ -102,7 +102,7 @@ int main(int argc, char** argv)
         vector<string> guesses;
         vector<int> guess_indices;
         ParseGuesses(result["guesses"].as<string>(), words, guesses, guess_indices);
-        Tree::EvaluateGuesses( soln_idx, guess_indices, words, hints, output);
+        Tree::EvaluateGuesses( words[soln_idx], guesses, words, output );
         cout << output << endl;
     }
 
