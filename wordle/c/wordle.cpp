@@ -4,6 +4,8 @@
 #include <math.h>
 #include <assert.h>
 
+#include "io.h"
+#include "tree.h"
 #include "wordle.h"
 
 using namespace std;
@@ -80,7 +82,8 @@ void Partition(
 string EvaluateGuesses(
     string solution,
     const vector< string > &guesses,
-    const vector< Word > &words)
+    const vector< Word > &words,
+    const vector< vector< Hint > > &all_hints)
 {
     string output;
     vector< int >  indices;
@@ -125,6 +128,18 @@ string EvaluateGuesses(
         output += "\n";
 
         indices = child;
+    }
+
+    if( indices.size() > 0 )
+    {
+        output += "\n";
+
+        // Create solution tree
+        Tree tree(all_hints, indices);
+
+        Hint h(words[tree.guess_index_], solution);
+
+        output += PrintTree(words, tree, Hint(0), " ");
     }
 
     return output;

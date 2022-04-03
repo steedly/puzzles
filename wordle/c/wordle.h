@@ -144,4 +144,5 @@ void Partition(
 std::string EvaluateGuesses(
     std::string solution,
     const std::vector< std::string > &guesses,
-    const std::vector< Word > &words);
+    const std::vector< Word > &words,
+    const std::vector< std::vector< Hint > > &all_hints);
