@@ -91,7 +91,7 @@ int main(int argc, char** argv)
 
     if (result["print_tree"].as<bool>())
     {
-        PrintTree(words, tree);
+        cout << PrintTree(words, tree);
     }
 
     if( result["guesses"].as<string>().length() > 0 )
@@ -99,8 +99,8 @@ int main(int argc, char** argv)
         vector<string> guesses;
         vector<int> guess_indices;
         ParseGuesses(result["guesses"].as<string>(), words, guesses, guess_indices);
-        string output = EvaluateGuesses( words[soln_idx], guesses, words );
-        cout << output << endl;
+        cout << EvaluateGuesses( words[soln_idx], guesses, words, hints );
+        cout << endl;
     }
 
     return 0;

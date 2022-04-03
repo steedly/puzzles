@@ -17,6 +17,8 @@ public:
 
     Tree() {};
     Tree (const std::vector< std::vector< Hint > > &hints);
+    Tree (const std::vector< std::vector< Hint > > &hints,
+          const std::vector< int >  &indices);
     
     template<class Callback>
     int Solve(
@@ -36,9 +38,6 @@ public:
     };
 
 private:
-    Tree(
-        const std::vector< std::vector< Hint > > &hints,
-        const std::vector< int >  &indices);
 
     void Create(
         const std::vector< std::vector< Hint > > &hints,

@@ -30,20 +30,23 @@ void ReadWords(const string filename, vector<Word> &words)
     myfile.close();
 }
 
-void PrintTree(
+string PrintTree(
     vector< Word > words,
     const Tree &t,
     Hint hint,
     string indent)
 {
+    string output;
+
     string guess = words[t.guess_index_];
-    cout << setiosflags(ios::fixed) << setprecision(2);
-    cout << indent << (string)hint << ": ";
-    cout << guess << " " << t.size_ <<  " " << t.entropy_ << endl;
+    output += indent + (string)hint + ": ";
+    output += guess + " " + to_string(t.size_) + " " + to_string(t.entropy_) + "\n";
     for( const auto &c : t.children_ )
     {
-        PrintTree(words, get<1>(c), get<0>(c), indent + " ");
+        output += PrintTree(words, get<1>(c), get<0>(c), indent + " ");
     }
+
+    return output;
 }
 
 class PrintSolutionFunctor

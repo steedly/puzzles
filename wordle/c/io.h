@@ -7,7 +7,7 @@
 
 void ReadWords(const std::string filename, std::vector<Word> &words);
 
-void PrintTree(
+std::string PrintTree(
     std::vector<Word> words,
     const Tree &t,
     Hint hint = Hint(0),
