@@ -1,7 +1,9 @@
+#include <format>
 #include <vector>
 #include <fstream>
-#include <iostream>
 #include <iomanip>
+#include <sstream>
+#include <iostream>
 
 #include <math.h>
 #include <assert.h>
@@ -36,17 +38,18 @@ string PrintTree(
     Hint hint,
     string indent)
 {
-    string output;
+    ostringstream output;
 
     string guess = words[t.guess_index_];
-    output += indent + (string)hint + ": ";
-    output += guess + " " + to_string(t.size_) + " " + to_string(t.entropy_) + "\n";
+    output << std::setprecision(2) << std::fixed;
+    output << indent << (string)hint + ": ";
+    output << guess << " " << t.size_ << " " << t.entropy_ << "\n";
     for( const auto &c : t.children_ )
     {
-        output += PrintTree(words, get<1>(c), get<0>(c), indent + " ");
+        output << PrintTree(words, get<1>(c), get<0>(c), indent + " ");
     }
 
-    return output;
+    return output.str();
 }
 
 class PrintSolutionFunctor
@@ -58,7 +61,7 @@ private:
     bool show_answer;
 
 public:
-    string output;
+    ostringstream output;
     int guess_count;
 
     PrintSolutionFunctor(
@@ -68,14 +71,14 @@ public:
         ) :
         solution_index(solution_index), show_answer(show_answer), hints(hints), words(words)
     {
-        output = "";
+        output << fixed << setprecision(2);
         guess_count = 0;
     }
 
     void operator ()(const Tree &tree)
     {
         Hint hint = hints[tree.guess_index_][solution_index];
-        output += (string)hint;
+        output << (string)hint;
         if (show_answer)
         {
             double remaining_entropy = 0.0;
@@ -85,15 +88,15 @@ public:
                 child_size = tree.children_.at((unsigned char)hint).size_;
                 remaining_entropy = log2(child_size);
             }
-            output += " " + (string)words[tree.guess_index_];
-            output += " Expected: " + to_string(tree.entropy_);
-            output += " Actual: " + to_string(log2(tree.size_) - remaining_entropy);
-            output += " " + to_string(tree.size_) + "->" + to_string(child_size);
-            output += "\n";
+            output << " " + (string)words[tree.guess_index_];
+            output << " Expected: " << tree.entropy_;
+            output << " Actual: " << log2(tree.size_ - remaining_entropy);
+            output << " " << tree.size_ << "->" << child_size;
+            output << "\n";
         }
         else
         {
-            output += "\n";
+            output << "\n";
         }
         guess_count++;
     }
@@ -111,5 +114,5 @@ void PrintSolution(
     t.Solve<PrintSolutionFunctor>(solution_index, hints, functor);
     cout << "Computurdle " << solution_index << " " << functor.guess_count << "/6" << endl << endl;
 
-    cout << functor.output << endl;
+    cout << functor.output.str() << endl;
 }
