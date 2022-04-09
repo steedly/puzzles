@@ -1,0 +1,33 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "cppbuild",
+			"label": "C/C++: clang build wordle",
+			"command": "/usr/bin/clang++",
+			"args": [
+				"-std=c++20",
+				"-stdlib=libc++",
+				"-fdiagnostics-color=always",
+				"-g",
+				"main.cpp",
+				"wordle.cpp",
+				"io.cpp",
+				"tree.cpp",
+				"-o",
+				"wordle"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}/c"
+			},
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"detail": "compiler: /usr/bin/clang++"
+		}
+	]
+}
