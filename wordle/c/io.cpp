@@ -1,4 +1,3 @@
-#include <format>
 #include <vector>
 #include <fstream>
 #include <iomanip>
@@ -92,11 +91,11 @@ public:
             output << " Expected: " << tree.entropy_;
             output << " Actual: " << log2(tree.size_ - remaining_entropy);
             output << " " << tree.size_ << "->" << child_size;
-            output << "\n";
+            output << endl;
         }
         else
         {
-            output << "\n";
+            output << endl;
         }
         guess_count++;
     }

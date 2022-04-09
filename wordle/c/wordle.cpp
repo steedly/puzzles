@@ -1,4 +1,6 @@
 #include <utility>
+#include <iomanip>
+#include <sstream>
 #include <algorithm>
 
 #include <math.h>
@@ -85,7 +87,7 @@ string EvaluateGuesses(
     const vector< Word > &words,
     const vector< vector< Hint > > &all_hints)
 {
-    string output;
+    ostringstream output;
     vector< int >  indices;
     indices.resize(words.size());
     for( int i=0; i<words.size(); i++ )
@@ -112,35 +114,36 @@ string EvaluateGuesses(
         double expected_entropy = ComputeEntropy(sub_groups_indices);
         double actual_entropy = log2(indices.size()) - log2(child.size());
 
-        output += (string)hint;
-        output += " " + guess;
-        output += " Expected: " + to_string(expected_entropy);
-        output += " Actual: " + to_string(actual_entropy);
-        output += " " + to_string(indices.size()) + "->";
+        output << std::setprecision(2) << std::fixed;
+        output << (string)hint;
+        output << " " << guess;
+        output << " Expected: " << expected_entropy;
+        output << " Actual: " << actual_entropy;
+        output << " " << indices.size() << "->";
         if( hint.IsCorrect() )
         {
-            output += "0";
+            output << "0";
         }
         else
         {
-            output += to_string(sub_groups_indices[(unsigned char)hint].size());
+            output << sub_groups_indices[(unsigned char)hint].size();
         }
-        output += "\n";
+        output << endl;
 
         indices = child;
     }
 
     if( indices.size() > 0 )
     {
-        output += "\n";
+        output << endl;
 
         // Create solution tree
         Tree tree(all_hints, indices);
 
         Hint h(words[tree.guess_index_], solution);
 
-        output += PrintTree(words, tree, Hint(0), " ");
+        output << PrintTree(words, tree, Hint(0), " ");
     }
 
-    return output;
+    return output.str();
 };
