@@ -130,3 +130,14 @@ dmypy.json
 
 .DS_Store
 Info.plist
+
+# Node.js
+node_modules/
+
+# C++ compiled binaries
+ll-solver/enumerate
+ll-solver/test_enumerate
+
+# Vite build output
+lunar-lockout/dist/
+lunar-lockout/src/data/puzzles.js
