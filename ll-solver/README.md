@@ -9,21 +9,68 @@ A C++ engine that finds **every solvable Lunar Lockout starting position** on a 
 - **Helper robots** are blockers only — they never exit.
 - **Win condition**: all exit robots have exited the board.
 
-## How It Works
+## How It Works — Plain-English Guide
 
-The solver uses a four-stage pipeline for each (exits, helpers) combination:
+The goal is to find every possible starting arrangement of robots that can be solved, without including duplicates that would feel like the same puzzle to a player. This happens in four stages.
 
-1. **Retrograde BFS** — Seeds every possible "already won" state (all exits gone, helpers at every valid cell combination) and works backward, discovering all solvable configurations and their optimal distance in one pass.
+### Stage 1: Finding every solvable position (Retrograde BFS)
 
-2. **Canonical filter** — Keeps only one representative per D4 symmetry class (rotations and reflections of the board). The BFS is D4-closed, so `S == canonical(S)` is sufficient — no separate canonicalization map needed.
+Instead of trying every possible starting arrangement and checking "can this be solved?", the solver works **backward from the answer**.
 
-3. **Collision-signature dedup** — Computes a fast greedy trace for each state, normalizes the move sequence by first-appearance relabeling, and deduplicates puzzles with identical collision patterns. Prefers the most compact starting position (smallest board footprint) among duplicates.
+Think of it like a maze: rather than trying every entrance to see which ones reach the exit, you start at the exit and walk backward through every possible path. Every room you reach this way is a room that *can* reach the exit.
 
-4. **DP trace + output** — For surviving puzzles, finds the solution with minimum *grouped* moves (consecutive slides by the same robot count as one move) via layer-by-layer DP, then writes one puzzle per line.
+Concretely:
+
+1. **Start from "already won" states.** A won state is one where all exit robots have already left through the center. The helper robots could be anywhere — so the solver generates every possible arrangement of helpers on the remaining 48 cells. For 5 helpers, that's C(48,5) = 1,712,304 starting seeds.
+
+2. **Work backward one move at a time.** For each won state, the solver asks: "what board positions could have led here in one move?" It generates all possible *predecessor* states — every way a robot could have slid to produce the current arrangement. Each predecessor is a solvable position that's exactly one move further from the solution.
+
+3. **Repeat, level by level.** Predecessors of predecessors are 2 moves away, their predecessors are 3 moves away, and so on. This continues until no new positions are discovered. Because it works outward level by level, the first time a position is found is guaranteed to be at its optimal (minimum) distance from the solution.
+
+The result is a complete catalog of every solvable robot arrangement for a given number of exits and helpers, each tagged with its optimal move count. For 1 exit + 5 helpers, this discovers roughly 14 million solvable states.
+
+### Stage 2: Removing rotations and reflections (Symmetry filter)
+
+Many of those 14 million positions are just rotated or flipped versions of each other. A puzzle with all robots shifted 90 degrees clockwise plays exactly the same way — the player just turns their head.
+
+The board has 8 symmetries (the "D4" group): 4 rotations (0, 90, 180, 270 degrees) and 4 reflections (horizontal, vertical, and both diagonals). For each position, the solver computes all 8 transformations and keeps only the "smallest" one (by a consistent ordering). If a position isn't the smallest version of itself, it's a duplicate and gets dropped.
+
+This cuts the number of positions by roughly 8x (not exactly 8x because some symmetric positions map to themselves).
+
+### Stage 3: Removing puzzles that play the same (Collision-signature dedup)
+
+Even after removing rotations and reflections, many remaining positions are **strategically identical**. Consider two puzzles where the robots are in different places, but the solution involves the same sequence of "robot A slides right and is stopped by robot 2, then robot 2 slides up and is stopped by robot A" — they would feel like the same puzzle to a player.
+
+The solver detects this by computing a **collision signature** for each puzzle:
+
+1. **Trace the solution.** Replay each move, recording which robot moved, which direction, and which robot stopped it.
+
+2. **Normalize the robot names.** Instead of using the actual robot labels (which depend on position), rename them by order of first appearance. The first robot to act becomes "A", the first helper involved becomes "1", and so on. This way, two puzzles with the same strategic pattern get the same signature regardless of which specific robots are involved.
+
+3. **Deduplicate.** If two puzzles produce the same normalized collision sequence, they're the same puzzle in different clothes. Only one representative is kept.
+
+**Compaction preference:** When multiple starting positions share the same collision signature, the solver prefers the one where all robots fit on the **smallest board**. It measures each position's "board size" — the smallest square centered on the middle of the board that contains every robot. A puzzle where all robots are within 2 squares of the center (fitting on a 5x5 board) is preferred over one where a robot is in the corner (requiring the full 7x7 board). This produces tidier-looking puzzles without changing the gameplay.
+
+This stage eliminates roughly 85% of the remaining positions — it's the biggest source of deduplication.
+
+### Stage 4: Finding the best solution and writing output
+
+For each surviving unique puzzle, the solver finds the solution that uses the fewest **grouped moves**. A "grouped move" counts consecutive slides by the same robot as a single move — if you slide robot A right, then slide robot A up, that's one grouped move (you're still "using" robot A), but then sliding robot 2 would start a second grouped move.
+
+The solver uses dynamic programming to find the solution path with the minimum grouped move count, then writes one puzzle per line to the output file.
+
+### Technical summary
+
+| Stage | What it does | Typical reduction |
+|-------|-------------|-------------------|
+| 1. Retrograde BFS | Finds all solvable positions | 14M states (1e+5h) |
+| 2. Symmetry filter | Removes rotations/reflections | ~8x reduction |
+| 3. Collision-signature dedup | Removes strategically identical puzzles | ~85% reduction |
+| 4. DP trace + output | Finds optimal grouped-move solutions | ~80K final puzzles |
 
 ### Performance
 
-- **Parallel BFS** via OpenMP with lock-free atomic insertions into a custom `FlatMap` (8 bytes/entry, open-addressing).
+- **Parallel BFS** via OpenMP with lock-free atomic insertions into a custom hash table.
 - 1 exit + 5 helpers (14M states): ~50 seconds on 4 threads.
 - 1 exit + 5 helpers produces ~80K unique puzzles after dedup.
 
