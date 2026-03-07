@@ -71,8 +71,68 @@ The solver uses dynamic programming to find the solution path with the minimum g
 ### Performance
 
 - **Parallel BFS** via OpenMP with lock-free atomic insertions into a custom hash table.
-- 1 exit + 5 helpers (14M states): ~50 seconds on 4 threads.
+- 1 exit + 5 helpers (14M states): ~13 seconds wall-clock on 4 threads.
 - 1 exit + 5 helpers produces ~80K unique puzzles after dedup.
+
+## Computational Complexity
+
+### What makes it expensive
+
+The dominant cost is the **retrograde BFS** in Stage 1. The number of states the BFS must explore grows with two factors:
+
+- **More helpers** means exponentially more seed states. The number of ways to place *h* helpers on 48 cells is C(48,h), which grows fast: 48 for 1 helper, 1,128 for 2, 17,296 for 3, 194,580 for 4, and 1,712,304 for 5.
+
+- **More exit robots** means each state is higher-dimensional. With *e* exits, each state tracks *e* additional robot positions, and the BFS explores proportionally more predecessors per state.
+
+The memory cost is 8 bytes per BFS state (each state is packed into a single 64-bit integer in the hash table). For 14 million states, that's about 730 MB of RAM.
+
+### Measured data
+
+All timings measured on an Apple M1 Mac Mini (4 performance cores) with OpenMP enabled. Times are wall-clock seconds.
+
+#### BFS states discovered
+
+| | 1 helper | 2 helpers | 3 helpers | 4 helpers | 5 helpers |
+|---|---|---|---|---|---|
+| **1 exit** | 60 | 1,812 | 38,304 | 715,948 | 14,095,636 |
+| **2 exits** | 96 | 5,000 | 241,112 | 16,816,244 | *~200M est.* |
+| **3 exits** | 180 | 24,468 | 8,848,600 | *~500M est.* | — |
+| **4 exits** | 336 | 157,128 | *~50M est.* | — | — |
+
+#### Wall-clock time
+
+| | 1 helper | 2 helpers | 3 helpers | 4 helpers | 5 helpers |
+|---|---|---|---|---|---|
+| **1 exit** | <1s | <1s | <1s | 1s | 13s |
+| **2 exits** | <1s | <1s | <1s | 1s | 30s |
+| **3 exits** | <1s | <1s | 1s | 38s | *~10 min est.* |
+| **4 exits** | <1s | <1s | 1s | 36s | — |
+
+#### Peak RAM
+
+| Total robots | Peak RAM |
+|---|---|
+| ≤ 5 | < 100 MB |
+| 6 (e.g. 1e+5h) | ~730 MB |
+| 6 (e.g. 2e+4h) | ~810 MB |
+| 7 (estimated) | ~4–8 GB |
+
+#### Unique puzzles after dedup
+
+| | 1 helper | 2 helpers | 3 helpers | 4 helpers | 5 helpers |
+|---|---|---|---|---|---|
+| **1 exit** | 1 | 6 | 63 | 1,975 | 79,720 |
+| **2 exits** | 1 | 14 | 827 | 109,558 | *large* |
+| **3 exits** | 1 | 33 | 23,096 | *large* | — |
+| **4 exits** | 0 | 59 | *large* | — | — |
+
+### What's feasible
+
+- **Total robots ≤ 6** (e.g. 1 exit + 5 helpers, or 2 exits + 4 helpers): completes in under a minute on a modern laptop. This is the default configuration.
+- **Total robots = 7**: feasible but slow — expect 5–15 minutes and several GB of RAM depending on the exit/helper split.
+- **Total robots ≥ 8**: likely requires 30+ GB of RAM and hours of compute. Not practical on consumer hardware.
+
+The number of exits matters too: more exits means more solvable states per helper count, because each exit adds an independent piece that must reach the center.
 
 ## Building
 
