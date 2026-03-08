@@ -24,23 +24,34 @@ if (!fs.existsSync(indexPath)) {
 
 let html = fs.readFileSync(indexPath, 'utf8');
 
-// Inline CSS: <link rel="stylesheet" … href="/assets/foo.css">
+// Resolve asset href to a dist/ file path, stripping any base-path prefix.
+function resolveAsset(href) {
+  // href may be "/puzzles/assets/foo.js" or "/assets/foo.js"
+  const rel = href.replace(/^\/[^/]*\//, '');  // strip leading /prefix/
+  let file = path.join(distDir, rel);
+  if (fs.existsSync(file)) return file;
+  // Fallback: strip only the leading slash
+  file = path.join(distDir, href.replace(/^\//, ''));
+  return fs.existsSync(file) ? file : null;
+}
+
+// Inline CSS: <link rel="stylesheet" … href="/puzzles/assets/foo.css">
 html = html.replace(
   /<link[^>]+rel="stylesheet"[^>]+href="([^"]+)"[^>]*>/g,
   (tag, href) => {
-    const file = path.join(distDir, href.replace(/^\//, ''));
-    if (!fs.existsSync(file)) { console.warn('CSS not found:', file); return tag; }
+    const file = resolveAsset(href);
+    if (!file) { console.warn('CSS not found:', href); return tag; }
     const css = fs.readFileSync(file, 'utf8');
     return `<style>${css}</style>`;
   }
 );
 
-// Inline JS: <script type="module" … src="/assets/foo.js"></script>
+// Inline JS: <script type="module" … src="/puzzles/assets/foo.js"></script>
 html = html.replace(
   /<script([^>]*)\ssrc="([^"]+)"([^>]*)><\/script>/g,
   (tag, before, src, after) => {
-    const file = path.join(distDir, src.replace(/^\//, ''));
-    if (!fs.existsSync(file)) { console.warn('JS not found:', file); return tag; }
+    const file = resolveAsset(src);
+    if (!file) { console.warn('JS not found:', src); return tag; }
     const js = fs.readFileSync(file, 'utf8');
     // Keep all attributes except src; drop crossorigin (not needed for inline)
     const attrs = (before + after)
@@ -52,18 +63,21 @@ html = html.replace(
 );
 
 // Embed puzzles.llp as a gzip-compressed base64 blob to minimize bundle size.
-// Solutions are stripped (the app computes them on demand via forward BFS).
+// If solutions are present (6-field lines), they are stripped; already-stripped
+// 5-field lines are kept as-is.
 // The app decompresses it at load time using the browser's DecompressionStream API.
 const llpPath = path.join(distDir, 'puzzles.llp');
 if (fs.existsSync(llpPath)) {
   const llpText    = fs.readFileSync(llpPath, 'utf8');
-  // Strip solution column (last pipe-delimited field) from each data line.
+  // Strip solution column only from 6-field lines (id|exits|helpers|minMoves|positions|solution).
+  // 5-field lines (already stripped) are left unchanged.
   const stripped   = llpText
     .split('\n')
     .map(line => {
       if (!line || line.startsWith('#')) return line;
-      const lastPipe = line.lastIndexOf('|');
-      return lastPipe >= 0 ? line.substring(0, lastPipe) : line;
+      const fields = line.split('|');
+      if (fields.length === 6) return fields.slice(0, 5).join('|');
+      return line;
     })
     .join('\n');
   const gzipped    = zlib.gzipSync(Buffer.from(stripped, 'utf8'), { level: 9 });

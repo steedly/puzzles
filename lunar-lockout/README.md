@@ -69,7 +69,7 @@ Outputs to `dist/`. Deploy the entire `dist/` directory (including `puzzles.llp`
 npm run build:bundle
 ```
 
-Creates `dist/index.bundle.html` — a single self-contained HTML file (~15 MB) with all JavaScript, CSS, and puzzle data inlined. Open directly in any browser, share via email/AirDrop, or host anywhere. No server required.
+Creates `dist/index.bundle.html` — a single self-contained HTML file (~2.2 MB) with all JavaScript, CSS, and gzip-compressed puzzle data inlined. Open directly in any browser, share via email/AirDrop, or host anywhere. No server required.
 
 ### Other scripts
 
@@ -81,6 +81,41 @@ Creates `dist/index.bundle.html` — a single self-contained HTML file (~15 MB) 
 | `npm run bundle` | Single-file bundle only (run after `build`) |
 | `npm run preview` | Preview production build locally |
 | `npm run lint` | Run ESLint |
+
+## Hosting & Deployment
+
+### GitHub Pages (recommended)
+
+The repo includes a GitHub Actions workflow (`.github/workflows/deploy.yml`) that builds and deploys automatically on push to `main`.
+
+**One-time setup:**
+1. Go to your repo → Settings → Pages → Source → select **GitHub Actions**
+2. Push to `main` — the workflow builds and deploys to `https://<user>.github.io/puzzles/`
+
+The workflow runs `npm run build` which copies `public/puzzles.llp` into `dist/`, then deploys the `dist/` directory. The Vite `base` is set to `/puzzles/` to match the GitHub Pages project-site URL.
+
+**Updating puzzles:** commit the new `public/puzzles.llp` and push — the workflow rebuilds and redeploys automatically.
+
+### Other static hosts
+
+Run `npm run build` and deploy the `dist/` directory to any static file server (Netlify, Vercel, S3, etc.). If the site is not served from a `/puzzles/` subpath, update `base` in `vite.config.js` accordingly (e.g., `base: '/'`).
+
+### Offline / single-file sharing
+
+Run `npm run build:bundle` to create `dist/index.bundle.html` — a self-contained HTML file with all JS, CSS, and puzzle data embedded (gzip-compressed). Open directly in any browser with no server needed.
+
+### Puzzle data size
+
+The `public/puzzles.llp` file is committed **without solutions** (positions only) to keep the repo smaller. The app's forward BFS solver computes solutions on demand.
+
+| Variant | Size |
+|---------|------|
+| Full .llp with solutions | ~15 MB |
+| Stripped (no solutions) | ~7 MB |
+| Stripped + gzip (transfer size) | ~1.5 MB |
+| Bundle HTML (base64-encoded gzip) | ~2.2 MB |
+
+GitHub Pages automatically applies gzip Content-Encoding, so the actual transfer for `puzzles.llp` is ~1.5 MB.
 
 ## Generating Puzzles
 
@@ -137,16 +172,23 @@ g++ -O3 -std=c++17 -o enumerate enumerate.cpp
 
 ### Puzzle file format (.llp)
 
-Each line is one puzzle:
+Each line is one puzzle. Full format (with solutions):
 ```
 id|exits|helpers|minMoves|positions|solution
 ```
 
+Stripped format (committed to `public/`, no solutions):
+```
+id|exits|helpers|minMoves|positions
+```
+
 - **positions**: space-separated `row,col` pairs (exits first, then helpers)
-- **solution**: space-separated moves like `AU1` (robot A slides Up, stopped by robot 1)
-  - `A`, `B`, `C` = exit robots (by first-appearance order)
-  - `1`-`9` = helper robots (by first-appearance order)
+- **solution** (when present): space-separated moves like `AU1` (robot A slides Up, stopped by robot 1)
+  - `A`, `B`, `C` = exit robots (by ascending initial position)
+  - `1`-`9` = helper robots (by ascending initial position)
   - Direction: `U`=up, `D`=down, `L`=left, `R`=right
+
+The app handles both formats. When solutions are absent, the built-in forward BFS solver computes them on demand.
 
 ### Performance notes
 
@@ -176,7 +218,7 @@ When blocks are active:
 
 Blocks persist across puzzles and browser sessions via localStorage.
 
-The filter uses a three-tier pipeline for efficiency on large libraries (~195K puzzles):
+The filter uses a three-tier pipeline for efficiency on large libraries (~194K puzzles):
 
 | Tier | Method | Cost |
 |------|--------|------|
