@@ -425,21 +425,20 @@ static FlatMap retrograde(int num_exits, int num_helpers)
 
     std::vector<State> cur;
 
-    // Seed: all exits = EXITED(63), helpers at every valid combination.
-    // Reserve for 2× the estimated seed count C(P, num_helpers); the BFS
-    // will grow the table further via ensure_parallel_capacity as needed.
-    // Using 2× (instead of the old 8×) dramatically reduces peak memory.
+    // Seed: only D4-canonical goal states (all exits EXITED, helpers at
+    // every valid combination).  Canonical BFS explores ~1/8th the states.
+    // Reserve for C(P, num_helpers)/4 ≈ 2× the canonical seed count.
     {
         size_t seed_est = 1;
         for (int i = 0; i < num_helpers; i++) {
             seed_est = seed_est * (size_t)(P - i) / (size_t)(i + 1);
             if (seed_est > (size_t)1 << 28) { seed_est = (size_t)1 << 28; break; }
         }
-        dist.reserve(std::max(seed_est * 2, (size_t)1 << 20));
+        dist.reserve(std::max(seed_est / 4, (size_t)1 << 20));
     }
 
     // Enumerate all C(P, num_helpers) combinations of helper placements.
-    // Each combination with all exits EXITED forms one goal state.
+    // Only self-canonical states are seeded; the rest are D4-equivalent.
     {
         int chosen[9] = {};
         std::function<void(int,int)> seed = [&](int start, int rem) {
@@ -448,6 +447,7 @@ static FlatMap retrograde(int num_exits, int num_helpers)
                 for (int e = 0; e < num_exits; e++) pos[e] = EXITED;
                 for (int h = 0; h < num_helpers; h++) pos[num_exits + h] = chosen[h];
                 const State s = encode(pos, n);
+                if (canonical(s, n, num_exits) != s) return; // skip non-canonical
                 dist.insert_new(s, (uint8_t)0);
                 cur.push_back(s);
                 return;
@@ -494,9 +494,11 @@ static FlatMap retrograde(int num_exits, int num_helpers)
             for (int i = 0; i < (int)cur.size(); i++) {
                 preds.clear();
                 generate_predecessors(cur[i], n, num_exits, preds);
-                for (const State pred : preds)
-                    if (dist.atomic_emplace(pred, (uint8_t)depth))
-                        my_nxt.push_back(pred);
+                for (const State pred : preds) {
+                    const State cpred = canonical(pred, n, num_exits);
+                    if (dist.atomic_emplace(cpred, (uint8_t)depth))
+                        my_nxt.push_back(cpred);
+                }
             }
         }
 
@@ -520,9 +522,11 @@ static FlatMap retrograde(int num_exits, int num_helpers)
         for (const State s : cur) {
             preds.clear();
             generate_predecessors(s, n, num_exits, preds);
-            for (const State pred : preds)
-                if (dist.insert_new(pred, (uint8_t)depth))
-                    nxt.push_back(pred);
+            for (const State pred : preds) {
+                const State cpred = canonical(pred, n, num_exits);
+                if (dist.insert_new(cpred, (uint8_t)depth))
+                    nxt.push_back(cpred);
+            }
         }
         if (!nxt.empty())
             std::cerr << "  depth " << depth
@@ -651,7 +655,8 @@ static std::vector<Move> trace_solution(State start, int n, int num_exits,
                                       new_cell, blocker_idx, new_state))
                         continue;
                     uint8_t nd;
-                    if (!dist.find_val(new_state, &nd) || nd != target_dist)
+                    if (!dist.find_val(canonical(new_state, n, num_exits), &nd)
+                        || nd != target_dist)
                         continue;
 
                     const int cost = node.grouped_cost +
@@ -720,7 +725,8 @@ static std::vector<Move> trace_solution_greedy(State start, int n, int num_exits
                                   new_cell, blocker_idx, new_state))
                     continue;
                 uint8_t nd;
-                if (!dist.find_val(new_state, &nd) || nd != (uint8_t)(step - 1))
+                if (!dist.find_val(canonical(new_state, n, num_exits), &nd)
+                    || nd != (uint8_t)(step - 1))
                     continue;
                 sol.push_back({(int8_t)ridx, (int8_t)d, (int8_t)blocker_idx});
                 cur = new_state;
@@ -945,10 +951,10 @@ static void emit(const FlatMap& dist, int n, int num_exits, int num_helpers,
     using Clock = std::chrono::steady_clock;
     auto t0 = Clock::now();
 
-    // ── Pass 1: collect self-canonical initial states ──
+    // ── Pass 1: collect initial states (all canonical from BFS) ──
     struct Rec { State s; uint8_t d; };
-    std::vector<Rec> all_initial;
-    all_initial.reserve(dist.size() / 4);
+    std::vector<Rec> recs;
+    recs.reserve(dist.size() / 4);
     for (auto [s, d] : dist) {
         if (d == 0 || d < (uint8_t)min_moves || d > (uint8_t)max_moves) continue;
         int r[10]; decode(s, n, r);
@@ -956,30 +962,15 @@ static void emit(const FlatMap& dist, int n, int num_exits, int num_helpers,
         for (int e = 0; e < num_exits; e++)
             if (r[e] == EXITED) { ok = false; break; }
         if (!ok) continue;
-        all_initial.push_back({s, d});
+        recs.push_back({s, d});
     }
-
-    // Filter for self-canonical states (parallel).
-    std::vector<Rec> recs;
-    {
-        std::vector<bool> is_canon(all_initial.size());
-#ifdef _OPENMP
-        #pragma omp parallel for schedule(dynamic, 4096)
-#endif
-        for (int i = 0; i < (int)all_initial.size(); i++)
-            is_canon[i] = (canonical(all_initial[i].s, n, num_exits) == all_initial[i].s);
-        for (int i = 0; i < (int)all_initial.size(); i++)
-            if (is_canon[i]) recs.push_back(all_initial[i]);
-    }
-    all_initial.clear();
-    all_initial.shrink_to_fit();
 
     std::sort(recs.begin(), recs.end(), [](const Rec& a, const Rec& b) {
         return a.d != b.d ? a.d < b.d : a.s < b.s;
     });
 
     auto t1 = Clock::now();
-    std::cerr << "  pass 1 (canonical filter): " << recs.size() << " states, "
+    std::cerr << "  pass 1 (collect + sort): " << recs.size() << " states, "
               << std::chrono::duration<double>(t1 - t0).count() << "s\n";
 
     // ── Pass 2: greedy trace → collision sig hash → dedup ──

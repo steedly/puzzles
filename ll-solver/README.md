@@ -13,29 +13,25 @@ A C++ engine that finds **every solvable Lunar Lockout starting position** on a 
 
 The goal is to find every possible starting arrangement of robots that can be solved, without including duplicates that would feel like the same puzzle to a player. This happens in four stages.
 
-### Stage 1: Finding every solvable position (Retrograde BFS)
+### Stage 1: Finding every solvable position (Canonical Retrograde BFS)
 
 Instead of trying every possible starting arrangement and checking "can this be solved?", the solver works **backward from the answer**.
 
 Think of it like a maze: rather than trying every entrance to see which ones reach the exit, you start at the exit and walk backward through every possible path. Every room you reach this way is a room that *can* reach the exit.
 
+The board has 8 symmetries (the "D4" group): 4 rotations (0°, 90°, 180°, 270°) and 4 reflections (horizontal, vertical, and both diagonals). A puzzle with all robots shifted 90° clockwise plays exactly the same way. The solver exploits this by **canonicalizing during the BFS** — only exploring one representative from each group of 8 symmetric positions. This reduces the state space by ~8×.
+
 Concretely:
 
-1. **Start from "already won" states.** A won state is one where all exit robots have already left through the center. The helper robots could be anywhere — so the solver generates every possible arrangement of helpers on the remaining 48 cells. For 5 helpers, that's C(48,5) = 1,712,304 starting seeds.
+1. **Seed from "already won" states — canonical only.** A won state has all exit robots exited through the center, with helpers anywhere on the remaining 48 cells. The solver generates every helper arrangement, but only seeds the ~1/8 that are D4-canonical (the "smallest" version under all 8 symmetry transforms). For 5 helpers, this means ~215K canonical seeds instead of all 1.7M.
 
-2. **Work backward one move at a time.** For each won state, the solver asks: "what board positions could have led here in one move?" It generates all possible *predecessor* states — every way a robot could have slid to produce the current arrangement. Each predecessor is a solvable position that's exactly one move further from the solution.
+2. **Work backward one move at a time, staying canonical.** For each state, the solver generates all *predecessor* states (boards that could reach it in one move). Each predecessor is immediately canonicalized before insertion into the hash table. This ensures the BFS only ever stores and expands canonical states — rotations and reflections are eliminated on the fly, not in a post-processing pass.
 
-3. **Repeat, level by level.** Predecessors of predecessors are 2 moves away, their predecessors are 3 moves away, and so on. This continues until no new positions are discovered. Because it works outward level by level, the first time a position is found is guaranteed to be at its optimal (minimum) distance from the solution.
+3. **Repeat, level by level.** Because it works outward level by level, the first time a position is found is guaranteed to be at its optimal (minimum) distance from the solution.
 
-The result is a complete catalog of every solvable robot arrangement for a given number of exits and helpers, each tagged with its optimal move count. For 1 exit + 5 helpers, this discovers roughly 14 million solvable states.
+**Why this works:** The predecessor relationship is D4-equivariant — if board P reaches board S in one move, then rotating both P and S by the same transform preserves the move. So expanding a single canonical representative discovers every canonical predecessor that any member of its symmetry orbit would have found.
 
-### Stage 2: Removing rotations and reflections (Symmetry filter)
-
-Many of those 14 million positions are just rotated or flipped versions of each other. A puzzle with all robots shifted 90 degrees clockwise plays exactly the same way — the player just turns their head.
-
-The board has 8 symmetries (the "D4" group): 4 rotations (0, 90, 180, 270 degrees) and 4 reflections (horizontal, vertical, and both diagonals). For each position, the solver computes all 8 transformations and keeps only the "smallest" one (by a consistent ordering). If a position isn't the smallest version of itself, it's a duplicate and gets dropped.
-
-This cuts the number of positions by roughly 8x (not exactly 8x because some symmetric positions map to themselves).
+The result is a complete catalog of every solvable canonical arrangement, each tagged with its optimal move count. For 1 exit + 5 helpers, this discovers ~1.76 million canonical states (equivalent to the ~14 million total states the non-canonical approach would find).
 
 ### Stage 3: Removing puzzles that play the same (Collision-signature dedup)
 
@@ -61,76 +57,73 @@ The solver uses dynamic programming to find the solution path with the minimum g
 
 ### Technical summary
 
-| Stage | What it does | Typical reduction |
+| Stage | What it does | Typical result (1e+5h) |
 |-------|-------------|-------------------|
-| 1. Retrograde BFS | Finds all solvable positions | 14M states (1e+5h) |
-| 2. Symmetry filter | Removes rotations/reflections | ~8x reduction |
-| 3. Collision-signature dedup | Removes strategically identical puzzles | ~85% reduction |
-| 4. DP trace + output | Finds optimal grouped-move solutions | ~80K final puzzles |
+| 1. Canonical retrograde BFS | Finds all solvable canonical positions | ~1.76M states |
+| 2. Collision-signature dedup | Removes strategically identical puzzles | ~85% reduction |
+| 3. DP trace + output | Finds optimal grouped-move solutions | ~79K final puzzles |
 
 ### Performance
 
+- **Canonical BFS** eliminates D4-symmetric states during exploration, reducing states by ~8× compared to a full BFS with post-hoc filtering.
 - **Parallel BFS** via OpenMP with lock-free atomic insertions into a custom hash table.
-- 1 exit + 5 helpers (14M states): ~13 seconds wall-clock on 4 threads.
-- 1 exit + 5 helpers produces ~80K unique puzzles after dedup.
+- 1 exit + 5 helpers (~1.76M canonical states): ~4 seconds single-threaded, ~2 seconds with 4 threads.
+- 1 exit + 5 helpers produces ~79K unique puzzles after dedup.
 
 ## Computational Complexity
 
 ### What makes it expensive
 
-The dominant cost is the **retrograde BFS** in Stage 1. The number of states the BFS must explore grows with two factors:
+The dominant cost is the **canonical retrograde BFS** in Stage 1. The number of canonical states grows with two factors:
 
-- **More helpers** means exponentially more seed states. The number of ways to place *h* helpers on 48 cells is C(48,h), which grows fast: 48 for 1 helper, 1,128 for 2, 17,296 for 3, 194,580 for 4, and 1,712,304 for 5.
+- **More helpers** means exponentially more seed states. The number of canonical seed states is roughly C(48,h)/8, growing from 9 for 1 helper to ~215K for 5 helpers to ~1.5M for 6 helpers. BFS expansion then discovers ~8–18× more states per seed.
 
 - **More exit robots** means each state is higher-dimensional. With *e* exits, each state tracks *e* additional robot positions, and the BFS explores proportionally more predecessors per state.
 
-The memory cost is 8 bytes per BFS state (each state is packed into a single 64-bit integer in the hash table). For 14 million states, that's about 730 MB of RAM.
+The memory cost is 8 bytes per canonical BFS state (each state is packed into a single 64-bit integer in the hash table). The FlatMap maintains ≤75% load factor, so actual allocation is ~10.7 bytes per state.
 
 ### Measured data
 
-All timings measured on an Apple M1 Mac Mini (4 performance cores) with OpenMP enabled. Times are wall-clock seconds.
+All timings measured single-threaded on an Apple M1 Mac Mini. The canonical BFS explores only D4-canonical states (~1/8th of total).
 
-#### BFS states discovered
+#### Canonical BFS states
 
-| | 1 helper | 2 helpers | 3 helpers | 4 helpers | 5 helpers |
-|---|---|---|---|---|---|
-| **1 exit** | 60 | 1,812 | 38,304 | 715,948 | 14,095,636 |
-| **2 exits** | 96 | 5,000 | 241,112 | 16,816,244 | *~200M est.* |
-| **3 exits** | 180 | 24,468 | 8,848,600 | *~500M est.* | — |
-| **4 exits** | 336 | 157,128 | *~50M est.* | — | — |
+| | 1 helper | 2 helpers | 3 helpers | 4 helpers | 5 helpers | 6 helpers |
+|---|---|---|---|---|---|---|
+| **1 exit** | 12 | 255 | 4,916 | 90,050 | 1,763,957 | 27,342,689 |
 
-#### Wall-clock time
+Growth ratio per additional helper: ~15–20×.
 
-| | 1 helper | 2 helpers | 3 helpers | 4 helpers | 5 helpers |
-|---|---|---|---|---|---|
-| **1 exit** | <1s | <1s | <1s | 1s | 13s |
-| **2 exits** | <1s | <1s | <1s | 1s | 30s |
-| **3 exits** | <1s | <1s | 1s | 38s | *~10 min est.* |
-| **4 exits** | <1s | <1s | 1s | 36s | — |
+#### Wall-clock time (BFS only, single-threaded)
 
-#### Peak RAM
+| | 1 helper | 2 helpers | 3 helpers | 4 helpers | 5 helpers | 6 helpers |
+|---|---|---|---|---|---|---|
+| **1 exit** | <1s | <1s | <1s | 0.2s | 4s | 91s |
 
-| Total robots | Peak RAM |
-|---|---|
-| ≤ 5 | < 100 MB |
-| 6 (e.g. 1e+5h) | ~730 MB |
-| 6 (e.g. 2e+4h) | ~810 MB |
-| 7 (estimated) | ~4–8 GB |
+#### Peak FlatMap memory
+
+| Total robots | Canonical states | FlatMap memory |
+|---|---|---|
+| ≤ 5 | < 5K | < 1 MB |
+| 6 (1e+5h) | 1.76M | ~19 MB |
+| 7 (1e+6h) | 27.3M | ~291 MB |
+| 8 (1e+7h, est.) | ~355M | ~3.8 GB |
+| 9 (1e+8h, est.) | ~3.9B | ~42 GB |
 
 #### Unique puzzles after dedup
 
 | | 1 helper | 2 helpers | 3 helpers | 4 helpers | 5 helpers |
 |---|---|---|---|---|---|
-| **1 exit** | 1 | 6 | 63 | 1,975 | 79,720 |
-| **2 exits** | 1 | 14 | 827 | 109,558 | *large* |
-| **3 exits** | 1 | 33 | 23,096 | *large* | — |
-| **4 exits** | 0 | 59 | *large* | — | — |
+| **1 exit** | 1 | 4 | 57 | 1,884 | 77,350 |
+
+Total for 1 exit, helpers 1–5: 79,296 unique puzzles.
 
 ### What's feasible
 
-- **Total robots ≤ 6** (e.g. 1 exit + 5 helpers, or 2 exits + 4 helpers): completes in under a minute on a modern laptop. This is the default configuration.
-- **Total robots = 7**: feasible but slow — expect 5–15 minutes and several GB of RAM depending on the exit/helper split.
-- **Total robots ≥ 8**: likely requires 30+ GB of RAM and hours of compute. Not practical on consumer hardware.
+- **Total robots ≤ 7** (e.g. 1 exit + 6 helpers): completes in a few minutes on a modern laptop with < 512 MB RAM.
+- **Total robots = 8**: feasible on machines with 8+ GB RAM — expect ~20 minutes BFS time.
+- **Total robots = 9**: requires ~64 GB RAM and several hours. Practical on servers.
+- **Total robots ≥ 10**: not supported — the FlatMap packs state + depth into 64 bits, which limits total robots to 9.
 
 The number of exits matters too: more exits means more solvable states per helper count, because each exit adds an independent piece that must reach the center.
 
