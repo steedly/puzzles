@@ -35,7 +35,7 @@ The result is a complete catalog of every solvable canonical arrangement, each t
 
 ### Stage 3: Removing puzzles that play the same (Collision-signature dedup)
 
-Even after removing rotations and reflections, many remaining positions are **strategically identical**. Consider two puzzles where the robots are in different places, but the solution involves the same sequence of "robot A slides right and is stopped by robot 2, then robot 2 slides up and is stopped by robot A" — they would feel like the same puzzle to a player.
+Even after removing rotations and reflections, many remaining positions are **strategically identical**. Consider two puzzles where the robots are in different places, but the solution involves the same sequence of "robot A slides up and is stopped by robot 1, then robot A slides left and is stopped by robot 2" — they would feel like the same puzzle to a player.
 
 The solver detects this by computing a **collision signature** for each puzzle:
 
