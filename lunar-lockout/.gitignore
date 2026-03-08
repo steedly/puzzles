@@ -9,6 +9,7 @@ lerna-debug.log*
 
 node_modules
 dist
+public/puzzles.llp
 dist-ssr
 *.local
 

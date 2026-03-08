@@ -267,6 +267,7 @@ button { cursor: pointer; font-family: inherit; }
 .hud__actions {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .hud__btn {
@@ -770,6 +771,67 @@ button { cursor: pointer; font-family: inherit; }
   padding: 1px 5px;
   border-radius: 4px;
   font-family: monospace;
+}
+
+/* ── Blocked cells ─────────────────────────────────────────────────────────── */
+.cell--blocked {
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(244, 67, 54, 0.15),
+    rgba(244, 67, 54, 0.15) 4px,
+    rgba(244, 67, 54, 0.05) 4px,
+    rgba(244, 67, 54, 0.05) 8px
+  ) !important;
+  border-color: rgba(244, 67, 54, 0.4) !important;
+}
+
+.cell--blocked::before {
+  content: '✕';
+  position: absolute;
+  font-size: 18px;
+  color: rgba(244, 67, 54, 0.5);
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+}
+
+.board--block-mode { cursor: crosshair; }
+.board--block-mode .cell { cursor: crosshair; }
+
+.cell--blockable:hover {
+  background: rgba(244, 67, 54, 0.12) !important;
+  border-color: rgba(244, 67, 54, 0.5) !important;
+}
+
+.hud__btn--active {
+  background: #5a2a2a !important;
+  border-color: #f44336 !important;
+  color: #f44336 !important;
+}
+
+.hud__btn--clear {
+  color: #f44336;
+  border-color: rgba(244, 67, 54, 0.4);
+}
+
+.hud__no-sol {
+  font-size: 0.82rem;
+  color: #f44336;
+  margin-top: 4px;
+  padding: 6px 10px;
+  background: rgba(244, 67, 54, 0.08);
+  border-radius: 6px;
+  border: 1px solid rgba(244, 67, 54, 0.2);
+}
+
+.pnav__blocked-info {
+  font-size: 0.78rem;
+  color: #f44336;
+  padding: 4px 8px;
+  background: rgba(244, 67, 54, 0.08);
+  border-radius: 6px;
+  border: 1px solid rgba(244, 67, 54, 0.2);
+  text-align: center;
 }
 
 /* ── Responsive ────────────────────────────────────────────────────────────── */

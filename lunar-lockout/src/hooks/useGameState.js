@@ -1,4 +1,4 @@
-import { useReducer, useEffect } from 'react';
+import { useReducer, useEffect, useRef } from 'react';
 import { slideRobot, isWon, initPositions } from '../logic/gameEngine';
 
 function buildInitial(puzzle) {
@@ -26,7 +26,8 @@ function reducer(state, action) {
     case 'SLIDE': {
       if (!state.selectedRobotId) return state;
       const newPositions = slideRobot(
-        state.positions, state.selectedRobotId, action.direction, state.exitIds
+        state.positions, state.selectedRobotId, action.direction, state.exitIds,
+        action.blockedCells ?? null
       );
       if (!newPositions) return state;
       // Consecutive slides by the same robot count as one move (switching robots = new move).
@@ -69,15 +70,17 @@ function reducer(state, action) {
   }
 }
 
-export function useGameState(initialPuzzle) {
+export function useGameState(initialPuzzle, blockedCells) {
   const [state, dispatch] = useReducer(reducer, null, () => buildInitial(initialPuzzle));
+  const blockedRef = useRef(blockedCells);
+  blockedRef.current = blockedCells;
 
   useEffect(() => {
     const map = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };
     function handler(e) {
       if (map[e.key]) {
         e.preventDefault();
-        dispatch({ type: 'SLIDE', direction: map[e.key] });
+        dispatch({ type: 'SLIDE', direction: map[e.key], blockedCells: blockedRef.current });
       }
     }
     window.addEventListener('keydown', handler);

@@ -22,7 +22,7 @@ function occupiedCells(positions, excludeId = null) {
  * exitIds: Set of robot IDs that are exit pieces. When an exit piece lands
  * on the center cell (3,3) it is REMOVED from positions (it exits the board).
  */
-export function slideRobot(positions, robotId, direction, exitIds = null) {
+export function slideRobot(positions, robotId, direction, exitIds = null, blockedCells = null) {
   const start = positions[robotId];
   if (!start) return null; // robot not on board (already exited)
 
@@ -35,6 +35,7 @@ export function slideRobot(positions, robotId, direction, exitIds = null) {
     const nextRow = row + dr;
     const nextCol = col + dc;
     if (nextRow < 0 || nextRow > 6 || nextCol < 0 || nextCol > 6) break; // wall — illegal stop
+    if (blockedCells && blockedCells.has(`${nextRow},${nextCol}`)) break;  // blocked cell — wall
     if (occupied.has(`${nextRow},${nextCol}`)) {
       stoppedByRobot = true;
       break;

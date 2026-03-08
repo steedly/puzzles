@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { solvePuzzle } from '../logic/solver.js';
 
 const DIR_ARROW = { up: '↑', down: '↓', left: '←', right: '→' };
 
@@ -10,10 +11,36 @@ function robotLabel(id) {
   return id.replace('r', '');
 }
 
-export default function HUD({ state, dispatch, currentPuzzle }) {
+export default function HUD({ state, dispatch, currentPuzzle, blockedCells, blockMode, onToggleBlockMode, onClearBlocks }) {
   const [showSol, setShowSol] = useState(false);
+  // null = not computed, [] = computed but empty/failed, [...] = computed solution
+  const [computedSol, setComputedSol] = useState(null);
 
-  const solution = currentPuzzle?.solution ?? [];
+  // Reset when puzzle or blocked cells change
+  const puzzleId = currentPuzzle?.id;
+  const blockKey = blockedCells ? [...blockedCells].sort().join(';') : '';
+  useEffect(() => {
+    setShowSol(false);
+    setComputedSol(null);
+  }, [puzzleId, blockKey]);
+
+  // When blocks are active, always recompute (embedded solution may be invalid)
+  const hasBlocks = blockedCells && blockedCells.size > 0;
+  const embeddedSol = (!hasBlocks && currentPuzzle?.solution) ? currentPuzzle.solution : [];
+  const solution = embeddedSol.length > 0 ? embeddedSol : (computedSol ?? []);
+  const canSolve = currentPuzzle?.minMoves > 0;
+
+  function handleSolutionClick() {
+    if (showSol) {
+      setShowSol(false);
+      return;
+    }
+    // Compute solution on first click if not using embedded
+    if (embeddedSol.length === 0 && computedSol === null && currentPuzzle) {
+      setComputedSol(solvePuzzle(currentPuzzle, blockedCells) || []);
+    }
+    setShowSol(true);
+  }
 
   // Exit progress: how many exit robots have already left the board
   const exitIds = state.exitIds ?? new Set(['target']);
@@ -43,11 +70,21 @@ export default function HUD({ state, dispatch, currentPuzzle }) {
           className="hud__btn"
           onClick={() => dispatch({ type: 'LOAD_PUZZLE', puzzle: currentPuzzle })}
         >Restart</button>
-        {solution.length > 0 && (
+        {canSolve && (
           <button
             className="hud__btn"
-            onClick={() => setShowSol(s => !s)}
+            onClick={handleSolutionClick}
           >{showSol ? 'Hide' : 'Solution'}</button>
+        )}
+        <button
+          className={`hud__btn${blockMode ? ' hud__btn--active' : ''}`}
+          onClick={onToggleBlockMode}
+        >Block</button>
+        {hasBlocks && (
+          <button
+            className="hud__btn hud__btn--clear"
+            onClick={onClearBlocks}
+          >Clear ({blockedCells.size})</button>
         )}
       </div>
 
@@ -61,6 +98,10 @@ export default function HUD({ state, dispatch, currentPuzzle }) {
             </span>
           ))}
         </div>
+      )}
+
+      {showSol && computedSol !== null && computedSol.length === 0 && hasBlocks && (
+        <div className="hud__no-sol">No solution with current blocks</div>
       )}
     </div>
   );

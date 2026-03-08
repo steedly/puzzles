@@ -1,6 +1,6 @@
-export default function DirectionArrows({ selectedRobotId, dispatch }) {
+export default function DirectionArrows({ selectedRobotId, dispatch, blockedCells }) {
   const disabled = !selectedRobotId;
-  const slide = (dir) => dispatch({ type: 'SLIDE', direction: dir });
+  const slide = (dir) => dispatch({ type: 'SLIDE', direction: dir, blockedCells });
 
   return (
     <div className="arrow-pad">

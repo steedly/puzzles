@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { usePuzzleLibrary } from './hooks/usePuzzleLibrary';
 import { useGameState } from './hooks/useGameState';
 import Board from './components/Board';
@@ -22,7 +22,29 @@ export default function App() {
   const [currentPuzzle, setCurrentPuzzle] = useState(null);
   const filteredRef = useRef([]);
 
-  const { state, dispatch } = useGameState(currentPuzzle ?? DUMMY_PUZZLE);
+  // Blocked cells: global preference, persisted in localStorage
+  const [blockedCells, setBlockedCells] = useState(() => {
+    try {
+      const saved = localStorage.getItem('ll-blocked-cells');
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch { return new Set(); }
+  });
+  const [blockMode, setBlockMode] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem('ll-blocked-cells', JSON.stringify([...blockedCells]));
+  }, [blockedCells]);
+
+  const handleToggleBlock = useCallback((row, col) => {
+    const key = `${row},${col}`;
+    setBlockedCells(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }, []);
+
+  const { state, dispatch } = useGameState(currentPuzzle ?? DUMMY_PUZZLE, blockedCells);
 
   // Called by PuzzleNav whenever the filtered list changes.
   const handleFilteredChange = useCallback(list => {
@@ -105,16 +127,25 @@ export default function App() {
           <div className="game-column">
             {currentPuzzle && (
               <div className="game-area">
-                <Board state={state} dispatch={dispatch} puzzle={currentPuzzle} />
+                <Board
+                  state={state} dispatch={dispatch} puzzle={currentPuzzle}
+                  blockedCells={blockedCells} blockMode={blockMode}
+                  onToggleBlock={handleToggleBlock}
+                />
                 <div className="controls">
                   <HUD
                     state={state}
                     dispatch={dispatch}
                     currentPuzzle={currentPuzzle}
+                    blockedCells={blockedCells}
+                    blockMode={blockMode}
+                    onToggleBlockMode={() => setBlockMode(m => !m)}
+                    onClearBlocks={() => setBlockedCells(new Set())}
                   />
                   <DirectionArrows
                     selectedRobotId={state.selectedRobotId}
                     dispatch={dispatch}
+                    blockedCells={blockedCells}
                   />
                 </div>
               </div>
@@ -131,6 +162,7 @@ export default function App() {
             currentPuzzle={currentPuzzle}
             onSelect={handleSelectPuzzle}
             onFilteredChange={handleFilteredChange}
+            blockedCells={blockedCells}
           />
         </div>
       </main>

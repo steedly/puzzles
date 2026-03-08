@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { filterPuzzles } from '../logic/puzzleFilter';
 
 const HELPER_OPTS = [1, 2, 3, 4, 5];
 const EXIT_OPTS   = [1, 2, 3];
@@ -7,7 +8,7 @@ const PAGE_SIZE   = 18;
 const DIFF_LABEL = { easy: 'E', medium: 'M', hard: 'H', expert: 'X' };
 const DIFF_COLOR = { easy: '#4caf50', medium: '#ffc107', hard: '#f44336', expert: '#9c27b0' };
 
-export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilteredChange }) {
+export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilteredChange, blockedCells }) {
   const [activeHelpers, setActiveHelpers] = useState(new Set([1, 2, 3, 4, 5]));
   const [activeExits,   setActiveExits]   = useState(new Set([1, 2, 3]));
   const [movesMin,      setMovesMin]      = useState(1);
@@ -22,14 +23,20 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
     [allPuzzles]
   );
 
+  // Apply blocked-cell filter first, then the standard filters.
+  const { kept: unblocked, removed: blockedCount } = useMemo(
+    () => filterPuzzles(allPuzzles, blockedCells),
+    [allPuzzles, blockedCells]
+  );
+
   const filtered = useMemo(() =>
-    allPuzzles.filter(p =>
+    unblocked.filter(p =>
       activeHelpers.has(p.helpers) &&
       activeExits.has(p.exits ?? 1) &&
       p.minMoves >= movesMin &&
       p.minMoves <= movesMax
     ),
-    [allPuzzles, activeHelpers, activeExits, movesMin, movesMax]
+    [unblocked, activeHelpers, activeExits, movesMin, movesMax]
   );
 
   // Notify parent of the current filtered list (for WinModal "Next").
@@ -123,6 +130,12 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
           {collapsed ? '▾' : '▴'}
         </button>
       </div>
+
+      {blockedCount > 0 && (
+        <div className="pnav__blocked-info">
+          {blockedCount} puzzles removed by blocks
+        </div>
+      )}
 
       {!collapsed && (
         <>

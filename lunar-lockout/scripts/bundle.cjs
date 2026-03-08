@@ -11,6 +11,7 @@
 
 const fs   = require('fs');
 const path = require('path');
+const zlib = require('zlib');
 
 const distDir    = path.resolve(__dirname, '..', 'dist');
 const indexPath  = path.join(distDir, 'index.html');
@@ -50,14 +51,30 @@ html = html.replace(
   }
 );
 
-// Embed puzzles.llp as window.__PUZZLES_LLP__ so the app needs no network request.
+// Embed puzzles.llp as a gzip-compressed base64 blob to minimize bundle size.
+// Solutions are stripped (the app computes them on demand via forward BFS).
+// The app decompresses it at load time using the browser's DecompressionStream API.
 const llpPath = path.join(distDir, 'puzzles.llp');
 if (fs.existsSync(llpPath)) {
-  const llpText  = fs.readFileSync(llpPath, 'utf8');
-  const inlined  = `<script>window.__PUZZLES_LLP__=${JSON.stringify(llpText)};</script>`;
-  // Inject before </head> so the variable is defined before the app JS runs.
+  const llpText    = fs.readFileSync(llpPath, 'utf8');
+  // Strip solution column (last pipe-delimited field) from each data line.
+  const stripped   = llpText
+    .split('\n')
+    .map(line => {
+      if (!line || line.startsWith('#')) return line;
+      const lastPipe = line.lastIndexOf('|');
+      return lastPipe >= 0 ? line.substring(0, lastPipe) : line;
+    })
+    .join('\n');
+  const gzipped    = zlib.gzipSync(Buffer.from(stripped, 'utf8'), { level: 9 });
+  const base64     = gzipped.toString('base64');
+  const inlined    = `<script>window.__PUZZLES_GZ_B64__=${JSON.stringify(base64)};</script>`;
   html = html.replace('</head>', `${inlined}\n</head>`);
-  console.log(`Embedded puzzles.llp  (${(llpText.length / 1024).toFixed(1)} kB of puzzle data)`);
+  const rawKB  = (llpText.length / 1024).toFixed(1);
+  const stripKB = (stripped.length / 1024).toFixed(1);
+  const gzKB   = (gzipped.length / 1024).toFixed(1);
+  const b64KB  = (base64.length / 1024).toFixed(1);
+  console.log(`Embedded puzzles.llp  (${rawKB} kB raw → ${stripKB} kB stripped → ${gzKB} kB gzip → ${b64KB} kB base64)`);
 } else {
   console.warn('puzzles.llp not found in dist/ — bundle will show file picker instead.');
 }

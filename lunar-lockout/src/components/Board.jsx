@@ -1,7 +1,7 @@
 import { slideRobot } from '../logic/gameEngine';
 import Cell from './Cell';
 
-export default function Board({ state, dispatch, puzzle }) {
+export default function Board({ state, dispatch, puzzle, blockedCells, blockMode, onToggleBlock }) {
   // Build reverse lookup: "row,col" → robotId
   const cellMap = {};
   for (const [id, pos] of Object.entries(state.positions)) {
@@ -24,12 +24,11 @@ export default function Board({ state, dispatch, puzzle }) {
     : null;
 
   // Compute the valid landing cell for each direction the selected robot can move.
-  // These cells are highlighted so the user knows where clicking will send the robot.
   const landingCells = new Set();
   if (state.selectedRobotId && selectedRobotPos) {
     for (const dir of ['up', 'down', 'left', 'right']) {
       const newPositions = slideRobot(
-        state.positions, state.selectedRobotId, dir, state.exitIds ?? null
+        state.positions, state.selectedRobotId, dir, state.exitIds ?? null, blockedCells ?? null
       );
       if (!newPositions) continue;
       const newPos = newPositions[state.selectedRobotId];
@@ -43,8 +42,15 @@ export default function Board({ state, dispatch, puzzle }) {
   }
 
   function handleCellClick(row, col, robotId) {
+    // Block mode: toggle blocked state on empty non-center cells
+    if (blockMode) {
+      if (row === 3 && col === 3) return; // can't block center
+      if (robotId) return; // can't block occupied cells
+      onToggleBlock(row, col);
+      return;
+    }
+
     if (robotId) {
-      // Clicking any robot selects it.
       dispatch({ type: 'SELECT_ROBOT', robotId });
       return;
     }
@@ -54,11 +60,10 @@ export default function Board({ state, dispatch, puzzle }) {
     }
     // Determine direction from selected robot to clicked empty cell.
     if (row === selectedRobotPos.row && col !== selectedRobotPos.col) {
-      dispatch({ type: 'SLIDE', direction: col > selectedRobotPos.col ? 'right' : 'left' });
+      dispatch({ type: 'SLIDE', direction: col > selectedRobotPos.col ? 'right' : 'left', blockedCells });
     } else if (col === selectedRobotPos.col && row !== selectedRobotPos.row) {
-      dispatch({ type: 'SLIDE', direction: row > selectedRobotPos.row ? 'down' : 'up' });
+      dispatch({ type: 'SLIDE', direction: row > selectedRobotPos.row ? 'down' : 'up', blockedCells });
     } else {
-      // Outside the robot's row and column — deselect.
       dispatch({ type: 'DESELECT' });
     }
   }
@@ -78,11 +83,13 @@ export default function Board({ state, dispatch, puzzle }) {
           robotMeta={robotId ? robotMeta[robotId] : null}
           selectedRobotId={state.selectedRobotId}
           isLandingCell={landingCells.has(key)}
+          isBlocked={blockedCells && blockedCells.has(key)}
+          blockMode={blockMode}
           onClick={handleCellClick}
         />
       );
     }
   }
 
-  return <div className="board">{cells}</div>;
+  return <div className={`board${blockMode ? ' board--block-mode' : ''}`}>{cells}</div>;
 }
