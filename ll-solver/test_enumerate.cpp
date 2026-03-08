@@ -452,14 +452,14 @@ TEST(retrograde_1exit_0helpers) {
 
 TEST(retrograde_1exit_1helper) {
     // 1 exit, 1 helper: should produce a small but non-trivial BFS.
+    // With canonical BFS, only D4-canonical goal states are seeded.
+    // For 1 helper on 48 cells: ~48/8 ≈ 9 canonical seeds (due to D4 symmetry).
     FlatMap dist = retrograde(1, 1);
     ASSERT(dist.size() > 1); // more than just the goals
-    // Goal states: exit=EXITED, helper at any of 48 non-center cells.
-    // There should be 48 goal states (C(48,1) = 48).
     int goal_count = 0;
     for (auto [s, d] : dist)
         if (d == 0) goal_count++;
-    ASSERT_EQ(48, goal_count);
+    ASSERT_EQ(9, goal_count); // 9 canonical goal states
 }
 
 TEST(retrograde_1exit_1helper_depth1) {
@@ -471,12 +471,14 @@ TEST(retrograde_1exit_1helper_depth1) {
         if (d == 1) depth1_count++;
     ASSERT(depth1_count > 0);
 
-    // Verify a known depth-1 state:
+    // Verify a known depth-1 state (canonicalized):
     // Exit at (0,3)=3, helper at (4,3)=31.
-    // Exit slides down, blocked by helper, lands on center (3,3)=24. Exits!
+    // Exit slides down, blocked by helper, lands on center. Exits!
+    // Must canonicalize before FlatMap lookup (BFS stores canonical states only).
     int pos[2] = {3, 31};
+    State cs = canonical(encode(pos, 2), 2, 1);
     uint8_t val;
-    ASSERT(dist.find_val(encode(pos, 2), &val));
+    ASSERT(dist.find_val(cs, &val));
     ASSERT_EQ(1, (int)val);
 }
 
@@ -487,23 +489,22 @@ TEST(retrograde_1exit_1helper_depth1) {
 TEST(trace_greedy_1exit_1helper) {
     FlatMap dist = retrograde(1, 1);
     // Exit at (0,3)=3, helper at (4,3)=31. Depth 1.
+    // Must use canonical state for trace (FlatMap only has canonical states).
     int pos[2] = {3, 31};
-    State s = encode(pos, 2);
+    State s = canonical(encode(pos, 2), 2, 1);
     auto sol = trace_solution_greedy(s, 2, 1, dist);
     ASSERT_EQ((size_t)1, sol.size());
     ASSERT_EQ(0, (int)sol[0].mover);   // exit robot
-    ASSERT_EQ(1, (int)sol[0].dir);     // Down
     ASSERT_EQ(1, (int)sol[0].blocker); // helper
 }
 
 TEST(trace_dp_1exit_1helper) {
     FlatMap dist = retrograde(1, 1);
     int pos[2] = {3, 31};
-    State s = encode(pos, 2);
+    State s = canonical(encode(pos, 2), 2, 1);
     auto sol = trace_solution(s, 2, 1, dist);
     ASSERT_EQ((size_t)1, sol.size());
     ASSERT_EQ(0, (int)sol[0].mover);
-    ASSERT_EQ(1, (int)sol[0].dir);
     ASSERT_EQ(1, (int)sol[0].blocker);
 }
 

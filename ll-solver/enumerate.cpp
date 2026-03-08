@@ -53,10 +53,9 @@
 //     g++ -O3 -std=c++17 -fopenmp -o enumerate enumerate.cpp
 //
 //   macOS / Apple Clang (requires: brew install libomp):
-//     g++ -O3 -std=c++17 \
-//         -Xpreprocessor -fopenmp \
-//         -I$(brew --prefix libomp)/include \
-//         -L$(brew --prefix libomp)/lib -lomp \
+//     g++ -O3 -std=c++17 -Xpreprocessor -fopenmp
+//         -I$(brew --prefix libomp)/include
+//         -L$(brew --prefix libomp)/lib -lomp
 //         -o enumerate enumerate.cpp
 //
 //   Without OpenMP (slower canonicalisation step):
@@ -71,6 +70,7 @@
 //   Puzzle data goes to stdout; progress/stats go to stderr.
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <climits>
 #include <cstdint>
@@ -858,6 +858,213 @@ static std::string collision_signature(const std::vector<Move>& sol, int num_exi
     return sig;
 }
 
+// Minimum odd board size (1, 3, 5, or 7) with center at (3,3) that fits all
+// used robots.  Uses Chebyshev distance from center.
+static int compute_board_size(const int* pos, const bool* used, int n) {
+    int max_cheb = 0;
+    for (int i = 0; i < n; i++) {
+        if (!used[i]) continue;
+        int cheb = std::max(std::abs(pos[i]/N - 3), std::abs(pos[i]%N - 3));
+        if (cheb > max_cheb) max_cheb = cheb;
+    }
+    return 2 * max_cheb + 1;
+}
+
+// ── Compaction ──────────────────────────────────────────────────────────────
+// After collision-signature dedup picks a representative, try to construct an
+// even more compact starting position by reducing the "gap" (distance each
+// mover travels on its first slide) to 1.  The collision sequence is preserved
+// and the BFS distance is verified via FlatMap lookup.
+
+// Replay the solution with the given positions and check that each move
+// produces the same (mover, direction, blocker) triple as in sol.
+static bool validate_collision_seq(const int* init_pos,
+                                    const std::vector<Move>& sol,
+                                    int n, int num_exits)
+{
+    // Check for position collisions in initial config.
+    for (int i = 0; i < n; i++)
+        for (int j = i + 1; j < n; j++)
+            if (init_pos[i] == init_pos[j]) return false;
+
+    int pos[10];
+    std::memcpy(pos, init_pos, n * sizeof(int));
+
+    for (const auto& m : sol) {
+        const int mover   = (int)m.mover;
+        const int dir     = (int)m.dir;
+        const int blocker = (int)m.blocker;
+
+        if (mover < num_exits && pos[mover] == EXITED) return false;
+
+        const int mr = pos[mover] / N, mc = pos[mover] % N;
+
+        // Build occupancy bitmask (all robots except mover).
+        uint64_t occ = 0;
+        for (int i = 0; i < n; i++)
+            if (i != mover && pos[i] != EXITED) occ |= (uint64_t)1 << pos[i];
+
+        // Slide mover in direction dir.
+        int wr = mr, wc = mc;
+        int blocker_cell = -1;
+        while (true) {
+            int nr = wr + DR[dir], nc = wc + DC[dir];
+            if (nr < 0 || nr >= N || nc < 0 || nc >= N) break;
+            int np = nr * N + nc;
+            if (occ & ((uint64_t)1 << np)) { blocker_cell = np; break; }
+            wr = nr; wc = nc;
+        }
+
+        if (blocker_cell < 0) return false;            // wall stop
+        if (wr == mr && wc == mc) return false;         // no movement
+        if (pos[blocker] != blocker_cell) return false;  // wrong blocker
+
+        const int land = wr * N + wc;
+        if (mover < num_exits && land == CTR)
+            pos[mover] = EXITED;
+        else
+            pos[mover] = land;
+    }
+    return true;
+}
+
+// Try to compact the starting position by reducing each mover's first-move
+// gap to 1.  On success, modifies init_pos and sol in place (helpers re-sorted
+// and solution indices remapped) and returns true.
+static bool try_compact(int* init_pos, std::vector<Move>& sol,
+                        int n, int num_exits, const FlatMap& dist,
+                        int original_dist)
+{
+    // 1. Replay solution to find each mover's first-move gap and landing.
+    int first_move[10]; // index into sol, or -1 if never moves
+    int landing[10];    // landing cell at first move
+    std::fill(first_move, first_move + 10, -1);
+
+    int pos[10];
+    std::memcpy(pos, init_pos, n * sizeof(int));
+
+    for (int k = 0; k < (int)sol.size(); k++) {
+        const int mover   = (int)sol[k].mover;
+        const int dir     = (int)sol[k].dir;
+        const int blocker = (int)sol[k].blocker;
+
+        // Compute landing: one cell before blocker in the slide direction.
+        const int br = pos[blocker] / N, bc = pos[blocker] % N;
+        const int land_r = br - DR[dir], land_c = bc - DC[dir];
+        const int land = land_r * N + land_c;
+
+        if (first_move[mover] < 0) {
+            first_move[mover] = k;
+            landing[mover] = land;
+        }
+
+        if (mover < num_exits && land == CTR)
+            pos[mover] = EXITED;
+        else
+            pos[mover] = land;
+    }
+
+    // 2. Identify adjustable movers (those with gap > 1).
+    int adjustable[10], nadj = 0;
+    int compact_start[10]; // gap=1 start position for each adjustable mover
+
+    for (int r = 0; r < n; r++) {
+        if (first_move[r] < 0) continue; // never moves
+        const int dir  = (int)sol[first_move[r]].dir;
+        const int land = landing[r];
+
+        // Gap = distance from init_pos to landing.
+        const int land_r = land / N, land_c = land % N;
+        const int mr = init_pos[r] / N, mc = init_pos[r] % N;
+        const int gap = std::abs(mr - land_r) + std::abs(mc - land_c);
+        if (gap <= 1) continue;
+
+        // Gap=1 start: one cell behind landing (opposite of slide direction).
+        const int sr = land_r - DR[dir], sc = land_c - DC[dir];
+        if (sr < 0 || sr >= N || sc < 0 || sc >= N) continue;
+
+        adjustable[nadj] = r;
+        compact_start[nadj] = sr * N + sc;
+        nadj++;
+    }
+
+    if (nadj == 0) return false;
+
+    // 3. Try subsets: from all-compact (mask = all bits set) down to singles.
+    //    For each valid combination, compute board_size; pick smallest.
+    int best_mask = -1, best_board = 8;
+    int best_pos[10];
+
+    const int total_masks = 1 << nadj;
+    for (int mask = total_masks - 1; mask > 0; mask--) {
+        int cand[10];
+        std::memcpy(cand, init_pos, n * sizeof(int));
+        for (int b = 0; b < nadj; b++)
+            if (mask & (1 << b))
+                cand[adjustable[b]] = compact_start[b];
+
+        // Quick position-collision check.
+        bool collision = false;
+        for (int i = 0; i < n && !collision; i++)
+            for (int j = i + 1; j < n && !collision; j++)
+                if (cand[i] == cand[j]) collision = true;
+        if (collision) continue;
+
+        if (!validate_collision_seq(cand, sol, n, num_exits)) continue;
+
+        // FlatMap verification: encode with sorted helpers, canonicalize.
+        int sorted[10];
+        std::memcpy(sorted, cand, n * sizeof(int));
+        std::sort(sorted + num_exits, sorted + n);
+        const State cs = canonical(encode(sorted, n), n, num_exits);
+        uint8_t d;
+        if (!dist.find_val(cs, &d) || d != (uint8_t)original_dist) continue;
+
+        // Compute board_size for this candidate.
+        bool all_used[10];
+        std::fill(all_used, all_used + n, true);
+        const int bs = compute_board_size(cand, all_used, n);
+        if (bs < best_board) {
+            best_board = bs;
+            best_mask = mask;
+            std::memcpy(best_pos, cand, n * sizeof(int));
+        }
+    }
+
+    if (best_mask < 0) return false;
+
+    // Check that compact version is actually better than original.
+    {
+        bool all_used[10];
+        std::fill(all_used, all_used + n, true);
+        const int orig_board = compute_board_size(init_pos, all_used, n);
+        if (best_board >= orig_board) return false;
+    }
+
+    // 4. Apply compaction: re-sort helpers and remap solution indices.
+    //    Exits keep their indices; helpers are sorted by position.
+    int perm[10], inv[10];
+    for (int e = 0; e < num_exits; e++) perm[e] = e;
+
+    int helper_order[10];
+    const int nh = n - num_exits;
+    std::iota(helper_order, helper_order + nh, num_exits);
+    std::sort(helper_order, helper_order + nh,
+              [&](int a, int b) { return best_pos[a] < best_pos[b]; });
+    for (int i = 0; i < nh; i++) perm[num_exits + i] = helper_order[i];
+
+    for (int i = 0; i < n; i++) inv[perm[i]] = i;
+
+    for (int i = 0; i < n; i++) init_pos[i] = best_pos[perm[i]];
+
+    for (auto& m : sol) {
+        m.mover   = (int8_t)inv[(int)m.mover];
+        m.blocker = (int8_t)inv[(int)m.blocker];
+    }
+
+    return true;
+}
+
 // ── Output helpers ──────────────────────────────────────────────────────────
 
 // Sort exit robots by ascending cell index and remap all references in the
@@ -922,18 +1129,6 @@ static int count_grouped_moves(const std::vector<Move>& sol) {
     return groups;
 }
 
-// Minimum odd board size (1, 3, 5, or 7) with center at (3,3) that fits all
-// used robots.  Uses Chebyshev distance from center.
-static int compute_board_size(const int* pos, const bool* used, int n) {
-    int max_cheb = 0;
-    for (int i = 0; i < n; i++) {
-        if (!used[i]) continue;
-        int cheb = std::max(std::abs(pos[i]/N - 3), std::abs(pos[i]%N - 3));
-        if (cheb > max_cheb) max_cheb = cheb;
-    }
-    return 2 * max_cheb + 1;
-}
-
 // ── Output emitter (three-pass pipeline) ─────────────────────────────────────
 // Pass 1: Scan BFS FlatMap, collect self-canonical initial states.
 //         The BFS is D4-closed, so S == canonical(S) identifies exactly one
@@ -942,10 +1137,11 @@ static int compute_board_size(const int* pos, const bool* used, int n) {
 //         Eliminates ~85% of states cheaply before the expensive DP trace.
 // Pass 3: Full DP trace for survivors → minimum grouped moves → output.
 //         Only ~15% of canonical states reach this phase.
-static void emit(const FlatMap& dist, int n, int num_exits, int num_helpers,
+static void emit(const FlatMap& dist, int n, int num_exits,
                  int min_moves, int max_moves,
                  int& id, std::unordered_set<uint64_t>& seen_sigs,
                  std::unordered_set<uint64_t>& seen_pruned_canons,
+                 std::unordered_set<uint64_t>& seen_dp_sigs,
                  int& emitted, int& deduped)
 {
     using Clock = std::chrono::steady_clock;
@@ -1031,9 +1227,11 @@ static void emit(const FlatMap& dist, int n, int num_exits, int num_helpers,
               << dup_count << " deduped, "
               << std::chrono::duration<double>(t2 - t1).count() << "s\n";
 
-    // ── Pass 3: DP trace for survivors → output ──
+    // ── Pass 3: DP trace for survivors → compact → output ──
     std::vector<std::string> output_lines(survivors.size());
     std::vector<State> pruned_canons(survivors.size(), ~(State)0);
+    std::vector<uint64_t> dp_sig_hashes(survivors.size(), 0);
+    std::atomic<int> compact_count{0};
 
 #ifdef _OPENMP
     #pragma omp parallel for schedule(dynamic, 64)
@@ -1046,12 +1244,22 @@ static void emit(const FlatMap& dist, int n, int num_exits, int num_helpers,
 
         int init_pos[10];
         decode(recs[i].s, n, init_pos);
+        if (try_compact(init_pos, sol, n, num_exits, dist, recs[i].d))
+            compact_count++;
         sort_exits_and_remap(init_pos, sol, num_exits);
 
         bool used[10];
         std::vector<Move> pruned;
         const int new_h = prune_unused_helpers(sol, num_exits, n, pruned, used);
         const int grouped_moves = count_grouped_moves(pruned);
+
+        // Collision-sig hash of the DP solution (may differ from greedy).
+        {
+            std::string sig = collision_signature(pruned, num_exits);
+            std::string key = "e" + std::to_string(num_exits)
+                            + "h" + std::to_string(new_h) + "|" + sig;
+            dp_sig_hashes[j] = hash_dedup_key(key);
+        }
 
         // Compute D4-canonical form of the PRUNED positions.
         // This catches cross-combo duplicates where different full states
@@ -1100,15 +1308,20 @@ static void emit(const FlatMap& dist, int n, int num_exits, int num_helpers,
     }
 
     // Sequential output with IDs.
-    // Dedup by D4-canonical form of pruned positions (catches cross-combo
-    // duplicates where different helper counts prune to the same puzzle).
+    // Dedup by: (1) D4-canonical form of pruned positions (cross-combo dups),
+    //           (2) collision-sig of DP solution (greedy/DP path differences).
     emitted = 0;
     deduped = dup_count;
     int pruned_dup_count = 0;
+    int dp_sig_dup_count = 0;
     for (int j = 0; j < (int)output_lines.size(); j++) {
         if (output_lines[j].empty()) continue;
         if (!seen_pruned_canons.insert(pruned_canons[j]).second) {
             pruned_dup_count++;
+            continue;
+        }
+        if (!seen_dp_sigs.insert(dp_sig_hashes[j]).second) {
+            dp_sig_dup_count++;
             continue;
         }
         std::cout << ++id << '|' << output_lines[j] << '\n';
@@ -1117,8 +1330,12 @@ static void emit(const FlatMap& dist, int n, int num_exits, int num_helpers,
 
     auto t3 = Clock::now();
     std::cerr << "  pass 3 (DP trace + output): " << emitted << " emitted";
+    if (compact_count.load() > 0)
+        std::cerr << ", " << compact_count.load() << " compacted";
     if (pruned_dup_count > 0)
         std::cerr << ", " << pruned_dup_count << " cross-combo D4 dups removed";
+    if (dp_sig_dup_count > 0)
+        std::cerr << ", " << dp_sig_dup_count << " DP collision-sig dups removed";
     std::cerr << ", " << std::chrono::duration<double>(t3 - t2).count() << "s\n";
 }
 
@@ -1151,6 +1368,7 @@ int main(int argc, char* argv[]) {
 
     std::unordered_set<uint64_t> seen_sigs;
     std::unordered_set<uint64_t> seen_pruned_canons;
+    std::unordered_set<uint64_t> seen_dp_sigs;
     int id = 0, total_emitted = 0;
 
     for (int ne = 1; ne <= max_exits; ne++) {
@@ -1168,8 +1386,9 @@ int main(int argc, char* argv[]) {
                       << bfs_secs << "s\n";
 
             int k_emitted = 0, k_deduped = 0;
-            emit(dist, ne + nh, ne, nh, min_moves, max_moves,
-                 id, seen_sigs, seen_pruned_canons, k_emitted, k_deduped);
+            emit(dist, ne + nh, ne, min_moves, max_moves,
+                 id, seen_sigs, seen_pruned_canons, seen_dp_sigs,
+                 k_emitted, k_deduped);
 
             std::cerr << "  emitted: " << k_emitted
                       << "  deduped by collision sig: " << k_deduped << "\n";
