@@ -27,11 +27,11 @@ Concretely:
 
 2. **Work backward one move at a time, staying canonical.** For each state, the solver generates all *predecessor* states (boards that could reach it in one move). Each predecessor is immediately canonicalized before insertion into the hash table. This ensures the BFS only ever stores and expands canonical states — rotations and reflections are eliminated on the fly, not in a post-processing pass.
 
-3. **Repeat, level by level.** Because it works outward level by level, the first time a position is found is guaranteed to be at its optimal (minimum) distance from the solution.
+3. **Repeat, level by level.** Because it works outward level by level, the first time a position is found is guaranteed to be at its minimum number of individual slides from the solution. (This is *not* the same as minimum grouped moves — that optimization happens later in Stage 4.)
 
 **Why this works:** The predecessor relationship is D4-equivariant — if board P reaches board S in one move, then rotating both P and S by the same transform preserves the move. So expanding a single canonical representative discovers every canonical predecessor that any member of its symmetry orbit would have found.
 
-The result is a complete catalog of every solvable canonical arrangement, each tagged with its optimal move count. For 1 exit + 5 helpers, this discovers ~1.76 million canonical states (equivalent to the ~14 million total states the non-canonical approach would find).
+The result is a complete catalog of every solvable canonical arrangement, each tagged with its minimum slide count. For 1 exit + 5 helpers, this discovers ~1.76 million canonical states (equivalent to the ~14 million total states the non-canonical approach would find).
 
 ### Stage 3: Removing puzzles that play the same (Collision-signature dedup)
 
@@ -51,9 +51,9 @@ This stage eliminates roughly 85% of the remaining positions — it's the bigges
 
 ### Stage 4: Finding the best solution and writing output
 
-For each surviving unique puzzle, the solver finds the solution that uses the fewest **grouped moves**. A "grouped move" counts consecutive slides by the same robot as a single move — if you slide robot A right, then slide robot A up, that's one grouped move (you're still "using" robot A), but then sliding robot 2 would start a second grouped move.
+Stage 1's BFS tagged each state with its minimum number of **individual slides** — but a player experiences puzzles in terms of **grouped moves**, where consecutive slides by the same robot feel like a single action. For example, sliding robot A right then sliding robot A up is one grouped move (you're still "using" robot A), but then sliding robot 2 would start a second grouped move. A 10-slide solution might take only 5 grouped moves if robots are moved in streaks.
 
-The solver uses dynamic programming to find the solution path with the minimum grouped move count, then writes one puzzle per line to the output file.
+For each surviving unique puzzle, the solver does a **forward-direction DP pass** along the distance-decreasing paths found by the BFS. It explores all slide sequences that use the minimum number of individual slides, and among those, selects the one with the fewest grouped moves. This is much cheaper than augmenting the BFS itself (which would multiply memory by the number of robots), since it only traces paths from a single starting position at a time.
 
 ### Technical summary
 
