@@ -72,6 +72,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <climits>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
