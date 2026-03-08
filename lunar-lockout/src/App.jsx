@@ -30,6 +30,7 @@ export default function App() {
     } catch { return new Set(); }
   });
   const [blockMode, setBlockMode] = useState(false);
+  const [showPaths, setShowPaths] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('ll-blocked-cells', JSON.stringify([...blockedCells]));
@@ -131,6 +132,7 @@ export default function App() {
                   state={state} dispatch={dispatch} puzzle={currentPuzzle}
                   blockedCells={blockedCells} blockMode={blockMode}
                   onToggleBlock={handleToggleBlock}
+                  showPaths={showPaths}
                 />
                 <div className="controls">
                   <HUD
@@ -141,6 +143,8 @@ export default function App() {
                     blockMode={blockMode}
                     onToggleBlockMode={() => setBlockMode(m => !m)}
                     onClearBlocks={() => setBlockedCells(new Set())}
+                    showPaths={showPaths}
+                    onTogglePaths={() => setShowPaths(p => !p)}
                   />
                   <DirectionArrows
                     selectedRobotId={state.selectedRobotId}

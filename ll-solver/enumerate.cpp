@@ -938,6 +938,7 @@ static int compute_board_size(const int* pos, const bool* used, int n) {
 static void emit(const FlatMap& dist, int n, int num_exits, int num_helpers,
                  int min_moves, int max_moves,
                  int& id, std::unordered_set<uint64_t>& seen_sigs,
+                 std::unordered_set<uint64_t>& seen_pruned_canons,
                  int& emitted, int& deduped)
 {
     using Clock = std::chrono::steady_clock;
@@ -1040,6 +1041,7 @@ static void emit(const FlatMap& dist, int n, int num_exits, int num_helpers,
 
     // ── Pass 3: DP trace for survivors → output ──
     std::vector<std::string> output_lines(survivors.size());
+    std::vector<State> pruned_canons(survivors.size(), ~(State)0);
 
 #ifdef _OPENMP
     #pragma omp parallel for schedule(dynamic, 64)
@@ -1058,6 +1060,18 @@ static void emit(const FlatMap& dist, int n, int num_exits, int num_helpers,
         std::vector<Move> pruned;
         const int new_h = prune_unused_helpers(sol, num_exits, n, pruned, used);
         const int grouped_moves = count_grouped_moves(pruned);
+
+        // Compute D4-canonical form of the PRUNED positions.
+        // This catches cross-combo duplicates where different full states
+        // produce the same pruned puzzle after unused helpers are removed.
+        {
+            int compact[10];
+            int ci = 0;
+            for (int e = 0; e < num_exits; e++) compact[ci++] = init_pos[e];
+            for (int h = num_exits; h < n; h++)
+                if (used[h]) compact[ci++] = init_pos[h];
+            pruned_canons[j] = canonical(encode(compact, ci), ci, num_exits);
+        }
 
         // Format output line (ID assigned sequentially below).
         std::string line;
@@ -1094,17 +1108,26 @@ static void emit(const FlatMap& dist, int n, int num_exits, int num_helpers,
     }
 
     // Sequential output with IDs.
+    // Dedup by D4-canonical form of pruned positions (catches cross-combo
+    // duplicates where different helper counts prune to the same puzzle).
     emitted = 0;
     deduped = dup_count;
-    for (auto& line : output_lines) {
-        if (line.empty()) continue;
-        std::cout << ++id << '|' << line << '\n';
+    int pruned_dup_count = 0;
+    for (int j = 0; j < (int)output_lines.size(); j++) {
+        if (output_lines[j].empty()) continue;
+        if (!seen_pruned_canons.insert(pruned_canons[j]).second) {
+            pruned_dup_count++;
+            continue;
+        }
+        std::cout << ++id << '|' << output_lines[j] << '\n';
         emitted++;
     }
 
     auto t3 = Clock::now();
-    std::cerr << "  pass 3 (DP trace + output): " << emitted << " emitted, "
-              << std::chrono::duration<double>(t3 - t2).count() << "s\n";
+    std::cerr << "  pass 3 (DP trace + output): " << emitted << " emitted";
+    if (pruned_dup_count > 0)
+        std::cerr << ", " << pruned_dup_count << " cross-combo D4 dups removed";
+    std::cerr << ", " << std::chrono::duration<double>(t3 - t2).count() << "s\n";
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -1135,6 +1158,7 @@ int main(int argc, char* argv[]) {
         "#\n";
 
     std::unordered_set<uint64_t> seen_sigs;
+    std::unordered_set<uint64_t> seen_pruned_canons;
     int id = 0, total_emitted = 0;
 
     for (int ne = 1; ne <= max_exits; ne++) {
@@ -1153,7 +1177,7 @@ int main(int argc, char* argv[]) {
 
             int k_emitted = 0, k_deduped = 0;
             emit(dist, ne + nh, ne, nh, min_moves, max_moves,
-                 id, seen_sigs, k_emitted, k_deduped);
+                 id, seen_sigs, seen_pruned_canons, k_emitted, k_deduped);
 
             std::cerr << "  emitted: " << k_emitted
                       << "  deduped by collision sig: " << k_deduped << "\n";

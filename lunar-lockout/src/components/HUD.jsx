@@ -11,7 +11,7 @@ function robotLabel(id) {
   return id.replace('r', '');
 }
 
-export default function HUD({ state, dispatch, currentPuzzle, blockedCells, blockMode, onToggleBlockMode, onClearBlocks }) {
+export default function HUD({ state, dispatch, currentPuzzle, blockedCells, blockMode, onToggleBlockMode, onClearBlocks, showPaths, onTogglePaths }) {
   const [showSol, setShowSol] = useState(false);
   // null = not computed, [] = computed but empty/failed, [...] = computed solution
   const [computedSol, setComputedSol] = useState(null);
@@ -75,6 +75,12 @@ export default function HUD({ state, dispatch, currentPuzzle, blockedCells, bloc
             className="hud__btn"
             onClick={handleSolutionClick}
           >{showSol ? 'Hide' : 'Solution'}</button>
+        )}
+        {canSolve && (
+          <button
+            className={`hud__btn${showPaths ? ' hud__btn--active-paths' : ''}`}
+            onClick={onTogglePaths}
+          >Paths</button>
         )}
         <button
           className={`hud__btn${blockMode ? ' hud__btn--active' : ''}`}

@@ -128,6 +128,20 @@ button { cursor: pointer; font-family: inherit; }
   flex-wrap: wrap;
 }
 
+/* ── Board container (for SVG overlay) ─────────────────────────────────────── */
+.board-container {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.solution-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
 /* ── Board ─────────────────────────────────────────────────────────────────── */
 .board {
   display: grid;
@@ -801,6 +815,12 @@ button { cursor: pointer; font-family: inherit; }
 .cell--blockable:hover {
   background: rgba(244, 67, 54, 0.12) !important;
   border-color: rgba(244, 67, 54, 0.5) !important;
+}
+
+.hud__btn--active-paths {
+  background: #2a2a5a !important;
+  border-color: #a0a0ff !important;
+  color: #a0a0ff !important;
 }
 
 .hud__btn--active {
