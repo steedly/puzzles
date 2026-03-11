@@ -76,18 +76,29 @@ Generate a new `.llp` file with the enumerator, strip solutions, and place it in
 
 ```bash
 cd ../ll-solver
-./enumerate 4 6 1 20 > full.llp
+./enumerate 3 6 1 20 > full.llp
 
 # Strip solutions (keep only positions)
-awk -F'|' 'BEGIN{OFS="|"} /^#/{print; next} {NF=NF-1; print}' full.llp \
-  > ../lunar-lockout/public/puzzles.llp
+python3 -c "
+import sys
+for line in sys.stdin:
+    line = line.rstrip('\n')
+    if line.startswith('#'):
+        print(line)
+    else:
+        parts = line.split('|')
+        if len(parts) >= 6:
+            print('|'.join(parts[:-1]))
+        else:
+            print(line)
+" < full.llp > ../lunar-lockout/public/puzzles.llp
 ```
 
 ## On-the-Fly Solver
 
 The app includes a JavaScript forward BFS solver (`src/logic/solver.js`) that computes optimal solutions in the browser. This is used in two situations:
 
-1. **Stripped puzzle data.** The committed `puzzles.llp` omits solutions to keep file size manageable (~7 MB stripped vs. ~15 MB with solutions). When the user requests a solution hint, the solver runs on demand.
+1. **Stripped puzzle data.** The committed `puzzles.llp` omits solutions to keep file size manageable (~6 MB stripped vs. ~12 MB with solutions). When the user requests a solution hint, the solver runs on demand.
 
 2. **Blocked cells.** Users can mark cells as blocked (walls that robots cannot pass through). Blocked cells invalidate the precomputed solution, so the solver recomputes one that respects the current board constraints.
 
@@ -109,9 +120,9 @@ The nav panel includes a board selector with three variants:
 
 | Variant | Board | Puzzles | Description |
 |---------|-------|---------|-------------|
-| Standard | 7×7 | ~51K | Full board, no blocked cells |
-| Solitaire | 7×7 | ~4.6K | Four 2×2 corners blocked |
-| UFO | 5×5 | ~3K | Center 5×5 only (border blocked) |
+| Standard | 7×7 | ~145K | Full board, no blocked cells |
+| Solitaire | 7×7 | ~27K | Four 2×2 corners blocked |
+| UFO | 5×5 | ~21K | Center 5×5 only (border blocked) |
 
 Each variant has its own pre-generated puzzle library with correct optimal solutions and move counts. Variant puzzle files are lazy-loaded on first selection and cached in memory. Variant-blocked cells appear as dark inactive cells, visually distinct from user-blocked cells.
 
@@ -132,7 +143,7 @@ When blocks are active:
 
 Blocks persist across puzzles and browser sessions via `localStorage`.
 
-The filter uses a four-tier pipeline for efficiency over large libraries (~51K puzzles):
+The filter uses a four-tier pipeline for efficiency over large libraries (~145K puzzles):
 
 | Tier | Method | Cost |
 |------|--------|------|
@@ -196,11 +207,13 @@ Run `npm run build:bundle` and distribute `dist/index.bundle.html` as a single f
 
 ### Puzzle data size
 
-| File | Raw | Gzipped |
-|------|-----|---------|
-| Standard (stripped) | ~1.8 MB | ~400 KB |
-| Solitaire (stripped) | ~160 KB | ~40 KB |
-| UFO (stripped) | ~100 KB | ~25 KB |
+Current deployment uses up to 3 exits and ≤6 total robots:
+
+| File | Puzzles | Raw | Gzipped |
+|------|---------|-----|---------|
+| Standard (stripped) | ~145K | ~6 MB | ~1.2 MB |
+| Solitaire (stripped) | ~27K | ~1 MB | ~200 KB |
+| UFO (stripped) | ~21K | ~800 KB | ~160 KB |
 
 Variant files are lazy-loaded, so only the standard file is fetched on initial page load. GitHub Pages applies gzip `Content-Encoding` automatically.
 

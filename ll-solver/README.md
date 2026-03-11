@@ -49,7 +49,7 @@ The solver detects this by computing a **collision signature** for each puzzle:
 
 **Compaction preference:** When multiple starting positions share the same collision signature, the solver prefers the one where all robots fit on the **smallest board**. It measures each position's "board size" — the smallest square centered on the middle of the board that contains every robot. A puzzle where all robots are within 2 squares of the center (fitting on a 5×5 board) is preferred over one where a robot is in the corner (requiring the full 7×7 board). This produces tidier-looking puzzles without changing the gameplay.
 
-This stage eliminates roughly 85% of the remaining positions — it's the biggest source of deduplication.
+This is the biggest source of deduplication. For 1 exit + 5 helpers, it reduces 1,548,611 collected states to 58,505 unique puzzles. For 3 exits + 4 helpers, it reduces 33,835,553 to 5,406,234.
 
 ### Stage 3: Compacting puzzles to the smallest board
 
@@ -83,12 +83,13 @@ After computing the DP-optimal solution, a final **DP collision-signature dedup*
 
 ### Technical summary
 
-| Stage | What it does | Typical result (1e+5h) |
-|-------|-------------|-------------------|
-| 1. Canonical retrograde BFS | Finds all solvable canonical positions | ~1.76M states |
-| 2. D4-normalised collision-sig dedup | Removes strategically identical puzzles (including D4 rotations) | ~96% reduction |
-| 3. Compaction | Tightens starting positions (movers + non-moving blockers) | ~260 compacted |
-| 4. DP trace + final dedup + output | Finds optimal grouped-move solutions | ~51K final puzzles |
+| Stage | What it does | 1e+5h | 3e+4h |
+|-------|-------------|-------|-------|
+| 1. Canonical retrograde BFS | Finds all solvable canonical positions | 1,763,957 states | 44,282,845 states |
+| — non-goal states collected | States with at least one exit robot still on the board | 1,548,611 | 33,835,553 |
+| 2. Collision-sig dedup | Removes strategically identical puzzles | 58,505 unique | 5,406,234 unique |
+| 3. Compaction | Tightens starting positions | 259 improved | 27,024 improved |
+| 4. DP trace + final dedup | Finds optimal grouped-move solutions, removes remaining dups | 50,077 final (462 cross-D4 + 7,966 DP dups removed) | 4,744,260 final (41,640 cross-D4 + 620,334 DP dups removed) |
 
 ### Performance
 
@@ -96,6 +97,7 @@ After computing the DP-optimal solution, a final **DP collision-signature dedup*
 - **Parallel BFS** via OpenMP with lock-free atomic insertions into a custom hash table.
 - 1 exit + 5 helpers (~1.76M canonical states): ~4 seconds single-threaded.
 - 1 exit + 5 helpers produces ~51K unique puzzles after all dedup stages.
+- Multi-exit runs are dominated by collision-sig dedup time, not BFS time — deduplicating 45M states for 3 exits + 4 helpers takes ~14 minutes.
 
 ## Computational Complexity
 
@@ -113,19 +115,23 @@ The memory cost is 8 bytes per canonical BFS state (each state is packed into a 
 
 All timings measured single-threaded on a MacBook Air (1.6 GHz Dual-Core Intel Core i5, 8 GB LPDDR3). The canonical BFS explores only D4-canonical states (~1/8th of total).
 
-#### Canonical BFS states
+#### Canonical BFS states (standard variant)
 
-| | 1 helper | 2 helpers | 3 helpers | 4 helpers | 5 helpers | 6 helpers |
-|---|---|---|---|---|---|---|
-| **1 exit** | 12 | 255 | 4,916 | 90,050 | 1,763,957 | 27,342,689 |
+| | 0 helpers | 1 helper | 2 helpers | 3 helpers | 4 helpers | 5 helpers | 6 helpers |
+|---|---|---|---|---|---|---|---|
+| **1 exit** | 1 | 12 | 255 | 4,916 | 90,050 | 1,763,957 | 27,342,689 |
+| **2 exits** | 1 | 15 | 423 | 16,386 | 1,064,652 | 49,325,644 | — |
+| **3 exits** | 1 | 16 | 722 | 187,867 | 44,282,845 | — | — |
 
-Growth ratio per additional helper: ~15–20×.
+Growth ratio per additional helper: ~15–20×. Multi-exit puzzles have even larger state spaces — 2 exits + 5 helpers (49M states) exceeds 1 exit + 6 helpers (27M states).
 
 #### Wall-clock time (BFS only, single-threaded)
 
 | | 1 helper | 2 helpers | 3 helpers | 4 helpers | 5 helpers | 6 helpers |
 |---|---|---|---|---|---|---|
 | **1 exit** | <1s | <1s | <1s | 0.2s | 4s | 91s |
+
+Multi-exit BFS times scale roughly with state count. The collision-sig dedup (Stage 2) becomes the bottleneck at scale: deduplicating 45M states takes ~14 minutes.
 
 #### Peak FlatMap memory
 
@@ -134,16 +140,36 @@ Growth ratio per additional helper: ~15–20×.
 | ≤ 5 | < 5K | < 1 MB |
 | 6 (1e+5h) | 1.76M | ~19 MB |
 | 7 (1e+6h) | 27.3M | ~291 MB |
+| 7 (2e+5h) | 49.3M | ~527 MB |
+| 7 (3e+4h) | 44.3M | ~474 MB |
 | 8 (1e+7h, est.) | ~355M | ~3.8 GB |
 | 9 (1e+8h, est.) | ~3.9B | ~42 GB |
 
-#### Unique puzzles after all dedup stages
+#### Unique puzzles after all dedup stages (standard variant)
 
-| | 1 helper | 2 helpers | 3 helpers | 4 helpers | 5 helpers |
-|---|---|---|---|---|---|
-| **1 exit** | 1 | 3 | 28 | 1,052 | 50,077 |
+| | 0 helpers | 1 helper | 2 helpers | 3 helpers | 4 helpers | 5 helpers | 6 helpers |
+|---|---|---|---|---|---|---|---|
+| **1 exit** | 0 | 1 | 3 | 28 | 1,052 | 50,077 | 960,922 |
+| **2 exits** | 0 | 1 | 12 | 545 | 75,440 | 4,471,527 | — |
+| **3 exits** | 0 | 1 | 30 | 17,971 | 4,744,260 | — | — |
 
-Total for 1 exit, helpers 1–5: 51,161 unique puzzles (standard), 4,631 (solitaire), 3,054 (UFO).
+#### Totals by variant (≤6 total robots, up to 3 exits — currently deployed)
+
+| Variant | Puzzles | Stripped file size |
+|---|---|---|
+| Standard | 144,169 | 6.0 MB |
+| Solitaire | 27,022 | 968 KB |
+| UFO | 20,822 | 776 KB |
+
+#### Totals by variant (≤7 total robots, up to 3 exits — full enumeration)
+
+| Variant | Puzzles | Stripped file size |
+|---|---|---|
+| Standard | 10,321,870 | 437 MB |
+| Solitaire | 402,492 | 16 MB |
+| UFO | 244,918 | 10 MB |
+
+The jump from ≤6 to ≤7 total robots increases the standard puzzle count by ~70×. The three dominant combinations (1e+6h, 2e+5h, 3e+4h) account for 98.6% of all 7-total standard puzzles. Full 7-robot files are saved in `ll-solver/full/` for future quality-based filtering.
 
 ### What's feasible
 
@@ -152,7 +178,7 @@ Total for 1 exit, helpers 1–5: 51,161 unique puzzles (standard), 4,631 (solita
 - **Total robots = 9**: requires ~64 GB RAM and several hours. Server-class hardware only.
 - **Total robots ≥ 10**: not supported — the FlatMap packs state + depth into 64 bits, which limits total robots to 9.
 
-The number of exits matters too: more exits means more solvable states per helper count, because each exit adds an independent piece that must reach the center.
+The number of exits matters significantly: more exits means more solvable states per helper count, because each exit adds an independent piece that must reach the center. Crucially, multi-exit combinations also produce far more *unique* puzzles after dedup — 3 exits + 4 helpers yields 4.7M unique puzzles versus 961K for 1 exit + 6 helpers, despite having fewer total BFS states. This makes multi-exit the primary driver of output file size at 7 total robots.
 
 ## Building
 

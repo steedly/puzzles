@@ -23,6 +23,8 @@ The Lunar Lockout project is inspired by and validated against the original UFO 
   - 8 total robots: feasible on a laptop (8–16 GB RAM, ~20 min)
   - 9 total robots: server-class hardware (64 GB RAM, hours)
   - ≥10 total robots: not supported (64-bit state packing limit)
+- **Multi-exit scaling.** More exits dramatically increase both BFS states and unique puzzles. Measured for standard variant with 7 total robots: 1e+6h = 27M states → 961K puzzles; 2e+5h = 49M states → 4.5M puzzles; 3e+4h = 44M states → 4.7M puzzles. The collision-sig dedup pass (Stage 2) becomes the bottleneck — 45M states took ~14 minutes for a single exits×helpers combination.
+- **The ≤6 to ≤7 cliff.** File sizes jump ~70× when adding the 7th robot. Standard variant: ≤6 total = 6 MB (145K puzzles), ≤7 total = 437 MB (10.3M puzzles). This makes ≤7 impractical for the hosted site without further filtering or splitting. Full 7-robot files are saved in `ll-solver/full/` for future work on quality-based filtering to bring the count down to a deployable size.
 - **State packing.** States are packed into 64-bit integers (8 bytes each). This limits total robots to 9. Any format change here ripples through the entire BFS. The FlatMap maintains ≤75% load factor (~10.7 bytes per state actual).
 - **UI loading.** Puzzle libraries may grow to hundreds of thousands of puzzles as higher robot counts are enumerated. Strategies to keep the UI responsive:
   - Lazy-load variant files (only fetch the selected variant's `.llp`)
@@ -63,7 +65,8 @@ ll-solver/enumerate → full.llp (with solutions)
 - Always generate all three variants when updating puzzle data.
 - The `.llp` format is the contract between enumerator and UI. Changes to it require updating both sides.
 - Committed `.llp` files are stripped (no solutions) to save space. The UI's JS solver fills in solutions on demand.
-- Variant puzzle files: Standard (~1.8 MB stripped), Solitaire (~160 KB), UFO (~100 KB). Variant files are lazy-loaded; only Standard is fetched on initial page load.
+- Current deployed puzzle files (3 exits, ≤6 total): Standard (~6 MB, 145K puzzles), Solitaire (~1 MB, 27K puzzles), UFO (~800 KB, 21K puzzles). Variant files are lazy-loaded; only Standard is fetched on initial page load.
+- Full 7-total-robot files are saved in `ll-solver/full/` (untracked) for future filtering work: Standard (437 MB, 10.3M puzzles), Solitaire (16 MB, 402K), UFO (10 MB, 245K).
 
 ## Testing Requirements
 
