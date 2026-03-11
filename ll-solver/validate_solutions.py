@@ -190,7 +190,12 @@ def validate_positions(p):
 
 
 def collision_signature(p):
-    """Compute normalized collision signature (same as enumerate.cpp)."""
+    """Compute D4-normalised collision signature (same as enumerate.cpp).
+
+    Computes the signature under all 8 D4 direction transforms and returns
+    the lexicographically smallest one, catching puzzles that are D4
+    rotations/reflections of each other.
+    """
     num_exits = p['num_exits']
     positions = p['positions']
     solution_str = p['solution_str']
@@ -241,38 +246,56 @@ def collision_signature(p):
         else:
             current_cell[mover_idx] = new_cell
 
-    # Normalize labels by order of first appearance (same as enumerate.cpp)
-    exit_label = {}
-    helper_label = {}
-    next_exit = 0
-    next_helper = 1
+    # D4 direction transforms: each maps {U=0, D=1, L=2, R=3} to new directions
+    DIR_TRANSFORMS = [
+        [0, 1, 2, 3],  # identity
+        [2, 3, 1, 0],  # 90 CW
+        [1, 0, 3, 2],  # 180
+        [3, 2, 0, 1],  # 270 CW
+        [0, 1, 3, 2],  # reflect-H
+        [1, 0, 2, 3],  # reflect-V
+        [2, 3, 0, 1],  # reflect main diagonal
+        [3, 2, 1, 0],  # reflect anti-diagonal
+    ]
 
-    sig_parts = []
-    for mover_idx, direction, blocker_idx in triples:
-        for idx in (mover_idx, blocker_idx):
-            if idx < num_exits:
-                if idx not in exit_label:
-                    exit_label[idx] = next_exit
-                    next_exit += 1
+    best_sig = None
+    for dir_map in DIR_TRANSFORMS:
+        # Normalize labels by order of first appearance
+        exit_label = {}
+        helper_label = {}
+        next_exit = 0
+        next_helper = 1
+
+        sig_parts = []
+        for mover_idx, direction, blocker_idx in triples:
+            for idx in (mover_idx, blocker_idx):
+                if idx < num_exits:
+                    if idx not in exit_label:
+                        exit_label[idx] = next_exit
+                        next_exit += 1
+                else:
+                    hi = idx - num_exits
+                    if hi not in helper_label:
+                        helper_label[hi] = next_helper
+                        next_helper += 1
+
+            if mover_idx < num_exits:
+                mc = chr(ord('A') + exit_label[mover_idx])
             else:
-                hi = idx - num_exits
-                if hi not in helper_label:
-                    helper_label[hi] = next_helper
-                    next_helper += 1
+                mc = str(helper_label[mover_idx - num_exits])
+            if blocker_idx < num_exits:
+                bc = chr(ord('A') + exit_label[blocker_idx])
+            else:
+                bc = str(helper_label[blocker_idx - num_exits])
 
-        if mover_idx < num_exits:
-            mc = chr(ord('A') + exit_label[mover_idx])
-        else:
-            mc = str(helper_label[mover_idx - num_exits])
-        if blocker_idx < num_exits:
-            bc = chr(ord('A') + exit_label[blocker_idx])
-        else:
-            bc = str(helper_label[blocker_idx - num_exits])
+            dc = "UDLR"[dir_map[direction]]
+            sig_parts.append(f"{mc}{dc}{bc}")
 
-        dc = "UDLR"[direction]
-        sig_parts.append(f"{mc}{dc}{bc}")
+        sig = ' '.join(sig_parts)
+        if best_sig is None or sig < best_sig:
+            best_sig = sig
 
-    return ' '.join(sig_parts)
+    return best_sig
 
 
 def d4_canonical(positions, num_exits):

@@ -712,8 +712,11 @@ TEST(collision_sig_same_structure_different_indices) {
 
 TEST(collision_sig_different_structure) {
     // Different collision patterns should give different signatures.
-    std::vector<Move> sol1 = {{0, 1, 1}}; // exit Down blocked_by helper
-    std::vector<Move> sol2 = {{0, 0, 1}}; // exit Up blocked_by helper
+    // Note: single-move solutions with opposite directions (U vs D) are
+    // now equivalent under D4 (180 rotation maps D<->U).  Use genuinely
+    // different structures: different mover/blocker relationships.
+    std::vector<Move> sol1 = {{0, 1, 1}, {1, 0, 0}}; // exit D helper; helper U exit
+    std::vector<Move> sol2 = {{0, 1, 1}, {0, 0, 1}}; // exit D helper; exit U helper (same exit twice)
     std::string sig1 = collision_signature(sol1, 1);
     std::string sig2 = collision_signature(sol2, 1);
     ASSERT(sig1 != sig2);
@@ -1007,6 +1010,184 @@ TEST(canonical_all_exits_exited) {
     int r[3]; decode(c, 3, r);
     ASSERT_EQ(EXITED, r[0]);
     ASSERT_EQ(EXITED, r[1]);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// D4-normalised collision signatures
+// ═══════════════════════════════════════════════════════════════════════════════
+
+TEST(collision_sig_d4_rotation_same) {
+    // Two solutions that differ only by a 90° rotation of directions
+    // should produce the same D4-normalised collision signature.
+    // Solution 1: AD1 (exit down blocked by helper)
+    // Solution 2: AL1 (exit left blocked by helper) — 90°CW of solution 1
+    std::vector<Move> sol1 = {{0, 1, 1}}; // exit Down blocked_by helper
+    std::vector<Move> sol2 = {{0, 2, 1}}; // exit Left blocked_by helper
+    std::string sig1 = collision_signature(sol1, 1);
+    std::string sig2 = collision_signature(sol2, 1);
+    ASSERT_EQ(sig1, sig2);
+}
+
+TEST(collision_sig_d4_reflection_same) {
+    // Two solutions that differ by horizontal reflection (L<->R) should
+    // produce the same D4-normalised collision signature.
+    std::vector<Move> sol1 = {{0, 2, 1}, {1, 0, 0}}; // exit Left, helper Up
+    std::vector<Move> sol2 = {{0, 3, 1}, {1, 0, 0}}; // exit Right, helper Up
+    std::string sig1 = collision_signature(sol1, 1);
+    std::string sig2 = collision_signature(sol2, 1);
+    ASSERT_EQ(sig1, sig2);
+}
+
+TEST(collision_sig_d4_different_structure_still_different) {
+    // Solutions with genuinely different mover/blocker structure should
+    // remain different even after D4 normalisation.
+    std::vector<Move> sol1 = {{0, 1, 1}, {1, 0, 0}}; // exit D helper; helper U exit
+    std::vector<Move> sol2 = {{0, 1, 1}, {0, 2, 1}}; // exit D helper; exit L helper (same exit twice)
+    std::string sig1 = collision_signature(sol1, 1);
+    std::string sig2 = collision_signature(sol2, 1);
+    ASSERT(sig1 != sig2);
+}
+
+TEST(collision_sig_d4_all_rotations_same) {
+    // All 4 rotations of a multi-move solution should hash identically.
+    // Base: 1D2 AD1 — helper1 Down blocked by helper2, exit Down blocked by helper1
+    // 90°CW:  1L2 AL1   180°: 1U2 AU1   270°CW: 1R2 AR1
+    std::vector<Move> base   = {{1, 1, 2}, {0, 1, 1}}; // 1D2 AD1
+    std::vector<Move> rot90  = {{1, 2, 2}, {0, 2, 1}}; // 1L2 AL1
+    std::vector<Move> rot180 = {{1, 0, 2}, {0, 0, 1}}; // 1U2 AU1
+    std::vector<Move> rot270 = {{1, 3, 2}, {0, 3, 1}}; // 1R2 AR1
+    std::string sb = collision_signature(base, 1);
+    ASSERT_EQ(sb, collision_signature(rot90, 1));
+    ASSERT_EQ(sb, collision_signature(rot180, 1));
+    ASSERT_EQ(sb, collision_signature(rot270, 1));
+}
+
+TEST(collision_sig_d4_reported_duplicates) {
+    // Puzzles 823, 7907, 24411 from the bug report are D4 rotations of each
+    // other. Their collision sequences have the same mover/blocker pattern
+    // with rotated directions. After D4-normalised collision_signature,
+    // they should all produce the same signature.
+    // 823 (pruned, first-appearance relabeled moves):
+    //   Directions: R R D L D L U R R U L U
+    // 7907 (same mover/blocker, directions rotated 90°CW):
+    //   Directions: U U L D L D R U U R D R
+    // The mover/blocker pattern for both:
+    //   1_2 3_1 1_A 2_3 2_1 1_4 A_2 1_A 4_1 1_3 A_4 A_1
+    //
+    // We construct them with a shared mover/blocker sequence and different dirs.
+    std::vector<Move> sol823 = {
+        {1,3,2}, {3,3,1}, {1,1,0}, {2,2,3}, {2,1,1}, {1,2,4}, {0,0,2}, {1,3,0}, {4,3,1}, {1,0,3}, {0,2,4}, {0,0,1}
+    };
+    std::vector<Move> sol7907 = {
+        {1,0,2}, {3,0,1}, {1,2,0}, {2,1,3}, {2,2,1}, {1,1,4}, {0,3,2}, {1,0,0}, {4,0,1}, {1,3,3}, {0,1,4}, {0,3,1}
+    };
+    std::string sig823 = collision_signature(sol823, 1);
+    std::string sig7907 = collision_signature(sol7907, 1);
+    ASSERT_EQ(sig823, sig7907);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Compaction improvements
+// ═══════════════════════════════════════════════════════════════════════════════
+
+TEST(compact_nonmover_toward_center) {
+    // Verify that try_compact can shift a non-moving blocker toward center.
+    // Setup: 1 exit + 2 helpers. Exit at center-adjacent, helper far from center
+    // acts as blocker but never moves.
+    FlatMap dist = retrograde(1, 2);
+    const int n = 3;
+    int compacted = 0;
+    int total_checked = 0;
+    for (auto [s, d] : dist) {
+        if (d < 2 || d > 4) continue;
+        int r[10]; decode(s, n, r);
+        if (r[0] == EXITED) continue;
+        if (canonical(s, n, 1) != s) continue;
+
+        auto sol = trace_solution(s, n, 1, dist);
+        if (sol.size() != (size_t)d) continue;
+        stabilise_indices(sol, s, n, 1);
+
+        int init_pos[10]; decode(s, n, init_pos);
+        std::vector<Move> sol_copy = sol;
+        if (try_compact(init_pos, sol_copy, n, 1, dist, d))
+            compacted++;
+        total_checked++;
+        if (total_checked >= 200) break;
+    }
+    // Just verify the function works without crashing; some puzzles may compact.
+    ASSERT(total_checked > 0);
+}
+
+TEST(compact_intermediate_gaps) {
+    // Verify that try_compact can use intermediate gaps (not just gap=1).
+    // This tests the fix for puzzle #2 where gap=1 fails but gap=2 works.
+    FlatMap dist = retrograde(1, 2);
+    const int n = 3;
+    int compacted = 0;
+    for (auto [s, d] : dist) {
+        if (d < 2) continue;
+        int r[10]; decode(s, n, r);
+        if (r[0] == EXITED) continue;
+        if (canonical(s, n, 1) != s) continue;
+
+        auto sol = trace_solution(s, n, 1, dist);
+        if (sol.size() != (size_t)d) continue;
+        stabilise_indices(sol, s, n, 1);
+
+        int init_pos[10]; decode(s, n, init_pos);
+        std::vector<Move> sol_copy = sol;
+        if (try_compact(init_pos, sol_copy, n, 1, dist, d)) {
+            // Verify the compacted solution is still valid
+            int sorted[10];
+            std::memcpy(sorted, init_pos, n * sizeof(int));
+            std::sort(sorted + 1, sorted + n);
+            State cs = canonical(encode(sorted, n), n, 1);
+            uint8_t cd;
+            ASSERT(dist.find_val(cs, &cd));
+            ASSERT_EQ((int)cd, (int)d);
+            compacted++;
+        }
+        if (compacted >= 10) break;
+    }
+}
+
+TEST(helper_on_center_during_solution) {
+    // Verify that a helper can land on center cell (3,3) during solution
+    // without being treated as exited.
+    FlatMap dist = retrograde(1, 3);
+    const int n = 4;
+    int found = 0;
+    for (auto [s, d] : dist) {
+        if (d < 3 || d > 8) continue;
+        int r[10]; decode(s, n, r);
+        if (r[0] == EXITED) continue;
+
+        auto sol = trace_solution(s, n, 1, dist);
+        if (sol.size() != (size_t)d) continue;
+        stabilise_indices(sol, s, n, 1);
+
+        // Simulate to check if any helper passes through center
+        int pos[10]; decode(s, n, pos);
+        for (const auto& m : sol) {
+            int new_cell, blocker_idx;
+            State new_state;
+            if (!forward_move(pos, n, 1, (int)m.mover, (int)m.dir,
+                              new_cell, blocker_idx, new_state))
+                break;
+            // Check if a helper landed on center
+            if ((int)m.mover >= 1 && new_cell == CTR) {
+                // Helper on center: should NOT be EXITED
+                int nr[10]; decode(new_state, n, nr);
+                ASSERT(nr[(int)m.mover] != EXITED);
+                found++;
+            }
+            decode(new_state, n, pos);
+        }
+        if (found >= 5) break;
+    }
+    // It's OK if we don't find such cases in this small BFS;
+    // the existing test forward_move_helper_through_center covers the mechanics.
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

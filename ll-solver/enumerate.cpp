@@ -817,12 +817,32 @@ static uint64_t hash_dedup_key(const std::string& key) {
 // Normalises exit and helper labels separately by order of first appearance.
 //   Exit  0 (first seen) → 'A',  exit  1 → 'B',  exit  2 → 'C', ...
 //   Helper 0 (first seen)→ '1', helper 1 → '2', ...
-static std::string collision_signature(const std::vector<Move>& sol, int num_exits) {
-    // exit_label[i] = assigned output char index (-1 = unseen)
+// To catch D4-equivalent puzzles whose collision sequences differ only by
+// a rotation/reflection of directions, we compute the signature under all
+// 8 D4 direction transforms and return the lexicographically smallest one.
+// Each D4 spatial transform permutes {U,D,L,R} in a specific way:
+//   identity:      U D L R        90 CW:     L R U D
+//   180:           D U R L        270 CW:    R L D U
+//   reflect-H:     U D R L        reflect-V: D U L R
+//   reflect-diag:  L R D U        reflect-anti: R L U D
+static const int DIR_TRANSFORM[8][4] = {
+    {0, 1, 2, 3},  // identity
+    {2, 3, 1, 0},  // 90 CW:  U->L, D->R, L->D, R->U
+    {1, 0, 3, 2},  // 180:    U->D, D->U, L->R, R->L
+    {3, 2, 0, 1},  // 270 CW: U->R, D->L, L->U, R->D
+    {0, 1, 3, 2},  // reflect-H: U->U, D->D, L->R, R->L
+    {1, 0, 2, 3},  // reflect-V: U->D, D->U, L->L, R->R
+    {2, 3, 0, 1},  // reflect main diag: U->L, D->R, L->U, R->D
+    {3, 2, 1, 0},  // reflect anti-diag: U->R, D->L, L->D, R->U
+};
+
+static std::string collision_signature_for_transform(
+    const std::vector<Move>& sol, int num_exits, const int* dir_map)
+{
     int exit_label[10];   std::fill(exit_label,   exit_label+10,   -1);
     int helper_label[10]; std::fill(helper_label, helper_label+10, -1);
-    int next_exit   = 0; // 0->'A', 1->'B', 2->'C', ...
-    int next_helper = 1; // 1->'1', 2->'2', ...
+    int next_exit   = 0;
+    int next_helper = 1;
 
     auto exit_char = [](int lbl) -> char {
         return (char)('A' + lbl);
@@ -833,7 +853,6 @@ static std::string collision_signature(const std::vector<Move>& sol, int num_exi
 
     std::string sig;
     for (const auto& m : sol) {
-        // Assign labels on first appearance.
         auto assign = [&](int idx) {
             if (idx < num_exits) {
                 if (exit_label[idx] < 0) exit_label[idx] = next_exit++;
@@ -851,11 +870,20 @@ static std::string collision_signature(const std::vector<Move>& sol, int num_exi
         if (m.blocker < num_exits) bc = exit_char(exit_label[(int)m.blocker]);
         else                       bc = helper_char(helper_label[(int)m.blocker - num_exits]);
 
-        char dc = "UDLR"[(int)m.dir];
+        char dc = "UDLR"[dir_map[(int)m.dir]];
         if (!sig.empty()) sig += ' ';
         sig += mc; sig += dc; sig += bc;
     }
     return sig;
+}
+
+static std::string collision_signature(const std::vector<Move>& sol, int num_exits) {
+    std::string best;
+    for (int t = 0; t < 8; t++) {
+        std::string sig = collision_signature_for_transform(sol, num_exits, DIR_TRANSFORM[t]);
+        if (best.empty() || sig < best) best = std::move(sig);
+    }
+    return best;
 }
 
 // Minimum odd board size (1, 3, 5, or 7) with center at (3,3) that fits all
@@ -925,12 +953,17 @@ static bool validate_collision_seq(const int* init_pos,
         else
             pos[mover] = land;
     }
+    // Verify all exits actually exited (reached center).
+    for (int e = 0; e < num_exits; e++)
+        if (pos[e] != EXITED) return false;
     return true;
 }
 
 // Try to compact the starting position by reducing each mover's first-move
-// gap to 1.  On success, modifies init_pos and sol in place (helpers re-sorted
-// and solution indices remapped) and returns true.
+// gap to 1 (or an intermediate gap if 1 fails due to collisions), and by
+// shifting non-moving robots toward center.  On success, modifies init_pos
+// and sol in place (helpers re-sorted and solution indices remapped) and
+// returns true.
 static bool try_compact(int* init_pos, std::vector<Move>& sol,
                         int n, int num_exits, const FlatMap& dist,
                         int original_dist)
@@ -942,6 +975,12 @@ static bool try_compact(int* init_pos, std::vector<Move>& sol,
 
     int pos[10];
     std::memcpy(pos, init_pos, n * sizeof(int));
+
+    // Track which robots appear as blockers in the solution, and for
+    // non-movers, the first move where they act as blocker (to find
+    // which direction the mover approaches from).
+    int first_blocker_move[10]; // index into sol, or -1
+    std::fill(first_blocker_move, first_blocker_move + 10, -1);
 
     for (int k = 0; k < (int)sol.size(); k++) {
         const int mover   = (int)sol[k].mover;
@@ -957,6 +996,8 @@ static bool try_compact(int* init_pos, std::vector<Move>& sol,
             first_move[mover] = k;
             landing[mover] = land;
         }
+        if (first_blocker_move[blocker] < 0)
+            first_blocker_move[blocker] = k;
 
         if (mover < num_exits && land == CTR)
             pos[mover] = EXITED;
@@ -964,46 +1005,110 @@ static bool try_compact(int* init_pos, std::vector<Move>& sol,
             pos[mover] = land;
     }
 
-    // 2. Identify adjustable movers (those with gap > 1).
-    int adjustable[10], nadj = 0;
-    int compact_start[10]; // gap=1 start position for each adjustable mover
+    // 2. Identify adjustable robots: movers with gap > 1 AND non-moving
+    //    robots that can shift toward center.
+    struct Adj {
+        int robot;              // robot index
+        int positions[7];       // candidate positions (most compact first)
+        int npos;               // number of candidates
+    };
+    Adj adjustable[10];
+    int nadj = 0;
 
     for (int r = 0; r < n; r++) {
-        if (first_move[r] < 0) continue; // never moves
-        const int dir  = (int)sol[first_move[r]].dir;
-        const int land = landing[r];
+        if (first_move[r] >= 0) {
+            // Mover: try reducing gap from current to 1.
+            const int dir  = (int)sol[first_move[r]].dir;
+            const int land = landing[r];
+            const int land_r = land / N, land_c = land % N;
+            const int mr = init_pos[r] / N, mc = init_pos[r] % N;
+            const int gap = std::abs(mr - land_r) + std::abs(mc - land_c);
+            if (gap <= 1) continue;
 
-        // Gap = distance from init_pos to landing.
-        const int land_r = land / N, land_c = land % N;
-        const int mr = init_pos[r] / N, mc = init_pos[r] % N;
-        const int gap = std::abs(mr - land_r) + std::abs(mc - land_c);
-        if (gap <= 1) continue;
+            Adj& a = adjustable[nadj];
+            a.robot = r;
+            a.npos = 0;
+            // Generate candidate positions from gap=1 up to gap-1
+            // (most compact first).
+            for (int g = 1; g < gap; g++) {
+                const int sr = land_r - g * DR[dir];
+                const int sc = land_c - g * DC[dir];
+                if (sr < 0 || sr >= N || sc < 0 || sc >= N) break;
+                a.positions[a.npos++] = sr * N + sc;
+                if (a.npos >= 7) break;
+            }
+            if (a.npos > 0) nadj++;
+        } else {
+            // Non-mover: try shifting toward center in each direction.
+            // Only shift if the robot is used as a blocker.
+            if (first_blocker_move[r] < 0) continue;
 
-        // Gap=1 start: one cell behind landing (opposite of slide direction).
-        const int sr = land_r - DR[dir], sc = land_c - DC[dir];
-        if (sr < 0 || sr >= N || sc < 0 || sc >= N) continue;
+            const int cr = init_pos[r] / N, cc = init_pos[r] % N;
+            const int cheb = std::max(std::abs(cr - 3), std::abs(cc - 3));
+            if (cheb <= 1) continue; // already near center
 
-        adjustable[nadj] = r;
-        compact_start[nadj] = sr * N + sc;
-        nadj++;
+            Adj& a = adjustable[nadj];
+            a.robot = r;
+            a.npos = 0;
+            // Try positions 1 step closer to center in each axis direction
+            // that reduces Chebyshev distance.
+            int candidates[4];
+            int ncand = 0;
+            if (cr > 3 && cr > 0) candidates[ncand++] = (cr-1)*N + cc;
+            if (cr < 3 && cr < N-1) candidates[ncand++] = (cr+1)*N + cc;
+            if (cc > 3 && cc > 0) candidates[ncand++] = cr*N + (cc-1);
+            if (cc < 3 && cc < N-1) candidates[ncand++] = cr*N + (cc+1);
+            for (int i = 0; i < ncand; i++) {
+                int nr = candidates[i]/N, nc_val = candidates[i]%N;
+                int new_cheb = std::max(std::abs(nr-3), std::abs(nc_val-3));
+                if (new_cheb < cheb)
+                    a.positions[a.npos++] = candidates[i];
+            }
+            if (a.npos > 0) nadj++;
+        }
     }
 
     if (nadj == 0) return false;
 
-    // 3. Try subsets: from all-compact (mask = all bits set) down to singles.
-    //    For each valid combination, compute board_size; pick smallest.
-    int best_mask = -1, best_board = 8;
+    // 3. Try subsets: for each adjustable robot, try its candidate positions
+    //    (most compact first) or original.  Use subset enumeration over
+    //    which robots to adjust, then for each adjusted robot pick its
+    //    best candidate that validates.
+    int best_board = 8;
     int best_pos[10];
+    bool found_better = false;
 
+    // With up to ~7 adjustable robots, enumerate 2^nadj subsets.
+    // For each subset, try the first valid candidate for each adjusted robot.
     const int total_masks = 1 << nadj;
     for (int mask = total_masks - 1; mask > 0; mask--) {
         int cand[10];
         std::memcpy(cand, init_pos, n * sizeof(int));
-        for (int b = 0; b < nadj; b++)
-            if (mask & (1 << b))
-                cand[adjustable[b]] = compact_start[b];
 
-        // Quick position-collision check.
+        // For each adjusted robot in this mask, try candidates in order.
+        // Use backtracking for multi-candidate robots.
+        // Simple approach: for each robot in mask, use its first candidate.
+        // If that fails validation, try next candidate.
+        // For simplicity (and because nadj <= ~7), just try first candidate.
+        bool ok = true;
+        for (int b = 0; b < nadj; b++) {
+            if (!(mask & (1 << b))) continue;
+            // Try candidates in order (most compact first)
+            bool placed = false;
+            for (int ci = 0; ci < adjustable[b].npos; ci++) {
+                cand[adjustable[b].robot] = adjustable[b].positions[ci];
+                // Quick collision check with already-placed robots
+                bool collision = false;
+                for (int i = 0; i < n && !collision; i++)
+                    if (i != adjustable[b].robot && cand[i] == cand[adjustable[b].robot])
+                        collision = true;
+                if (!collision) { placed = true; break; }
+            }
+            if (!placed) { ok = false; break; }
+        }
+        if (!ok) continue;
+
+        // Full position-collision check.
         bool collision = false;
         for (int i = 0; i < n && !collision; i++)
             for (int j = i + 1; j < n && !collision; j++)
@@ -1026,12 +1131,12 @@ static bool try_compact(int* init_pos, std::vector<Move>& sol,
         const int bs = compute_board_size(cand, all_used, n);
         if (bs < best_board) {
             best_board = bs;
-            best_mask = mask;
             std::memcpy(best_pos, cand, n * sizeof(int));
+            found_better = true;
         }
     }
 
-    if (best_mask < 0) return false;
+    if (!found_better) return false;
 
     // Check that compact version is actually better than original.
     {

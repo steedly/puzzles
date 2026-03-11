@@ -43,7 +43,9 @@ The solver detects this by computing a **collision signature** for each puzzle:
 
 2. **Normalize the robot names.** Instead of using the actual robot labels (which depend on position), rename them by order of first appearance. The first robot to act becomes "A", the first helper involved becomes "1", and so on. This way, two puzzles with the same strategic pattern get the same signature regardless of which specific robots are involved.
 
-3. **Deduplicate.** If two puzzles produce the same normalized collision sequence, they're the same puzzle in different clothes. Only one representative is kept.
+3. **Normalize directions under D4.** Two puzzles that are spatial rotations/reflections of each other will have the same mover/blocker pattern but rotated directions (e.g., "A slides Right" vs "A slides Up"). The solver computes the collision signature under all 8 D4 direction transforms and keeps the lexicographically smallest one. This catches puzzles that are D4-equivalent in gameplay but weren't caught by Stage 1's spatial canonicalization (because they had different starting positions that happen to be D4 rotations).
+
+4. **Deduplicate.** If two puzzles produce the same D4-normalized collision sequence, they're the same puzzle in different clothes. Only one representative is kept.
 
 **Compaction preference:** When multiple starting positions share the same collision signature, the solver prefers the one where all robots fit on the **smallest board**. It measures each position's "board size" — the smallest square centered on the middle of the board that contains every robot. A puzzle where all robots are within 2 squares of the center (fitting on a 5×5 board) is preferred over one where a robot is in the corner (requiring the full 7×7 board). This produces tidier-looking puzzles without changing the gameplay.
 
@@ -53,21 +55,23 @@ This stage eliminates roughly 85% of the remaining positions — it's the bigges
 
 After dedup picks a representative for each collision signature, the solver tries to make each puzzle even more compact by **reconstructing** a tighter starting position.
 
-The key insight: when a robot makes its first slide, only the *direction* and *blocker* matter — the distance it travels (the "gap") is irrelevant to the gameplay. A robot that slides 5 cells right before hitting a blocker plays exactly the same as one that slides 1 cell right to the same blocker. By reducing each mover's first-move gap to 1, all movers start as close as possible to their first blocking interaction, pulling the board inward.
+The key insight: when a robot makes its first slide, only the *direction* and *blocker* matter — the distance it travels (the "gap") is irrelevant to the gameplay. A robot that slides 5 cells right before hitting a blocker plays exactly the same as one that slides 1 cell right to the same blocker. By reducing each mover's first-move gap, all movers start closer to their first blocking interaction, pulling the board inward.
 
 Concretely, for each puzzle:
 
-1. **Identify adjustable gaps.** Replay the solution, and for each robot's first move as a mover, note the gap (distance from start to landing). Robots that never move are unchanged.
+1. **Identify adjustable robots.** Two categories:
+   - **Movers** with gap > 1: robots whose first slide travels more than one cell. These can be moved to any intermediate gap position (gap=1, gap=2, etc.).
+   - **Non-moving blockers**: helpers that never move in the solution but serve as blockers. These can be shifted one cell toward center if it doesn't change the collision sequence.
 
-2. **Try the most compact version (all gaps = 1).** Compute new starting positions where each mover begins just one cell behind its first landing spot.
+2. **Try candidate positions.** For movers, try gap=1 first (most compact), then gap=2, etc. For non-movers, try positions one step closer to center.
 
-3. **Validate the collision sequence.** Replay the solution with the candidate positions, verifying that each move still produces the same mover/direction/blocker triple. This can fail if the mover's new position puts it in another robot's slide path.
+3. **Validate the collision sequence.** Replay the solution with the candidate positions, verifying that each move still produces the same mover/direction/blocker triple and that all exits reach center. This can fail if a robot's new position puts it in another robot's slide path.
 
 4. **Verify BFS distance.** Look up the candidate state in the BFS hash table. If the BFS distance matches the original, the solution is still optimal — the compact position doesn't have a shortcut.
 
-5. **If all-compact fails, try subsets.** With at most ~5 adjustable movers, the solver tries all 2^k combinations (each mover either gap=1 or original gap), picking the combination with the smallest board size.
+5. **If full compaction fails, try subsets.** With at most ~7 adjustable robots, the solver tries all 2^k combinations, picking the combination with the smallest board size.
 
-This stage typically compacts ~400 puzzles, sometimes reducing their board size from 7×7 to 5×5.
+This stage typically compacts ~260 puzzles, sometimes reducing their board size from 7×7 to 5×5.
 
 ### Stage 4: Finding the best solution and writing output
 
@@ -82,16 +86,16 @@ After computing the DP-optimal solution, a final **DP collision-signature dedup*
 | Stage | What it does | Typical result (1e+5h) |
 |-------|-------------|-------------------|
 | 1. Canonical retrograde BFS | Finds all solvable canonical positions | ~1.76M states |
-| 2. Collision-signature dedup | Removes strategically identical puzzles | ~85% reduction |
-| 3. Compaction | Tightens starting positions to smallest board | ~400 compacted |
-| 4. DP trace + final dedup + output | Finds optimal grouped-move solutions | ~73K final puzzles |
+| 2. D4-normalised collision-sig dedup | Removes strategically identical puzzles (including D4 rotations) | ~96% reduction |
+| 3. Compaction | Tightens starting positions (movers + non-moving blockers) | ~260 compacted |
+| 4. DP trace + final dedup + output | Finds optimal grouped-move solutions | ~51K final puzzles |
 
 ### Performance
 
 - **Canonical BFS** eliminates D4-symmetric states during exploration, reducing states by ~8× compared to a full BFS with post-hoc filtering.
 - **Parallel BFS** via OpenMP with lock-free atomic insertions into a custom hash table.
 - 1 exit + 5 helpers (~1.76M canonical states): ~4 seconds single-threaded.
-- 1 exit + 5 helpers produces ~73K unique puzzles after all dedup stages.
+- 1 exit + 5 helpers produces ~51K unique puzzles after all dedup stages.
 
 ## Computational Complexity
 
@@ -137,9 +141,9 @@ Growth ratio per additional helper: ~15–20×.
 
 | | 1 helper | 2 helpers | 3 helpers | 4 helpers | 5 helpers |
 |---|---|---|---|---|---|
-| **1 exit** | 1 | 4 | 49 | 1,691 | 70,814 |
+| **1 exit** | 1 | 3 | 28 | 1,052 | 50,077 |
 
-Total for 1 exit, helpers 1–5: 72,559 unique puzzles.
+Total for 1 exit, helpers 1–5: 51,161 unique puzzles.
 
 ### What's feasible
 
@@ -221,7 +225,7 @@ make test
 ```
 
 This runs:
-1. **72 unit tests** (`test_enumerate`) — internal function correctness
+1. **80 unit tests** (`test_enumerate`) — internal function correctness
 2. **Puzzle generation** — full `./enumerate 1 6 1 20` run
 3. **Solution validation** (`validate_solutions.py`) — forward simulation, position validity, sequential IDs, D4 dedup, collision-sig dedup
 4. **D4 duplicate check** (`test_canonical`) — no two output puzzles are D4-equivalent

@@ -1,3 +1,5 @@
+import { solvePuzzle } from './solver.js';
+
 const DR = [-1, 1, 0, 0];
 const DC = [0, 0, -1, 1];
 const DIR_MAP = { up: 0, down: 1, left: 2, right: 3 };
@@ -48,7 +50,8 @@ function solutionAvoidsCells(puzzle, blockedCells) {
     let r = pos.row + dr, c = pos.col + dc;
     let landR = pos.row, landC = pos.col;
     while (r >= 0 && r <= 6 && c >= 0 && c <= 6) {
-      // Check for collision with another robot
+      // Check for collision with another robot or blocked cell
+      if (blockedCells.has(`${r},${c}`)) break;
       let hit = false;
       for (const [id, p] of Object.entries(positions)) {
         if (id !== move.mover && p.row === r && p.col === c) { hit = true; break; }
@@ -69,11 +72,34 @@ function solutionAvoidsCells(puzzle, blockedCells) {
 }
 
 /**
+ * Try to re-solve a puzzle with blocked cells.
+ * Returns the puzzle with updated solution and minMoves, or null if unsolvable.
+ */
+function reSolveWithBlocks(puzzle, blockedCells) {
+  const newSolution = solvePuzzle(puzzle, blockedCells);
+  if (!newSolution || newSolution.length === 0) return null;
+
+  // Count grouped moves (consecutive slides by same robot = 1 group)
+  let groupedMoves = 0, lastMover = null;
+  for (const move of newSolution) {
+    if (move.mover !== lastMover) { groupedMoves++; lastMover = move.mover; }
+  }
+
+  return {
+    ...puzzle,
+    solution: newSolution,
+    minMoves: groupedMoves,
+    resolvedWithBlocks: true,
+  };
+}
+
+/**
  * Filter puzzles based on blocked cells using a multi-tier pipeline.
  * Tier 1: Remove puzzles with a robot starting on a blocked cell.
  * Tier 2: Keep puzzles whose bounding box doesn't overlap any blocked cell.
  * Tier 3: Keep puzzles whose stored solution avoids blocked cells.
- * Puzzles that fail Tier 3 are conservatively removed.
+ * Tier 4: Re-solve puzzles that fail Tier 3 to find alternate solutions
+ *         that respect blocked cells.
  *
  * @returns {{ kept: Array, removed: number }}
  */
@@ -83,6 +109,7 @@ export function filterPuzzles(puzzles, blockedCells) {
   }
 
   const kept = [];
+  const needResolve = [];
   let removed = 0;
 
   for (const puzzle of puzzles) {
@@ -110,6 +137,18 @@ export function filterPuzzles(puzzles, blockedCells) {
     // Tier 3: solution trace
     if (solutionAvoidsCells(puzzle, blockedCells)) {
       kept.push(puzzle);
+    } else {
+      // Tier 4: queue for re-solve instead of immediately removing
+      needResolve.push(puzzle);
+    }
+  }
+
+  // Tier 4: Re-solve puzzles whose stored solution was invalidated.
+  // This is the expensive path — only reached for puzzles that failed Tier 3.
+  for (const puzzle of needResolve) {
+    const resolved = reSolveWithBlocks(puzzle, blockedCells);
+    if (resolved) {
+      kept.push(resolved);
     } else {
       removed++;
     }

@@ -2,6 +2,21 @@ CXX      ?= g++
 CXXFLAGS  = -O3 -std=c++17 -Wall -Wextra
 LDFLAGS   =
 
+# ── C++ standard library headers ─────────────────────────────────────────────
+# On macOS, Apple Clang sometimes can't find C++ headers if the Command Line
+# Tools are partially installed.  Detect this and add the SDK include path.
+SDKROOT  := $(shell xcrun --show-sdk-path 2>/dev/null)
+ifneq ($(SDKROOT),)
+  SDK_CXX := $(SDKROOT)/usr/include/c++/v1
+  ifeq ($(wildcard $(SDK_CXX)/algorithm),$(SDK_CXX)/algorithm)
+    # Only apply the workaround if the default search path is broken
+    CXX_TEST := $(shell echo '\#include <algorithm>' | $(CXX) -std=c++17 -E -x c++ - >/dev/null 2>&1; echo $$?)
+    ifneq ($(CXX_TEST),0)
+      CXXFLAGS += -nostdinc++ -isystem $(SDK_CXX)
+    endif
+  endif
+endif
+
 # ── OpenMP ───────────────────────────────────────────────────────────────────
 # Linux / g++ — works out of the box:
 #   make

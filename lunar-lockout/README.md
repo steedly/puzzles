@@ -116,15 +116,16 @@ When blocks are active:
 
 Blocks persist across puzzles and browser sessions via `localStorage`.
 
-The filter uses a three-tier pipeline for efficiency over large libraries (~194K puzzles):
+The filter uses a four-tier pipeline for efficiency over large libraries (~51K puzzles):
 
 | Tier | Method | Cost |
 |------|--------|------|
 | 1. Position conflict | Reject puzzles with a robot on a blocked cell | < 1 ms |
 | 2. Bounding box | Accept puzzles whose bounding box has no overlap with any block | < 2 ms |
 | 3. Solution trace | Replay stored solution; accept if no slide path crosses a block | < 50 ms |
+| 4. Re-solve | For puzzles whose stored solution is invalidated, re-solve with blocked cells as walls | varies |
 
-Puzzles that fail the solution trace are conservatively removed without re-solving.
+Tier 4 ensures puzzles with valid alternate solutions (that avoid blocked cells) are not incorrectly removed.
 
 ## Building
 
@@ -181,10 +182,10 @@ Run `npm run build:bundle` and distribute `dist/index.bundle.html` as a single f
 
 | Variant | Size |
 |---------|------|
-| Full `.llp` (with solutions) | ~15 MB |
-| Stripped (positions only) | ~7 MB |
-| Stripped, gzip transfer | ~1.5 MB |
-| Bundle HTML | ~2.2 MB |
+| Full `.llp` (with solutions) | ~3.8 MB |
+| Stripped (positions only) | ~1.8 MB |
+| Stripped, gzip transfer | ~0.5 MB |
+| Bundle HTML | ~1 MB |
 
 GitHub Pages applies gzip `Content-Encoding` automatically, so the over-the-wire transfer for `puzzles.llp` is ~1.5 MB.
 
