@@ -236,6 +236,7 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
                   className="pnav__range-input"
                   min={movesRange.min} max={movesRange.max}
                   value={movesMin}
+                  style={{ zIndex: movesMin > movesRange.min && movesMin >= movesMax ? 1 : 2 }}
                   onChange={e => handleSliderMin(parseInt(e.target.value, 10))}
                 />
                 <input
@@ -243,6 +244,7 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
                   className="pnav__range-input"
                   min={movesRange.min} max={movesRange.max}
                   value={movesMax}
+                  style={{ zIndex: movesMin > movesRange.min && movesMin >= movesMax ? 2 : 1 }}
                   onChange={e => handleSliderMax(parseInt(e.target.value, 10))}
                 />
               </div>

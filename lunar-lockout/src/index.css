@@ -254,18 +254,20 @@ button { cursor: pointer; font-family: inherit; }
 }
 
 /* ── Controls panel ────────────────────────────────────────────────────────── */
-.controls {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  padding-top: 6px;
-}
-
 /* ── HUD ───────────────────────────────────────────────────────────────────── */
 .hud {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+  padding-top: 6px;
+}
+
+.hud__top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .hud__moves {
@@ -278,19 +280,18 @@ button { cursor: pointer; font-family: inherit; }
   font-size: 1.2rem;
 }
 
-.hud__actions {
+.hud__game-btns {
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .hud__btn {
-  padding: 8px 18px;
+  padding: 6px 14px;
   border: 1px solid var(--cell-border);
   border-radius: 6px;
   background: var(--btn-bg);
   color: var(--text);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   transition: background 0.15s, border-color 0.15s;
 }
 
@@ -304,59 +305,43 @@ button { cursor: pointer; font-family: inherit; }
   cursor: not-allowed;
 }
 
-/* ── Arrow Pad ─────────────────────────────────────────────────────────────── */
-.arrow-pad {
+.hud__tools {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
-.arrow-row {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-}
-
-.arrow-center {
-  width: 48px;
-  height: 48px;
-}
-
-.arrow-btn {
-  width: 48px;
-  height: 48px;
-  font-size: 18px;
+.hud__tool-btn {
+  padding: 6px 14px;
   border: 1px solid var(--cell-border);
-  border-radius: 8px;
+  border-radius: 6px;
   background: var(--btn-bg);
-  color: var(--text);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 
-.arrow-btn:hover:not(:disabled) {
+.hud__tool-btn:hover {
   background: var(--btn-hover);
   border-color: #5555aa;
+  color: var(--text);
 }
 
-.arrow-btn:active:not(:disabled) {
-  transform: scale(0.92);
+.hud__tool-btn--active {
+  background: #2a2a5a;
+  border-color: #a0a0ff;
+  color: #a0a0ff;
 }
 
-.arrow-btn:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
+.hud__tool-btn--block-active {
+  background: #5a2a2a;
+  border-color: #f44336;
+  color: #f44336;
 }
 
-.arrow-hint {
-  margin: 8px 0 0;
-  font-size: 0.78rem;
-  color: var(--text-muted);
-  text-align: center;
-  max-width: 140px;
+.hud__tool-btn--clear {
+  color: #f44336;
+  border-color: rgba(244, 67, 54, 0.4);
 }
 
 /* ── HUD solution display ──────────────────────────────────────────────────── */
@@ -891,22 +876,6 @@ button { cursor: pointer; font-family: inherit; }
   border-color: rgba(244, 67, 54, 0.5) !important;
 }
 
-.hud__btn--active-paths {
-  background: #2a2a5a !important;
-  border-color: #a0a0ff !important;
-  color: #a0a0ff !important;
-}
-
-.hud__btn--active {
-  background: #5a2a2a !important;
-  border-color: #f44336 !important;
-  color: #f44336 !important;
-}
-
-.hud__btn--clear {
-  color: #f44336;
-  border-color: rgba(244, 67, 54, 0.4);
-}
 
 .hud__no-sol {
   font-size: 0.82rem;

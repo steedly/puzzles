@@ -51,47 +51,52 @@ export default function HUD({ state, dispatch, currentPuzzle, blockedCells, user
 
   return (
     <div className="hud">
-      <span className="hud__moves">
-        Moves: <strong>{state.moveCount}</strong>
-        {currentPuzzle?.minMoves > 0 && (
-          <span className="hud__optimum"> (opt: {currentPuzzle.minMoves})</span>
-        )}
-        {showExitProgress && (
-          <span className="hud__exits"> · {exitedCount}/{totalExits} exits done</span>
-        )}
-      </span>
+      <div className="hud__top-row">
+        <span className="hud__moves">
+          Moves: <strong>{state.moveCount}</strong>
+          {currentPuzzle?.minMoves > 0 && (
+            <span className="hud__optimum"> (opt: {currentPuzzle.minMoves})</span>
+          )}
+          {showExitProgress && (
+            <span className="hud__exits"> · {exitedCount}/{totalExits} exits done</span>
+          )}
+        </span>
 
-      <div className="hud__actions">
-        <button
-          className="hud__btn"
-          onClick={() => dispatch({ type: 'UNDO' })}
-          disabled={state.history.length === 0}
-        >Undo</button>
-        <button
-          className="hud__btn"
-          onClick={() => dispatch({ type: 'LOAD_PUZZLE', puzzle: currentPuzzle })}
-        >Restart</button>
-        {canSolve && (
+        <div className="hud__game-btns">
           <button
             className="hud__btn"
+            onClick={() => dispatch({ type: 'UNDO' })}
+            disabled={state.history.length === 0}
+          >Undo</button>
+          <button
+            className="hud__btn"
+            onClick={() => dispatch({ type: 'LOAD_PUZZLE', puzzle: currentPuzzle })}
+          >Restart</button>
+        </div>
+      </div>
+
+      <div className="hud__tools">
+        {canSolve && (
+          <button
+            className={`hud__tool-btn${showSol ? ' hud__tool-btn--active' : ''}`}
             onClick={handleSolutionClick}
-          >{showSol ? 'Hide' : 'Solution'}</button>
+          >{showSol ? 'Hide Solution' : 'Solution'}</button>
         )}
         {canSolve && (
           <button
-            className={`hud__btn${showPaths ? ' hud__btn--active-paths' : ''}`}
+            className={`hud__tool-btn${showPaths ? ' hud__tool-btn--active' : ''}`}
             onClick={onTogglePaths}
           >Paths</button>
         )}
         {onToggleBlockMode && (
           <button
-            className={`hud__btn${blockMode ? ' hud__btn--active' : ''}`}
+            className={`hud__tool-btn${blockMode ? ' hud__tool-btn--block-active' : ''}`}
             onClick={onToggleBlockMode}
           >Block</button>
         )}
         {onToggleBlockMode && hasUserBlocks && (
           <button
-            className="hud__btn hud__btn--clear"
+            className="hud__tool-btn hud__tool-btn--clear"
             onClick={onClearBlocks}
           >Clear ({blockedCells.size})</button>
         )}

@@ -4,7 +4,6 @@ import { useGameState } from './hooks/useGameState';
 import { resolvePuzzle } from './logic/puzzleFilter';
 import Board from './components/Board';
 import HUD from './components/HUD';
-import DirectionArrows from './components/DirectionArrows';
 import PuzzleNav from './components/PuzzleNav';
 import WinModal from './components/WinModal';
 
@@ -179,25 +178,18 @@ export default function App() {
                   showPaths={showPaths}
                   variantBlocks={variantBlocks}
                 />
-                <div className="controls">
-                  <HUD
-                    state={state}
-                    dispatch={dispatch}
-                    currentPuzzle={currentPuzzle}
-                    blockedCells={blockedCells}
-                    userBlockedCells={variant === 'standard' ? userBlockedCells : null}
-                    blockMode={blockMode}
-                    onToggleBlockMode={variant === 'standard' ? () => setBlockMode(m => !m) : null}
-                    onClearBlocks={() => setUserBlockedCells(new Set())}
-                    showPaths={showPaths}
-                    onTogglePaths={() => setShowPaths(p => !p)}
-                  />
-                  <DirectionArrows
-                    selectedRobotId={state.selectedRobotId}
-                    dispatch={dispatch}
-                    blockedCells={blockedCells}
-                  />
-                </div>
+                <HUD
+                  state={state}
+                  dispatch={dispatch}
+                  currentPuzzle={currentPuzzle}
+                  blockedCells={blockedCells}
+                  userBlockedCells={variant === 'standard' ? userBlockedCells : null}
+                  blockMode={blockMode}
+                  onToggleBlockMode={variant === 'standard' ? () => setBlockMode(m => !m) : null}
+                  onClearBlocks={() => setUserBlockedCells(new Set())}
+                  showPaths={showPaths}
+                  onTogglePaths={() => setShowPaths(p => !p)}
+                />
               </div>
             )}
             <p className="instructions">
