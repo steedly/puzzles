@@ -201,8 +201,8 @@ export default function App() {
               </div>
             )}
             <p className="instructions">
-              Click a robot to select it, then use the arrows or keyboard arrow keys to slide it.
-              Get all <span className="instructions__target">exit robots</span> (T, A, B…) to the glowing center cell.
+              Click a robot to select it, then click a cell or use arrow keys to slide it.
+              Get all <span className="instructions__target">exit robots</span> (A, B, C…) to the glowing center cell.
             </p>
           </div>
 
