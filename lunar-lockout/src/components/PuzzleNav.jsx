@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { filterPuzzles } from '../logic/puzzleFilter';
 
 const PAGE_SIZE   = 20;
@@ -144,6 +144,35 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
   const sliderTotal = movesRange.max - movesRange.min || 1;
   const sliderLeftPct  = ((movesMin - movesRange.min) / sliderTotal) * 100;
   const sliderRightPct = ((movesMax - movesRange.min) / sliderTotal) * 100;
+  const trackRef = useRef(null);
+
+  function thumbDrag(setter, clampLo, clampHi) {
+    return (e) => {
+      e.preventDefault();
+      const track = trackRef.current;
+      if (!track) return;
+      const move = (clientX) => {
+        const rect = track.getBoundingClientRect();
+        const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+        const val = Math.round(movesRange.min + pct * (movesRange.max - movesRange.min));
+        const clamped = Math.max(clampLo(), Math.min(val, clampHi()));
+        setter(clamped);
+        setPage(0);
+      };
+      const onMove = (ev) => move(ev.touches ? ev.touches[0].clientX : ev.clientX);
+      const onUp = () => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        document.removeEventListener('touchmove', onMove);
+        document.removeEventListener('touchend', onUp);
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+      document.addEventListener('touchmove', onMove, { passive: false });
+      document.addEventListener('touchend', onUp);
+      move(e.touches ? e.touches[0].clientX : e.clientX);
+    };
+  }
 
   return (
     <div className="pnav">
@@ -226,27 +255,26 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
             <div className="pnav__filter-row">
               <span className="pnav__label">Moves:</span>
               <span className="pnav__range-value">{movesMin}</span>
-              <div className="pnav__range-track">
+              <div className="pnav__range-track" ref={trackRef}>
+                <div className="pnav__range-rail" />
                 <div
                   className="pnav__range-fill"
                   style={{ left: `${sliderLeftPct}%`, right: `${100 - sliderRightPct}%` }}
                 />
-                <input
-                  type="range"
-                  className="pnav__range-input"
-                  min={movesRange.min} max={movesRange.max}
-                  value={movesMin}
-                  style={{ zIndex: movesMin > movesRange.min && movesMin >= movesMax ? 1 : 2 }}
-                  onChange={e => handleSliderMin(parseInt(e.target.value, 10))}
-                />
-                <input
-                  type="range"
-                  className="pnav__range-input"
-                  min={movesRange.min} max={movesRange.max}
-                  value={movesMax}
-                  style={{ zIndex: movesMin > movesRange.min && movesMin >= movesMax ? 2 : 1 }}
-                  onChange={e => handleSliderMax(parseInt(e.target.value, 10))}
-                />
+                <div
+                  className="pnav__range-thumb pnav__range-thumb--min"
+                  style={{ left: `${sliderLeftPct}%` }}
+                  onMouseDown={thumbDrag(setMovesMin, () => movesRange.min, () => movesMax)}
+                  onTouchStart={thumbDrag(setMovesMin, () => movesRange.min, () => movesMax)}
+                  title="Min moves"
+                >◀</div>
+                <div
+                  className="pnav__range-thumb pnav__range-thumb--max"
+                  style={{ left: `${sliderRightPct}%` }}
+                  onMouseDown={thumbDrag(setMovesMax, () => movesMin, () => movesRange.max)}
+                  onTouchStart={thumbDrag(setMovesMax, () => movesMin, () => movesRange.max)}
+                  title="Max moves"
+                >▶</div>
               </div>
               <span className="pnav__range-value">{movesMax}</span>
             </div>
