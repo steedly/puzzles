@@ -11,7 +11,7 @@ function robotLabel(id) {
   return id.replace('r', '');
 }
 
-export default function HUD({ state, dispatch, currentPuzzle, blockedCells, blockMode, onToggleBlockMode, onClearBlocks, showPaths, onTogglePaths }) {
+export default function HUD({ state, dispatch, currentPuzzle, blockedCells, userBlockedCells, blockMode, onToggleBlockMode, onClearBlocks, showPaths, onTogglePaths }) {
   const [showSol, setShowSol] = useState(false);
   // null = not computed, [] = computed but empty/failed, [...] = computed solution
   const [computedSol, setComputedSol] = useState(null);
@@ -24,9 +24,10 @@ export default function HUD({ state, dispatch, currentPuzzle, blockedCells, bloc
     setComputedSol(null);
   }, [puzzleId, blockKey]);
 
-  // When blocks are active, always recompute (embedded solution may be invalid)
-  const hasBlocks = blockedCells && blockedCells.size > 0;
-  const embeddedSol = (!hasBlocks && currentPuzzle?.solution) ? currentPuzzle.solution : [];
+  // User-added blocks invalidate embedded solutions; variant blocks do not
+  // (variant puzzles were generated with their blocks baked in).
+  const hasUserBlocks = userBlockedCells && userBlockedCells.size > 0;
+  const embeddedSol = (!hasUserBlocks && currentPuzzle?.solution) ? currentPuzzle.solution : [];
   const solution = embeddedSol.length > 0 ? embeddedSol : (computedSol ?? []);
   const canSolve = currentPuzzle?.minMoves > 0;
 
@@ -82,11 +83,13 @@ export default function HUD({ state, dispatch, currentPuzzle, blockedCells, bloc
             onClick={onTogglePaths}
           >Paths</button>
         )}
-        <button
-          className={`hud__btn${blockMode ? ' hud__btn--active' : ''}`}
-          onClick={onToggleBlockMode}
-        >Block</button>
-        {hasBlocks && (
+        {onToggleBlockMode && (
+          <button
+            className={`hud__btn${blockMode ? ' hud__btn--active' : ''}`}
+            onClick={onToggleBlockMode}
+          >Block</button>
+        )}
+        {onToggleBlockMode && hasUserBlocks && (
           <button
             className="hud__btn hud__btn--clear"
             onClick={onClearBlocks}
@@ -106,8 +109,8 @@ export default function HUD({ state, dispatch, currentPuzzle, blockedCells, bloc
         </div>
       )}
 
-      {showSol && computedSol !== null && computedSol.length === 0 && hasBlocks && (
-        <div className="hud__no-sol">No solution with current blocks</div>
+      {showSol && computedSol !== null && computedSol.length === 0 && (
+        <div className="hud__no-sol">No solution found</div>
       )}
     </div>
   );

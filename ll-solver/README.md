@@ -143,7 +143,7 @@ Growth ratio per additional helper: ~15–20×.
 |---|---|---|---|---|---|
 | **1 exit** | 1 | 3 | 28 | 1,052 | 50,077 |
 
-Total for 1 exit, helpers 1–5: 51,161 unique puzzles.
+Total for 1 exit, helpers 1–5: 51,161 unique puzzles (standard), 4,631 (solitaire), 3,054 (UFO).
 
 ### What's feasible
 
@@ -175,7 +175,7 @@ make NO_OPENMP=1
 ## Usage
 
 ```bash
-./enumerate [max_exits] [max_total] [min_moves] [max_moves]
+./enumerate [max_exits] [max_total] [min_moves] [max_moves] [variant]
 ```
 
 | Parameter | Default | Description |
@@ -184,14 +184,33 @@ make NO_OPENMP=1
 | `max_total` | 6 | Maximum total robots (exits + helpers) |
 | `min_moves` | 1 | Minimum grouped moves to include |
 | `max_moves` | 99 | Maximum grouped moves to include |
+| `variant` | standard | Board variant: `standard` (7×7), `solitaire` (7×7 with 2×2 corners blocked), or `ufo` (5×5 center only) |
 
 Puzzle data goes to **stdout**; progress/stats go to **stderr**.
+
+### Board Variants
+
+The enumerator supports three board variants via a blocked-cell bitmask:
+
+| Variant | Usable cells | Description |
+|---------|-------------|-------------|
+| `standard` | 49 | Full 7×7 board |
+| `solitaire` | 33 | 7×7 with four 2×2 corners blocked (16 cells) |
+| `ufo` | 25 | Center 5×5 only (24 border cells blocked) |
+
+Blocked cells act as walls — robots cannot occupy or slide through them, and stopping against one is a wall-stop (illegal). Both blocked patterns are D4-symmetric, so canonicalization works unchanged.
 
 ### Examples
 
 ```bash
 # Standard run: 1 exit, up to 5 helpers, all move counts
 ./enumerate 1 6 1 99 > puzzles.llp
+
+# Solitaire variant
+./enumerate 1 6 1 20 solitaire > puzzles-solitaire.llp
+
+# UFO (5x5) variant
+./enumerate 1 6 1 20 ufo > puzzles-ufo.llp
 
 # Multi-exit: up to 3 exits, 6 total robots, moves 1-20
 ./enumerate 3 6 1 20 > puzzles.llp

@@ -13,7 +13,7 @@ npm install
 npm run dev
 ```
 
-The app loads puzzles from `public/puzzles.llp`. If the file is missing or unreachable, a file picker appears so you can load one manually.
+The app loads puzzles from `public/puzzles.llp`. Variant puzzle files (`puzzles-solitaire.llp`, `puzzles-ufo.llp`) are loaded on demand when the user switches board variants. If the default file is missing or unreachable, a file picker appears so you can load one manually.
 
 ## Project Structure
 
@@ -38,7 +38,9 @@ lunar-lockout/
 │       ├── solver.js            Forward BFS + DP solver
 │       └── puzzleFilter.js      Multi-tier blocked-cell filtering
 ├── public/
-│   └── puzzles.llp              Puzzle library (positions only, no solutions)
+│   ├── puzzles.llp              Standard puzzle library (positions only)
+│   ├── puzzles-solitaire.llp    Solitaire variant (lazy-loaded)
+│   └── puzzles-ufo.llp          UFO 5×5 variant (lazy-loaded)
 ├── scripts/
 │   └── bundle.cjs               Inlines all assets into a single HTML file
 ├── vite.config.js
@@ -101,11 +103,25 @@ The solver runs fast enough for interactive use: typical puzzles (up to 6 robots
 
 ## Features
 
+### Board variants
+
+The nav panel includes a board selector with three variants:
+
+| Variant | Board | Puzzles | Description |
+|---------|-------|---------|-------------|
+| Standard | 7×7 | ~51K | Full board, no blocked cells |
+| Solitaire | 7×7 | ~4.6K | Four 2×2 corners blocked |
+| UFO | 5×5 | ~3K | Center 5×5 only (border blocked) |
+
+Each variant has its own pre-generated puzzle library with correct optimal solutions and move counts. Variant puzzle files are lazy-loaded on first selection and cached in memory. Variant-blocked cells appear as dark inactive cells, visually distinct from user-blocked cells.
+
+User-defined blocking (the Block button) is available only in Standard mode, since variant puzzles are already generated with their blocked cells baked in.
+
 ### Puzzle navigation
 
 The nav panel supports filtering by number of exits, helpers, and minimum moves. Pagination, random selection, and jump-to-ID are available. Filters update the puzzle list in real time.
 
-### Blocked cells
+### Blocked cells (Standard mode)
 
 Click **Block** in the HUD to enter block mode, then click empty cells to toggle them as obstacles (shown with a red hatched pattern). Blocked cells act as walls — robots cannot pass through them, but stopping against one is not a valid move (the "must be stopped by another robot" rule is preserved). The center cell cannot be blocked.
 
@@ -180,14 +196,13 @@ Run `npm run build:bundle` and distribute `dist/index.bundle.html` as a single f
 
 ### Puzzle data size
 
-| Variant | Size |
-|---------|------|
-| Full `.llp` (with solutions) | ~3.8 MB |
-| Stripped (positions only) | ~1.8 MB |
-| Stripped, gzip transfer | ~0.5 MB |
-| Bundle HTML | ~1 MB |
+| File | Raw | Gzipped |
+|------|-----|---------|
+| Standard (stripped) | ~1.8 MB | ~400 KB |
+| Solitaire (stripped) | ~160 KB | ~40 KB |
+| UFO (stripped) | ~100 KB | ~25 KB |
 
-GitHub Pages applies gzip `Content-Encoding` automatically, so the over-the-wire transfer for `puzzles.llp` is ~1.5 MB.
+Variant files are lazy-loaded, so only the standard file is fetched on initial page load. GitHub Pages applies gzip `Content-Encoding` automatically.
 
 ## Tech Stack
 

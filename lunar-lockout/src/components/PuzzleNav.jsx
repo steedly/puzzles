@@ -8,7 +8,13 @@ const PAGE_SIZE   = 18;
 const DIFF_LABEL = { easy: 'E', medium: 'M', hard: 'H', expert: 'X' };
 const DIFF_COLOR = { easy: '#4caf50', medium: '#ffc107', hard: '#f44336', expert: '#9c27b0' };
 
-export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilteredChange, blockedCells }) {
+const VARIANTS = [
+  { key: 'standard',  label: '7×7' },
+  { key: 'solitaire', label: 'Solitaire' },
+  { key: 'ufo',       label: 'UFO 5×5' },
+];
+
+export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilteredChange, blockedCells, variant, onVariantChange }) {
   const [activeHelpers, setActiveHelpers] = useState(new Set([1, 2, 3, 4, 5]));
   const [activeExits,   setActiveExits]   = useState(new Set([1, 2, 3]));
   const [movesMin,      setMovesMin]      = useState(1);
@@ -139,6 +145,20 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
 
       {!collapsed && (
         <>
+          {/* ── Board variant ── */}
+          <div className="pnav__filters">
+            <div className="pnav__filter-row">
+              <span className="pnav__label">Board:</span>
+              {VARIANTS.map(v => (
+                <button
+                  key={v.key}
+                  className={`pnav__chip${variant === v.key ? ' pnav__chip--on' : ''}`}
+                  onClick={() => onVariantChange(v.key)}
+                >{v.label}</button>
+              ))}
+            </div>
+          </div>
+
           {/* ── Filters ── */}
           <div className="pnav__filters">
             {availableExits.length > 1 && (

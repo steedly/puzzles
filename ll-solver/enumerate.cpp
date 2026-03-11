@@ -63,10 +63,12 @@
 //
 // Usage
 // -----
-//   ./enumerate [max_exits=1] [max_total=6] [min_moves=1] [max_moves=99]
+//   ./enumerate [max_exits=1] [max_total=6] [min_moves=1] [max_moves=99] [variant=standard]
 //     max_exits : maximum number of exit robots (default 1)
 //     max_total : maximum total robots = exits + helpers (default 6)
 //                 helpers = total - exits; helpers may be 0
+//     variant   : board variant — standard (7x7), solitaire (7x7 corners blocked),
+//                 or ufo (5x5 center only). Default: standard.
 //   Puzzle data goes to stdout; progress/stats go to stderr.
 
 #include <algorithm>
@@ -96,6 +98,30 @@ static constexpr int EXITED = 63;      // exit-robot "off board" sentinel
 
 static constexpr int DR[4] = {-1, 1, 0, 0}; // up, down, left, right
 static constexpr int DC[4] = { 0, 0,-1, 1};
+
+// ── Board variant (blocked cells) ────────────────────────────────────────────
+// Bitmask of cells that are walls — robots cannot occupy or slide through them.
+// Set once in main() before any BFS runs; 0 = standard 7x7.
+static uint64_t BLOCKED = 0;
+
+static uint64_t make_blocked_solitaire() {
+    // 2x2 corners: (0,0)(0,1)(1,0)(1,1) and 3 symmetric copies
+    uint64_t b = 0;
+    for (int r : {0,1,5,6})
+        for (int c : {0,1,5,6})
+            b |= (uint64_t)1 << (r*N+c);
+    return b;
+}
+
+static uint64_t make_blocked_ufo() {
+    // All border cells (row 0,6 or col 0,6)
+    uint64_t b = 0;
+    for (int r = 0; r < N; r++)
+        for (int c = 0; c < N; c++)
+            if (r == 0 || r == N-1 || c == 0 || c == N-1)
+                b |= (uint64_t)1 << (r*N+c);
+    return b;
+}
 
 // ── D4 symmetry group ─────────────────────────────────────────────────────────
 // The dihedral group D4 has 8 elements: 4 rotations × {identity, reflection}.
@@ -312,7 +338,9 @@ static void reverse_moves_normal(const int* r, int n, int num_exits, int ridx,
         // There must be a blocker one step past pos in direction d.
         const int br = pr + DR[d], bc = pc + DC[d];
         if (br < 0 || br >= N || bc < 0 || bc >= N) continue;
-        if (!(occ & ((uint64_t)1 << (br*N+bc)))) continue;
+        const int bp = br*N+bc;
+        if (BLOCKED & ((uint64_t)1 << bp)) continue; // blocker can't be on a wall
+        if (!(occ & ((uint64_t)1 << bp))) continue;
 
         // Walk backward (opposite direction) to find valid starting positions.
         int wr = pr, wc = pc;
@@ -320,6 +348,7 @@ static void reverse_moves_normal(const int* r, int n, int num_exits, int ridx,
             wr -= DR[d]; wc -= DC[d];
             if (wr < 0 || wr >= N || wc < 0 || wc >= N) break;
             const int wp = wr*N+wc;
+            if (BLOCKED & ((uint64_t)1 << wp)) break; // wall stops walk
             if (occ & ((uint64_t)1 << wp)) break;
 
             // Center cell (CTR) must never be a starting position:
@@ -362,6 +391,7 @@ static void reverse_moves_unexit(const int* r, int n, int num_exits, int ridx,
         const int blr = 3 + DR[d], blc = 3 + DC[d];
         if (blr < 0 || blr >= N || blc < 0 || blc >= N) continue;
         const int blocker_cell = blr*N+blc;
+        if (BLOCKED & ((uint64_t)1 << blocker_cell)) continue; // blocker can't be on a wall
         if (!(occ & ((uint64_t)1 << blocker_cell))) continue;
 
         // Walk AWAY from center (opposite of d) to find valid starting positions.
@@ -370,6 +400,7 @@ static void reverse_moves_unexit(const int* r, int n, int num_exits, int ridx,
             const int wr = 3 - k*DR[d], wc = 3 - k*DC[d];
             if (wr < 0 || wr >= N || wc < 0 || wc >= N) break;
             const int wp = wr*N+wc;
+            if (BLOCKED & ((uint64_t)1 << wp)) break; // wall stops walk
             if (occ & ((uint64_t)1 << wp)) break; // path blocked
 
             int nr[10];
@@ -420,7 +451,8 @@ static FlatMap retrograde(int num_exits, int num_helpers)
     // Pool of valid non-center cells for helpers (helpers never exit).
     std::vector<int> pool;
     pool.reserve(NC - 1);
-    for (int i = 0; i < NC; i++) if (i != CTR) pool.push_back(i);
+    for (int i = 0; i < NC; i++)
+        if (i != CTR && !(BLOCKED & ((uint64_t)1 << i))) pool.push_back(i);
     const int P = (int)pool.size();
 
     std::vector<State> cur;
@@ -564,11 +596,12 @@ static bool forward_move(const int* pos, int n, int num_exits, int ridx, int dir
         int nr = wr + DR[dir], nc = wc + DC[dir];
         if (nr < 0 || nr >= N || nc < 0 || nc >= N) break; // wall = illegal
         int np = nr * N + nc;
+        if (BLOCKED & ((uint64_t)1 << np)) break;         // blocked cell = wall
         if (occ & ((uint64_t)1 << np)) { blocker_cell = np; break; }
         wr = nr; wc = nc;
     }
 
-    if (blocker_cell < 0)             return false; // wall stop
+    if (blocker_cell < 0)             return false; // wall stop (or blocked cell)
     if (wr == pr && wc == pc)         return false; // no movement
 
     blocker_idx = -1;
@@ -910,10 +943,12 @@ static bool validate_collision_seq(const int* init_pos,
                                     const std::vector<Move>& sol,
                                     int n, int num_exits)
 {
-    // Check for position collisions in initial config.
-    for (int i = 0; i < n; i++)
+    // Check for position collisions and blocked-cell conflicts in initial config.
+    for (int i = 0; i < n; i++) {
+        if (BLOCKED & ((uint64_t)1 << init_pos[i])) return false;
         for (int j = i + 1; j < n; j++)
             if (init_pos[i] == init_pos[j]) return false;
+    }
 
     int pos[10];
     std::memcpy(pos, init_pos, n * sizeof(int));
@@ -939,11 +974,12 @@ static bool validate_collision_seq(const int* init_pos,
             int nr = wr + DR[dir], nc = wc + DC[dir];
             if (nr < 0 || nr >= N || nc < 0 || nc >= N) break;
             int np = nr * N + nc;
+            if (BLOCKED & ((uint64_t)1 << np)) break;         // blocked cell = wall
             if (occ & ((uint64_t)1 << np)) { blocker_cell = np; break; }
             wr = nr; wc = nc;
         }
 
-        if (blocker_cell < 0) return false;            // wall stop
+        if (blocker_cell < 0) return false;            // wall stop (or blocked cell)
         if (wr == mr && wc == mc) return false;         // no movement
         if (pos[blocker] != blocker_cell) return false;  // wrong blocker
 
@@ -1034,7 +1070,9 @@ static bool try_compact(int* init_pos, std::vector<Move>& sol,
                 const int sr = land_r - g * DR[dir];
                 const int sc = land_c - g * DC[dir];
                 if (sr < 0 || sr >= N || sc < 0 || sc >= N) break;
-                a.positions[a.npos++] = sr * N + sc;
+                const int sp = sr * N + sc;
+                if (BLOCKED & ((uint64_t)1 << sp)) break; // can't place on or past wall
+                a.positions[a.npos++] = sp;
                 if (a.npos >= 7) break;
             }
             if (a.npos > 0) nadj++;
@@ -1059,6 +1097,7 @@ static bool try_compact(int* init_pos, std::vector<Move>& sol,
             if (cc > 3 && cc > 0) candidates[ncand++] = cr*N + (cc-1);
             if (cc < 3 && cc < N-1) candidates[ncand++] = cr*N + (cc+1);
             for (int i = 0; i < ncand; i++) {
+                if (BLOCKED & ((uint64_t)1 << candidates[i])) continue;
                 int nr = candidates[i]/N, nc_val = candidates[i]%N;
                 int new_cheb = std::max(std::abs(nr-3), std::abs(nc_val-3));
                 if (new_cheb < cheb)
@@ -1451,16 +1490,30 @@ int main(int argc, char* argv[]) {
     const int min_moves   = argc > 3 ? std::atoi(argv[3]) : 1;
     const int max_moves   = argc > 4 ? std::atoi(argv[4]) : 99;
 
+    // Board variant: standard (default), solitaire (2x2 corners blocked), ufo (5x5 center)
+    std::string variant = "standard";
+    if (argc > 5) variant = argv[5];
+    if (variant == "solitaire")     BLOCKED = make_blocked_solitaire();
+    else if (variant == "ufo")      BLOCKED = make_blocked_ufo();
+    else if (variant != "standard") {
+        std::cerr << "Unknown variant: " << variant
+                  << " (use standard, solitaire, or ufo)\n";
+        return 1;
+    }
+
 #ifdef _OPENMP
     std::cerr << "OpenMP enabled (" << omp_get_max_threads() << " threads)\n";
 #else
     std::cerr << "OpenMP not available — single-threaded\n";
 #endif
+    if (BLOCKED) std::cerr << "Variant: " << variant << " (blocked mask: 0x"
+                           << std::hex << BLOCKED << std::dec << ")\n";
 
     std::cout <<
         "# Lunar Lockout Puzzles\n"
         "# Generated by ll-solver/enumerate\n"
         "# Board: 7x7 (rows and cols 0-6), goal: all exits to center (3,3)\n"
+        "# Variant: " << variant << "\n"
         "# Exit robots disappear when they reach center; helpers are blockers only.\n"
         "# Deduplicated by collision signature.\n"
         "#\n"

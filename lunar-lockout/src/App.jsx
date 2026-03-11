@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { usePuzzleLibrary } from './hooks/usePuzzleLibrary';
 import { useGameState } from './hooks/useGameState';
 import { resolvePuzzle } from './logic/puzzleFilter';
@@ -18,13 +18,27 @@ const DUMMY_PUZZLE = {
   robots: [{ id: 'target', row: 3, col: 3, isExit: true }],
 };
 
+// Fixed blocked cells for each board variant
+const VARIANT_BLOCKS = {
+  standard: new Set(),
+  solitaire: new Set(
+    [0,1,5,6].flatMap(r => [0,1,5,6].map(c => `${r},${c}`))
+  ),
+  ufo: new Set(
+    Array.from({ length: 7 }, (_, r) =>
+      Array.from({ length: 7 }, (_, c) => ({ r, c }))
+    ).flat().filter(({ r, c }) => r === 0 || r === 6 || c === 0 || c === 6)
+     .map(({ r, c }) => `${r},${c}`)
+  ),
+};
+
 export default function App() {
-  const { allPuzzles, loading, error, needsFilePicker, loadFile } = usePuzzleLibrary();
+  const { allPuzzles, loading, error, needsFilePicker, loadFile, variant, switchVariant } = usePuzzleLibrary();
   const [currentPuzzle, setCurrentPuzzle] = useState(null);
   const filteredRef = useRef([]);
 
-  // Blocked cells: global preference, persisted in localStorage
-  const [blockedCells, setBlockedCells] = useState(() => {
+  // User-added blocked cells (only active in standard mode)
+  const [userBlockedCells, setUserBlockedCells] = useState(() => {
     try {
       const saved = localStorage.getItem('ll-blocked-cells');
       return saved ? new Set(JSON.parse(saved)) : new Set();
@@ -34,17 +48,36 @@ export default function App() {
   const [showPaths, setShowPaths] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem('ll-blocked-cells', JSON.stringify([...blockedCells]));
-  }, [blockedCells]);
+    localStorage.setItem('ll-blocked-cells', JSON.stringify([...userBlockedCells]));
+  }, [userBlockedCells]);
+
+  // Variant blocks are fixed; user blocks only apply in standard mode
+  const variantBlocks = VARIANT_BLOCKS[variant] || VARIANT_BLOCKS.standard;
+  const blockedCells = useMemo(() => {
+    if (variant !== 'standard') return variantBlocks;
+    if (userBlockedCells.size === 0) return variantBlocks; // empty set
+    return userBlockedCells;
+  }, [variant, variantBlocks, userBlockedCells]);
+
+  // Disable block mode when switching away from standard
+  useEffect(() => {
+    if (variant !== 'standard') setBlockMode(false);
+  }, [variant]);
+
+  // Reset current puzzle when puzzle list changes (variant switch or initial load)
+  useEffect(() => {
+    setCurrentPuzzle(null);
+  }, [allPuzzles]);
 
   const handleToggleBlock = useCallback((row, col) => {
+    if (variant !== 'standard') return; // can't modify variant blocks
     const key = `${row},${col}`;
-    setBlockedCells(prev => {
+    setUserBlockedCells(prev => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key); else next.add(key);
       return next;
     });
-  }, []);
+  }, [variant]);
 
   const { state, dispatch } = useGameState(currentPuzzle ?? DUMMY_PUZZLE, blockedCells);
 
@@ -144,6 +177,7 @@ export default function App() {
                   blockedCells={blockedCells} blockMode={blockMode}
                   onToggleBlock={handleToggleBlock}
                   showPaths={showPaths}
+                  variantBlocks={variantBlocks}
                 />
                 <div className="controls">
                   <HUD
@@ -151,9 +185,10 @@ export default function App() {
                     dispatch={dispatch}
                     currentPuzzle={currentPuzzle}
                     blockedCells={blockedCells}
+                    userBlockedCells={variant === 'standard' ? userBlockedCells : null}
                     blockMode={blockMode}
-                    onToggleBlockMode={() => setBlockMode(m => !m)}
-                    onClearBlocks={() => setBlockedCells(new Set())}
+                    onToggleBlockMode={variant === 'standard' ? () => setBlockMode(m => !m) : null}
+                    onClearBlocks={() => setUserBlockedCells(new Set())}
                     showPaths={showPaths}
                     onTogglePaths={() => setShowPaths(p => !p)}
                   />
@@ -177,7 +212,9 @@ export default function App() {
             currentPuzzle={currentPuzzle}
             onSelect={handleSelectPuzzle}
             onFilteredChange={handleFilteredChange}
-            blockedCells={blockedCells}
+            blockedCells={variant === 'standard' ? userBlockedCells : new Set()}
+            variant={variant}
+            onVariantChange={switchVariant}
           />
         </div>
       </main>

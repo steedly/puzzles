@@ -2,7 +2,7 @@ import { slideRobot } from '../logic/gameEngine';
 import Cell from './Cell';
 import SolutionOverlay from './SolutionOverlay';
 
-export default function Board({ state, dispatch, puzzle, blockedCells, blockMode, onToggleBlock, showPaths }) {
+export default function Board({ state, dispatch, puzzle, blockedCells, blockMode, onToggleBlock, showPaths, variantBlocks }) {
   // Build reverse lookup: "row,col" → robotId
   const cellMap = {};
   for (const [id, pos] of Object.entries(state.positions)) {
@@ -85,6 +85,7 @@ export default function Board({ state, dispatch, puzzle, blockedCells, blockMode
           selectedRobotId={state.selectedRobotId}
           isLandingCell={landingCells.has(key)}
           isBlocked={blockedCells && blockedCells.has(key)}
+          isVariantBlocked={variantBlocks && variantBlocks.has(key)}
           blockMode={blockMode}
           onClick={handleCellClick}
         />

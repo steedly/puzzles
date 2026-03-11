@@ -787,7 +787,14 @@ button { cursor: pointer; font-family: inherit; }
   font-family: monospace;
 }
 
-/* ── Blocked cells ─────────────────────────────────────────────────────────── */
+/* ── Variant-blocked cells (corners/border for solitaire/ufo) ──────────────── */
+.cell--variant-blocked {
+  background: #1a1a2e !important;
+  border-color: #1a1a2e !important;
+  cursor: default !important;
+}
+
+/* ── User-blocked cells ───────────────────────────────────────────────────── */
 .cell--blocked {
   background: repeating-linear-gradient(
     45deg,

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 const DIR_MAP = { U: 'up', D: 'down', L: 'left', R: 'right' };
 
@@ -121,48 +121,88 @@ async function decompressGzBase64(b64) {
   return new Response(ds.readable).text();
 }
 
+// Variant file names (relative to public/)
+const VARIANT_FILES = {
+  standard:  'puzzles.llp',
+  solitaire: 'puzzles-solitaire.llp',
+  ufo:       'puzzles-ufo.llp',
+};
+
 export function usePuzzleLibrary() {
   const [allPuzzles,      setAllPuzzles]      = useState([]);
   const [loading,         setLoading]         = useState(true);
   const [error,           setError]           = useState(null);
   const [needsFilePicker, setNeedsFilePicker] = useState(false);
+  const [variant,         setVariant]         = useState('standard');
 
-  useEffect(() => {
-    // Fast path: puzzle data embedded as raw text (legacy bundle mode).
-    if (typeof window.__PUZZLES_LLP__ === 'string') {
-      setAllPuzzles(parseText(window.__PUZZLES_LLP__));
+  // Cache parsed puzzles per variant to avoid re-fetching/re-parsing
+  const cacheRef = useRef({});
+
+  // Load a puzzle file (fetch or from cache)
+  const loadVariantFile = useCallback(async (v) => {
+    // Check cache first
+    if (cacheRef.current[v]) {
+      setAllPuzzles(cacheRef.current[v]);
       setLoading(false);
       return;
     }
 
-    // Fast path: puzzle data embedded as gzip-compressed base64 (compact bundle mode).
-    if (typeof window.__PUZZLES_GZ_B64__ === 'string') {
-      decompressGzBase64(window.__PUZZLES_GZ_B64__)
-        .then(text => {
-          setAllPuzzles(parseText(text));
+    setLoading(true);
+    setError(null);
+
+    // Check for embedded data (bundle mode) — only for standard
+    if (v === 'standard') {
+      if (typeof window.__PUZZLES_LLP__ === 'string') {
+        const puzzles = parseText(window.__PUZZLES_LLP__);
+        cacheRef.current[v] = puzzles;
+        setAllPuzzles(puzzles);
+        setLoading(false);
+        return;
+      }
+      if (typeof window.__PUZZLES_GZ_B64__ === 'string') {
+        try {
+          const text = await decompressGzBase64(window.__PUZZLES_GZ_B64__);
+          const puzzles = parseText(text);
+          cacheRef.current[v] = puzzles;
+          setAllPuzzles(puzzles);
           setLoading(false);
-        })
-        .catch(() => {
-          setLoading(false);
-          setNeedsFilePicker(true);
-        });
-      return;
+          return;
+        } catch {
+          // fall through to fetch
+        }
+      }
     }
 
-    fetch('./puzzles.llp')
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.text();
-      })
-      .then(text => {
-        setAllPuzzles(parseText(text));
-        setLoading(false);
-      })
-      .catch(() => {
-        setLoading(false);
+    try {
+      const filename = VARIANT_FILES[v] || VARIANT_FILES.standard;
+      const r = await fetch(`./${filename}`);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const text = await r.text();
+      const puzzles = parseText(text);
+      cacheRef.current[v] = puzzles;
+      setAllPuzzles(puzzles);
+      setLoading(false);
+    } catch {
+      setLoading(false);
+      if (v === 'standard') {
         setNeedsFilePicker(true);
-      });
+      } else {
+        setError(`Could not load ${v} puzzles`);
+      }
+    }
   }, []);
+
+  // Initial load
+  useEffect(() => {
+    loadVariantFile('standard');
+  }, [loadVariantFile]);
+
+  // Switch variant
+  const switchVariant = useCallback((v) => {
+    if (v === variant) return;
+    setVariant(v);
+    loadVariantFile(v);
+  }, [variant, loadVariantFile]);
 
   function loadFile(file) {
     if (!file) return;
@@ -170,10 +210,15 @@ export function usePuzzleLibrary() {
     setError(null);
     setNeedsFilePicker(false);
     const reader = new FileReader();
-    reader.onload  = e => { setAllPuzzles(parseText(e.target.result)); setLoading(false); };
+    reader.onload  = e => {
+      const puzzles = parseText(e.target.result);
+      cacheRef.current.standard = puzzles;
+      setAllPuzzles(puzzles);
+      setLoading(false);
+    };
     reader.onerror = () => { setError('Could not read file'); setLoading(false); setNeedsFilePicker(true); };
     reader.readAsText(file);
   }
 
-  return { allPuzzles, loading, error, needsFilePicker, loadFile };
+  return { allPuzzles, loading, error, needsFilePicker, loadFile, variant, switchVariant };
 }

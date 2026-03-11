@@ -53,20 +53,34 @@ test_enumerate: test_enumerate.cpp enumerate.cpp
 test_canonical: test_canonical.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)
 
-# Full validation pipeline: unit tests + generate + validate + D4 check
+# Full validation pipeline: unit tests + generate all variants + validate + D4 check
 test: enumerate test_enumerate test_canonical
 	@echo "=== Unit tests ==="
 	./test_enumerate
 	@echo ""
-	@echo "=== Generating puzzles ==="
+	@echo "=== Generating standard puzzles ==="
 	./enumerate 1 6 1 20 > /tmp/puzzles_test.llp 2>/tmp/enumerate_test.log
 	@cat /tmp/enumerate_test.log >&2
 	@echo ""
-	@echo "=== Validating solutions ==="
+	@echo "=== Validating standard ==="
 	python3 validate_solutions.py /tmp/puzzles_test.llp
-	@echo ""
-	@echo "=== Checking D4 duplicates ==="
 	./test_canonical < /tmp/puzzles_test.llp
+	@echo ""
+	@echo "=== Generating solitaire puzzles ==="
+	./enumerate 1 6 1 20 solitaire > /tmp/puzzles_solitaire_test.llp 2>/tmp/sol_test.log
+	@cat /tmp/sol_test.log >&2
+	@echo ""
+	@echo "=== Validating solitaire ==="
+	python3 validate_solutions.py /tmp/puzzles_solitaire_test.llp
+	./test_canonical < /tmp/puzzles_solitaire_test.llp
+	@echo ""
+	@echo "=== Generating UFO puzzles ==="
+	./enumerate 1 6 1 20 ufo > /tmp/puzzles_ufo_test.llp 2>/tmp/ufo_test.log
+	@cat /tmp/ufo_test.log >&2
+	@echo ""
+	@echo "=== Validating UFO ==="
+	python3 validate_solutions.py /tmp/puzzles_ufo_test.llp
+	./test_canonical < /tmp/puzzles_ufo_test.llp
 	@echo ""
 	@echo "=== All tests passed ==="
 

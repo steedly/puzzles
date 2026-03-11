@@ -25,6 +25,15 @@ DR = [-1, 1, 0, 0]  # U, D, L, R
 DC = [0, 0, -1, 1]
 DIR_MAP = {'U': 0, 'D': 1, 'L': 2, 'R': 3}
 
+# Blocked cells for board variants (set of cell indices)
+BLOCKED = set()
+
+def make_blocked_solitaire():
+    return {r*N+c for r in [0,1,5,6] for c in [0,1,5,6]}
+
+def make_blocked_ufo():
+    return {r*N+c for r in range(N) for c in range(N) if r==0 or r==N-1 or c==0 or c==N-1}
+
 
 def parse_puzzle(line):
     """Parse one puzzle line. Returns dict or None."""
@@ -135,6 +144,8 @@ def validate_puzzle(p):
             if nr < 0 or nr >= N or nc < 0 or nc >= N:
                 break  # wall
             np = nr * N + nc
+            if np in BLOCKED:
+                break  # blocked cell = wall
             if np in occ:
                 blocker_cell = np
                 break
@@ -180,6 +191,8 @@ def validate_positions(p):
         r, c = pos // N, pos % N
         if r < 0 or r >= N or c < 0 or c >= N:
             errors.append(f"robot {i} at ({r},{c}) is off board")
+        if pos in BLOCKED:
+            errors.append(f"robot {i} at ({r},{c}) is on a blocked cell")
         if i < num_exits and pos == CTR:
             errors.append(f"exit {i} starts at center")
 
@@ -329,11 +342,19 @@ def d4_canonical(positions, num_exits):
 
 
 def main():
+    global BLOCKED
     filename = sys.argv[1] if len(sys.argv) > 1 else '-'
     f = sys.stdin if filename == '-' else open(filename)
 
     puzzles = []
     for line in f:
+        # Auto-detect variant from header comment
+        if line.startswith('# Variant:'):
+            variant = line.split(':', 1)[1].strip()
+            if variant == 'solitaire':
+                BLOCKED = make_blocked_solitaire()
+            elif variant == 'ufo':
+                BLOCKED = make_blocked_ufo()
         p = parse_puzzle(line)
         if p is not None:
             puzzles.append(p)
