@@ -123,9 +123,9 @@ The filter uses a four-tier pipeline for efficiency over large libraries (~51K p
 | 1. Position conflict | Reject puzzles with a robot on a blocked cell | < 1 ms |
 | 2. Bounding box | Accept puzzles whose bounding box has no overlap with any block | < 2 ms |
 | 3. Solution trace | Replay stored solution; accept if no slide path crosses a block | < 50 ms |
-| 4. Re-solve | For puzzles whose stored solution is invalidated, re-solve with blocked cells as walls | varies |
+| 4. Lazy re-solve | Puzzles whose stored solution is invalidated are kept and re-solved on demand when selected | per-puzzle |
 
-Tier 4 ensures puzzles with valid alternate solutions (that avoid blocked cells) are not incorrectly removed.
+Tier 4 is lazy — puzzles are marked for re-solving but not actually solved during filtering, keeping the filter fast. The BFS solve runs only when the player selects a specific puzzle, ensuring puzzles with valid alternate solutions are not incorrectly removed.
 
 ## Building
 

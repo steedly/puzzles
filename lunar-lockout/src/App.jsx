@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { usePuzzleLibrary } from './hooks/usePuzzleLibrary';
 import { useGameState } from './hooks/useGameState';
+import { resolvePuzzle } from './logic/puzzleFilter';
 import Board from './components/Board';
 import HUD from './components/HUD';
 import DirectionArrows from './components/DirectionArrows';
@@ -52,14 +53,24 @@ export default function App() {
     filteredRef.current = list;
     // Auto-select the first puzzle when nothing is loaded yet.
     if (!currentPuzzle && list.length > 0) {
-      setCurrentPuzzle(list[0]);
-      dispatch({ type: 'LOAD_PUZZLE', puzzle: list[0] });
+      let first = list[0];
+      if (first.needsResolve && blockedCells.size > 0) {
+        first = resolvePuzzle(first, blockedCells) || first;
+      }
+      setCurrentPuzzle(first);
+      dispatch({ type: 'LOAD_PUZZLE', puzzle: first });
     }
-  }, [currentPuzzle, dispatch]);
+  }, [currentPuzzle, dispatch, blockedCells]);
 
   function handleSelectPuzzle(puzzle) {
-    setCurrentPuzzle(puzzle);
-    dispatch({ type: 'LOAD_PUZZLE', puzzle });
+    // Tier 4 lazy resolve: if this puzzle needs re-solving with blocked cells, do it now
+    let resolved = puzzle;
+    if (puzzle.needsResolve && blockedCells.size > 0) {
+      resolved = resolvePuzzle(puzzle, blockedCells);
+      if (!resolved) return; // unsolvable with current blocks — skip
+    }
+    setCurrentPuzzle(resolved);
+    dispatch({ type: 'LOAD_PUZZLE', puzzle: resolved });
   }
 
   function handleReplay() {

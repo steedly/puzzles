@@ -98,8 +98,8 @@ function reSolveWithBlocks(puzzle, blockedCells) {
  * Tier 1: Remove puzzles with a robot starting on a blocked cell.
  * Tier 2: Keep puzzles whose bounding box doesn't overlap any blocked cell.
  * Tier 3: Keep puzzles whose stored solution avoids blocked cells.
- * Tier 4: Re-solve puzzles that fail Tier 3 to find alternate solutions
- *         that respect blocked cells.
+ * Tier 4: Puzzles that fail Tier 3 are marked needsResolve (lazy).
+ *         They stay in the list but are only re-solved when selected.
  *
  * @returns {{ kept: Array, removed: number }}
  */
@@ -109,7 +109,6 @@ export function filterPuzzles(puzzles, blockedCells) {
   }
 
   const kept = [];
-  const needResolve = [];
   let removed = 0;
 
   for (const puzzle of puzzles) {
@@ -138,21 +137,20 @@ export function filterPuzzles(puzzles, blockedCells) {
     if (solutionAvoidsCells(puzzle, blockedCells)) {
       kept.push(puzzle);
     } else {
-      // Tier 4: queue for re-solve instead of immediately removing
-      needResolve.push(puzzle);
-    }
-  }
-
-  // Tier 4: Re-solve puzzles whose stored solution was invalidated.
-  // This is the expensive path — only reached for puzzles that failed Tier 3.
-  for (const puzzle of needResolve) {
-    const resolved = reSolveWithBlocks(puzzle, blockedCells);
-    if (resolved) {
-      kept.push(resolved);
-    } else {
-      removed++;
+      // Tier 4 (lazy): mark for on-demand re-solve when selected
+      kept.push({ ...puzzle, needsResolve: true });
     }
   }
 
   return { kept, removed };
+}
+
+/**
+ * Resolve a single puzzle that was marked needsResolve by Tier 4.
+ * Call this when the puzzle is actually selected for play.
+ * Returns the puzzle with updated solution, or null if unsolvable.
+ */
+export function resolvePuzzle(puzzle, blockedCells) {
+  if (!puzzle.needsResolve) return puzzle;
+  return reSolveWithBlocks(puzzle, blockedCells);
 }
