@@ -16,6 +16,7 @@ The Lunar Lockout project is inspired by and validated against the original UFO 
 - **Variant puzzles need variant-correct solutions.** Each board variant (Standard, Solitaire, UFO) has its own blocked-cell mask baked into the enumerator. Solutions, move counts, and filtering must all respect the variant's blocked cells — never mix data across variants. The 5x5 UFO variant was validated against the original UFO game: 1 exit + up to 5 helpers yields max 10 moves, matching the original.
 - **Compaction must be thorough.** Puzzles should use the smallest board possible. This means reducing first-move gaps for movers (try all intermediate gap values, not just gap=1) and shifting non-moving blockers toward center. After compaction, re-verify that the collision sequence is preserved AND all exits actually reach center (a helper compacted onto center can block an exit's path).
 - **Helpers at center are valid intermediate states.** The retrograde BFS must not skip states where a helper occupies the center cell. While such states prevent any exit from reaching center, the helper can be moved away before an exit arrives. Historical bug: the BFS excluded helper-at-center states, causing some deep puzzles (e.g., 23 individual slides / 16 grouped moves for 2e+4h UFO) to be missed entirely. This was discovered when validating reviewer puzzle #80.
+- **Exits can slide through center without exiting.** An exit robot only exits when it LANDS on center (stopped by another robot). If an exit slides through center as an intermediate cell (center is unoccupied and the exit continues past it to be stopped by a robot beyond center), no exit occurs. Historical bug: the retrograde BFS walk broke at center for exits, preventing discovery of puzzles where exits slide through center. This caused ~60K standard, ~7K solitaire, and ~3.5K UFO puzzles to be missed. The fix: `continue` (skip emitting but keep walking) at center for exits, instead of `break`. An exit AT center is not emitted as a predecessor because arriving at center via a slide causes immediate exit — but positions BEYOND center are valid predecessors. Discovered when validating reviewer solitaire puzzle #58 (24 slides / 17 grouped moves for 2e+4h).
 
 ## Scalability — Plan for 7–9 Total Pieces
 
@@ -66,7 +67,7 @@ ll-solver/enumerate → full.llp (with solutions)
 - Always generate all three variants when updating puzzle data.
 - The `.llp` format is the contract between enumerator and UI. Changes to it require updating both sides.
 - Committed `.llp` files are stripped (no solutions) to save space. The UI's JS solver fills in solutions on demand.
-- Current deployed puzzle files (4 exits, ≤6 total): Standard (~6.6 MB, 183K puzzles), Solitaire (~1.3 MB, 37K puzzles), UFO (~934 KB, 26K puzzles). Variant files are lazy-loaded; only Standard is fetched on initial page load.
+- Current deployed puzzle files (4 exits, ≤6 total): Standard (~8.5 MB, 243K puzzles), Solitaire (~1.5 MB, 45K puzzles), UFO (~1.0 MB, 30K puzzles). Variant files are lazy-loaded; only Standard is fetched on initial page load.
 - Full 7-total-robot files are saved in `ll-solver/full/` (untracked) for future filtering work: Standard (437 MB, 10.3M puzzles), Solitaire (16 MB, 402K), UFO (10 MB, 245K).
 
 ## Testing Requirements

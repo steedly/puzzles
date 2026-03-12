@@ -331,6 +331,7 @@ static void reverse_moves_normal(const int* r, int n, int num_exits, int ridx,
                                   uint64_t occ, std::vector<State>& out)
 {
     const int pos = r[ridx];
+
     const int pr = pos/N, pc = pos%N;
 
     for (int d = 0; d < 4; d++) {
@@ -351,14 +352,19 @@ static void reverse_moves_normal(const int* r, int n, int num_exits, int ridx,
             if (BLOCKED & ((uint64_t)1 << wp)) break; // wall stops walk
             if (occ & ((uint64_t)1 << wp)) break;
 
-            // Center cell (CTR) handling:
-            //   Exit at CTR: would have immediately exited in the forward game.
-            //     Also, any position beyond CTR (further in this walk) is invalid
-            //     because the exit would stop and exit at CTR before reaching pos.
-            //   Helper at CTR: valid intermediate state — helper may temporarily
-            //     occupy center and be moved away before an exit needs to reach it.
-            //     Fall through to emit the predecessor, then continue walking past.
-            if (wp == CTR && ridx < num_exits) break;
+            // Center cell (CTR) handling for exits:
+            //   In the forward game, an exit that LANDS on center exits
+            //   immediately.  But an exit that merely PASSES THROUGH center
+            //   (center is unoccupied and the exit continues past it to pos)
+            //   does NOT exit.  So:
+            //     - Exit at CTR: SKIP emitting (exit starting at center is
+            //       a degenerate puzzle, and arriving at center = exit).
+            //       But CONTINUE walking — positions beyond center are valid
+            //       predecessors where the exit slides through center.
+            //     - Helper at CTR: valid intermediate state — helper may
+            //       temporarily occupy center and be moved away before an
+            //       exit needs to reach it.  Emit and continue.
+            if (wp == CTR && ridx < num_exits) continue; // skip CTR, keep walking
 
             int nr[10];
             std::memcpy(nr, r, n * sizeof(int));
@@ -1550,6 +1556,7 @@ int main(int argc, char* argv[]) {
                 std::chrono::steady_clock::now() - t0).count();
             std::cerr << "  BFS done: " << dist.size() << " states, "
                       << bfs_secs << "s\n";
+
 
             int k_emitted = 0, k_deduped = 0;
             emit(dist, ne + nh, ne, min_moves, max_moves,

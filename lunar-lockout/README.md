@@ -97,7 +97,7 @@ for line in sys.stdin:
 
 The app includes a JavaScript forward BFS solver (`src/logic/solver.js`) that computes optimal solutions in the browser. This is used in two situations:
 
-1. **Stripped puzzle data.** The committed `puzzles.llp` omits solutions to keep file size manageable (~6.6 MB stripped vs. ~15 MB with solutions). When the user requests a solution hint, the solver runs on demand.
+1. **Stripped puzzle data.** The committed `puzzles.llp` omits solutions to keep file size manageable (~8.5 MB stripped vs. ~19 MB with solutions). When the user requests a solution hint, the solver runs on demand.
 
 2. **Blocked cells.** Users can mark cells as blocked (walls that robots cannot pass through). Blocked cells invalidate the precomputed solution, so the solver recomputes one that respects the current board constraints.
 
@@ -119,9 +119,9 @@ The nav panel includes a board selector with three variants:
 
 | Variant | Board | Puzzles | Description |
 |---------|-------|---------|-------------|
-| Standard | 7×7 | ~183K | Full board, no blocked cells |
-| Solitaire | 7×7 | ~37K | Four 2×2 corners blocked |
-| UFO | 5×5 | ~26K | Center 5×5 only (border blocked) |
+| Standard | 7×7 | ~243K | Full board, no blocked cells |
+| Solitaire | 7×7 | ~45K | Four 2×2 corners blocked |
+| UFO | 5×5 | ~30K | Center 5×5 only (border blocked) |
 
 Each variant has its own pre-generated puzzle library with correct optimal solutions and move counts. Variant puzzle files are lazy-loaded on first selection and cached in memory. Variant-blocked cells appear as dark inactive cells, visually distinct from user-blocked cells.
 
@@ -210,9 +210,9 @@ Current deployment uses up to 4 exits and ≤6 total robots:
 
 | File | Puzzles | Raw | Gzipped |
 |------|---------|-----|---------|
-| Standard (stripped) | ~183K | ~6.6 MB | ~1.3 MB |
-| Solitaire (stripped) | ~37K | ~1.3 MB | ~260 KB |
-| UFO (stripped) | ~26K | ~934 KB | ~190 KB |
+| Standard (stripped) | ~243K | ~8.5 MB | ~1.7 MB |
+| Solitaire (stripped) | ~45K | ~1.5 MB | ~300 KB |
+| UFO (stripped) | ~30K | ~1.0 MB | ~210 KB |
 
 Variant files are lazy-loaded, so only the standard file is fetched on initial page load. GitHub Pages applies gzip `Content-Encoding` automatically.
 

@@ -158,9 +158,9 @@ Multi-exit BFS times scale roughly with state count. The collision-sig dedup (St
 
 | Variant | Puzzles | Stripped file size |
 |---|---|---|
-| Standard | 182,935 | 6.6 MB |
-| Solitaire | 37,294 | 1.3 MB |
-| UFO | 26,204 | 934 KB |
+| Standard | 242,934 | 8.5 MB |
+| Solitaire | 44,613 | 1.5 MB |
+| UFO | 29,674 | 1.0 MB |
 
 #### Totals by variant (≤7 total robots, up to 3 exits — full enumeration)
 
