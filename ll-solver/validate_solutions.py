@@ -34,6 +34,11 @@ def make_blocked_solitaire():
 def make_blocked_ufo():
     return {r*N+c for r in range(N) for c in range(N) if r==0 or r==N-1 or c==0 or c==N-1}
 
+def make_blocked_french():
+    cells = [(0,0),(0,1),(1,0), (0,6),(0,5),(1,6),
+             (6,0),(6,1),(5,0), (6,6),(6,5),(5,6)]
+    return {r*N+c for r, c in cells}
+
 
 def parse_puzzle(line):
     """Parse one puzzle line. Returns dict or None."""
@@ -355,6 +360,8 @@ def main():
                 BLOCKED = make_blocked_solitaire()
             elif variant == 'ufo':
                 BLOCKED = make_blocked_ufo()
+            elif variant == 'french':
+                BLOCKED = make_blocked_french()
         p = parse_puzzle(line)
         if p is not None:
             puzzles.append(p)

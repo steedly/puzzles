@@ -11,6 +11,7 @@ const VARIANTS = [
   { key: 'standard',  label: '7×7' },
   { key: 'solitaire', label: 'Solitaire' },
   { key: 'ufo',       label: 'UFO 5×5' },
+  { key: 'french',    label: 'French' },
 ];
 
 // Click = select only this value; Shift+click = toggle add/remove

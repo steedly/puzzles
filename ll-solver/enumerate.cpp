@@ -123,6 +123,17 @@ static uint64_t make_blocked_ufo() {
     return b;
 }
 
+static uint64_t make_blocked_french() {
+    // 3 cells per corner: corner + 2 neighbors (12 total)
+    uint64_t b = 0;
+    for (auto [r, c] : {std::pair{0,0},{0,1},{1,0},
+                         std::pair{0,6},{0,5},{1,6},
+                         std::pair{6,0},{6,1},{5,0},
+                         std::pair{6,6},{6,5},{5,6}})
+        b |= (uint64_t)1 << (r*N+c);
+    return b;
+}
+
 // ── D4 symmetry group ─────────────────────────────────────────────────────────
 // The dihedral group D4 has 8 elements: 4 rotations × {identity, reflection}.
 // sym(cell, transform) returns the cell after applying one transform.
@@ -1504,14 +1515,16 @@ int main(int argc, char* argv[]) {
     const int min_moves   = argc > 3 ? std::atoi(argv[3]) : 1;
     const int max_moves   = argc > 4 ? std::atoi(argv[4]) : 99;
 
-    // Board variant: standard (default), solitaire (2x2 corners blocked), ufo (5x5 center)
+    // Board variant: standard (default), solitaire (2x2 corners blocked),
+    // ufo (5x5 center), french (3 cells per corner blocked)
     std::string variant = "standard";
     if (argc > 5) variant = argv[5];
     if (variant == "solitaire")     BLOCKED = make_blocked_solitaire();
     else if (variant == "ufo")      BLOCKED = make_blocked_ufo();
+    else if (variant == "french")   BLOCKED = make_blocked_french();
     else if (variant != "standard") {
         std::cerr << "Unknown variant: " << variant
-                  << " (use standard, solitaire, or ufo)\n";
+                  << " (use standard, solitaire, ufo, or french)\n";
         return 1;
     }
 

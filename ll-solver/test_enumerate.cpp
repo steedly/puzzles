@@ -1264,6 +1264,21 @@ static void assert_puzzle_in_bfs(const FlatMap& dist, int n, int num_exits,
     }
 }
 
+TEST(french_blocked_mask) {
+    uint64_t b = make_blocked_french();
+    ASSERT_EQ(__builtin_popcountll(b), 12);
+    // Center must not be blocked
+    ASSERT(!(b & ((uint64_t)1 << CTR)));
+    // D4-symmetric: mask invariant under all 8 transforms
+    for (int t = 0; t < 8; t++) {
+        uint64_t tb = 0;
+        for (int p = 0; p < NC; p++)
+            if (b & ((uint64_t)1 << p))
+                tb |= (uint64_t)1 << sym(p, t);
+        ASSERT_EQ(tb, b);
+    }
+}
+
 TEST(reviewer_puzzle_80_ufo_2e4h) {
     // Deepest 2e4h UFO puzzle: 23 slides / 16 grouped moves (puzzle #4173).
     // This puzzle required the helper-at-center fix to be discoverable.

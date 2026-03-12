@@ -29,6 +29,11 @@ const VARIANT_BLOCKS = {
     ).flat().filter(({ r, c }) => r === 0 || r === 6 || c === 0 || c === 6)
      .map(({ r, c }) => `${r},${c}`)
   ),
+  french: new Set(
+    [[0,0],[0,1],[1,0],[0,5],[0,6],[1,6],
+     [5,0],[6,0],[6,1],[5,6],[6,5],[6,6]]
+      .map(([r, c]) => `${r},${c}`)
+  ),
 };
 
 export default function App() {

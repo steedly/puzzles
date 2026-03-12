@@ -82,6 +82,14 @@ test: enumerate test_enumerate test_canonical
 	python3 validate_solutions.py /tmp/puzzles_ufo_test.llp
 	./test_canonical < /tmp/puzzles_ufo_test.llp
 	@echo ""
+	@echo "=== Generating french puzzles ==="
+	./enumerate 1 6 1 20 french > /tmp/puzzles_french_test.llp 2>/tmp/french_test.log
+	@cat /tmp/french_test.log >&2
+	@echo ""
+	@echo "=== Validating french ==="
+	python3 validate_solutions.py /tmp/puzzles_french_test.llp
+	./test_canonical < /tmp/puzzles_french_test.llp
+	@echo ""
 	@echo "=== All tests passed ==="
 
 # Quick smoke-test: only 1–2 helpers, moves 1–3

@@ -126,6 +126,7 @@ const VARIANT_FILES = {
   standard:  'puzzles.llp',
   solitaire: 'puzzles-solitaire.llp',
   ufo:       'puzzles-ufo.llp',
+  french:    'puzzles-french.llp',
 };
 
 export function usePuzzleLibrary() {
