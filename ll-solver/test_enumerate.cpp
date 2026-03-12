@@ -1230,6 +1230,152 @@ TEST(end_to_end_all_solutions_valid_1exit_2helpers) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// Regression tests for reviewer-reported puzzles
+//
+// These tests verify that specific puzzles reported by external reviewers
+// are reachable in the retrograde BFS.  Each test encodes the puzzle
+// positions, canonicalizes them, and verifies the canonical form appears
+// in the BFS at the expected depth.
+//
+// Bug patterns these catch:
+//   - States incorrectly excluded by the BFS walk (helper-at-center,
+//     exit-through-center)
+//   - Depth miscalculation from invalid transitions
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Helper: encode puzzle positions, canonicalize, and verify BFS depth.
+static void assert_puzzle_in_bfs(const FlatMap& dist, int n, int num_exits,
+                                  const int* positions, int expected_depth,
+                                  const char* label)
+{
+    State s = encode(positions, n);
+    State cs = canonical(s, n, num_exits);
+    uint8_t d;
+    bool found = dist.find_val(cs, &d);
+    if (!found) {
+        std::cerr << "FAIL: " << label << " not found in BFS (expected depth "
+                  << expected_depth << ")\n";
+        throw std::runtime_error("puzzle not in BFS");
+    }
+    if ((int)d != expected_depth) {
+        std::cerr << "FAIL: " << label << " at depth " << (int)d
+                  << ", expected " << expected_depth << "\n";
+        throw std::runtime_error("wrong depth");
+    }
+}
+
+TEST(reviewer_puzzle_80_ufo_2e4h) {
+    // Deepest 2e4h UFO puzzle: 23 slides / 16 grouped moves (puzzle #4173).
+    // This puzzle required the helper-at-center fix to be discoverable.
+    // Positions (7x7 grid): A@(1,2)=9, B@(5,5)=40,
+    //   helpers: 1@(1,1)=8, 2@(1,5)=12, 3@(2,5)=19, 4@(4,1)=29
+    BLOCKED = make_blocked_ufo();
+    FlatMap dist = retrograde(2, 4);
+    int positions[] = {9, 40, 8, 12, 19, 29};
+    std::sort(positions + 2, positions + 6); // sort helpers
+    assert_puzzle_in_bfs(dist, 6, 2, positions, 23, "UFO puzzle #80");
+    BLOCKED = 0; // restore for other tests
+}
+
+TEST(reviewer_puzzle_58_solitaire_2e4h) {
+    // Reviewer Solitaire puzzle #58: 2 exits + 4 helpers, 24 slides / 17 grouped moves.
+    // This puzzle required the exit-through-center fix to be discoverable.
+    // Positions (solitaire board):
+    //   X@(4,0)=28, Y@(4,1)=29, helpers: 1@(0,2)=2, 2@(0,4)=4, 3@(2,0)=14, 4@(4,5)=33
+    BLOCKED = make_blocked_solitaire();
+    FlatMap dist = retrograde(2, 4);
+    int positions[] = {28, 29, 2, 4, 14, 33};
+    std::sort(positions + 2, positions + 6); // sort helpers
+    assert_puzzle_in_bfs(dist, 6, 2, positions, 24, "Solitaire puzzle #58");
+    BLOCKED = 0;
+}
+
+TEST(exit_slides_through_center) {
+    // Verify that the BFS discovers states where an exit can slide through
+    // center.  Uses 1e+3h for enough complexity to generate such cases.
+    BLOCKED = 0;
+    FlatMap dist = retrograde(1, 3);
+    const int n = 4;
+    int found = 0;
+    for (auto [s, d] : dist) {
+        if (d < 4) continue;
+        int r[4]; decode(s, n, r);
+        if (r[0] == EXITED) continue;
+        if (canonical(s, n, 1) != s) continue;
+
+        auto sol = trace_solution(s, n, 1, dist);
+        if (sol.size() != (size_t)d) continue;
+        stabilise_indices(sol, s, n, 1);
+
+        // Simulate and check for exit passing through center
+        int pos[10]; decode(s, n, pos);
+        for (const auto& m : sol) {
+            int new_cell, blocker_idx;
+            State new_state;
+            if (!forward_move(pos, n, 1, (int)m.mover, (int)m.dir,
+                              new_cell, blocker_idx, new_state))
+                break;
+
+            // If exit moves and does NOT land on center, check if path crossed it
+            if ((int)m.mover == 0 && new_cell != CTR) {
+                int start_cell = pos[0];
+                int sr = start_cell / N, sc = start_cell % N;
+                int er = new_cell / N, ec = new_cell % N;
+                // Same row as center row 3, crossing column 3
+                if (sr == 3 && er == 3) {
+                    int cmin = std::min(sc, ec), cmax = std::max(sc, ec);
+                    if (cmin < 3 && cmax > 3) found++;
+                }
+                // Same col as center col 3, crossing row 3
+                if (sc == 3 && ec == 3) {
+                    int rmin = std::min(sr, er), rmax = std::max(sr, er);
+                    if (rmin < 3 && rmax > 3) found++;
+                }
+            }
+            decode(new_state, n, pos);
+        }
+        if (found >= 3) break;
+    }
+    ASSERT(found > 0);
+}
+
+TEST(bfs_completeness_optimal_path_forward_check) {
+    // Cross-validate: trace each solution forward and verify every
+    // intermediate state is in the BFS at the expected depth.
+    // This catches BFS bugs where states are reachable but assigned wrong depth.
+    BLOCKED = 0;
+    FlatMap dist = retrograde(1, 3);
+    const int n = 4;
+    int verified = 0;
+    for (auto [s, d] : dist) {
+        if (d < 3 || d > 5) continue;
+        int r[10]; decode(s, n, r);
+        if (r[0] == EXITED) continue;
+        if (canonical(s, n, 1) != s) continue;
+
+        auto sol = trace_solution(s, n, 1, dist);
+        if (sol.size() != (size_t)d) continue;
+
+        // Simulate forward, check each intermediate state is at decreasing depth
+        int pos[10]; decode(s, n, pos);
+        for (int step = 0; step < (int)sol.size(); step++) {
+            int new_cell, blocker_idx;
+            State new_state;
+            ASSERT(forward_move(pos, n, 1, (int)sol[step].mover, (int)sol[step].dir,
+                                new_cell, blocker_idx, new_state));
+            State cs = canonical(new_state, n, 1);
+            uint8_t nd;
+            ASSERT(dist.find_val(cs, &nd));
+            ASSERT_EQ((int)nd, (int)d - step - 1);
+            decode(new_state, n, pos);
+        }
+        verified++;
+        if (verified >= 200) break;
+    }
+    ASSERT(verified > 50);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // Main test runner
 // ═══════════════════════════════════════════════════════════════════════════════
 
