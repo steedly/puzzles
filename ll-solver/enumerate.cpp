@@ -351,17 +351,14 @@ static void reverse_moves_normal(const int* r, int n, int num_exits, int ridx,
             if (BLOCKED & ((uint64_t)1 << wp)) break; // wall stops walk
             if (occ & ((uint64_t)1 << wp)) break;
 
-            // Center cell (CTR) must never be a starting position:
+            // Center cell (CTR) handling:
             //   Exit at CTR: would have immediately exited in the forward game.
             //     Also, any position beyond CTR (further in this walk) is invalid
             //     because the exit would stop and exit at CTR before reaching pos.
-            //   Helper at CTR: invalid game state (blocks all exits from reaching
-            //     center).  Positions beyond CTR ARE valid (helper slides through
-            //     center), so we skip only CTR itself and continue the walk.
-            if (wp == CTR) {
-                if (ridx < num_exits) break; // exit can't start at or past CTR
-                else continue;               // helper: skip CTR, keep walking
-            }
+            //   Helper at CTR: valid intermediate state — helper may temporarily
+            //     occupy center and be moved away before an exit needs to reach it.
+            //     Fall through to emit the predecessor, then continue walking past.
+            if (wp == CTR && ridx < num_exits) break;
 
             int nr[10];
             std::memcpy(nr, r, n * sizeof(int));
@@ -632,11 +629,15 @@ static bool forward_move(const int* pos, int n, int num_exits, int ridx, int dir
 // of "grouped" moves — consecutive slides by the same robot count as one move.
 //
 // Algorithm: layer-by-layer DP on the distance-decreasing DAG.
-//   Augmented state = (board_positions, last_mover_index).
+//   Augmented state = (board_positions, last_mover_cell).
 //   Layer k contains all augmented states reachable from start in exactly k
 //   individual slides (retrograde dist = D-k).  Within each layer we keep
 //   only the minimum grouped cost per augmented state.
 //   Cost of a slide: 0 if the same robot continues, 1 if a new robot moves.
+//
+// "Same robot" is identified by cell: the previous mover's landing cell must
+// equal the current mover's starting cell.  This is correct even when helpers
+// are re-sorted internally, unlike an index-based comparison.
 //
 // This is much cheaper than augmenting the retrograde BFS itself (which
 // would multiply memory by n) because it only explores states reachable
@@ -653,21 +654,21 @@ static std::vector<Move> trace_solution(State start, int n, int num_exits,
 
     struct Node {
         State    s;
-        int8_t   last_mover;   // 0..n-1, or n = "none" (initial)
-        int      grouped_cost; // minimum grouped moves to reach here
-        int      prev_idx;     // index in previous layer (-1 for start)
-        Move     move;         // the slide that got us here
+        int8_t   last_mover_cell; // cell the last mover landed on; 63 = none/EXITED
+        int      grouped_cost;    // minimum grouped moves to reach here
+        int      prev_idx;        // index in previous layer (-1 for start)
+        Move     move;            // the slide that got us here
     };
 
     // One layer per individual slide (0 = start, D = goal).
     std::vector<std::vector<Node>> layers(D + 1);
-    layers[0].push_back({start, (int8_t)n, 0, -1, {-1, -1, -1}});
+    layers[0].push_back({start, (int8_t)EXITED, 0, -1, {-1, -1, -1}});
 
-    // Pack (state, last_mover) into a collision-free uint64_t key.
-    // State occupies bits [0, 6*n); last_mover occupies bits [6*n, 6*n+4).
+    // Pack (state, last_mover_cell) into a collision-free uint64_t key.
+    // State occupies bits [0, 6*n); last_mover_cell (0-63) uses 6 bits.
     const int shift = 6 * n;
-    auto make_key = [shift](State s, int last) -> uint64_t {
-        return s | ((uint64_t)(unsigned)last << shift);
+    auto make_key = [shift](State s, int cell) -> uint64_t {
+        return s | ((uint64_t)(unsigned)cell << shift);
     };
 
     for (int step = 0; step < D; step++) {
@@ -692,19 +693,26 @@ static std::vector<Move> trace_solution(State start, int n, int num_exits,
                         || nd != target_dist)
                         continue;
 
+                    // Same-robot test: does this mover's current cell match
+                    // the previous mover's landing cell?
+                    const int mover_cell = pos[ridx];
                     const int cost = node.grouped_cost +
-                                     (ridx == (int)node.last_mover ? 0 : 1);
+                                     (mover_cell == (int)node.last_mover_cell ? 0 : 1);
+
+                    // Landing cell for the augmented state key.
+                    const int landing = (ridx < num_exits && new_cell == CTR)
+                                        ? EXITED : new_cell;
                     const Move mv{(int8_t)ridx, (int8_t)d, (int8_t)blocker_idx};
-                    const uint64_t key = make_key(new_state, ridx);
+                    const uint64_t key = make_key(new_state, landing);
 
                     auto it = next_map.find(key);
                     if (it == next_map.end()) {
                         next_map[key] = (int)layers[step + 1].size();
                         layers[step + 1].push_back(
-                            {new_state, (int8_t)ridx, cost, i, mv});
+                            {new_state, (int8_t)landing, cost, i, mv});
                     } else if (cost < layers[step + 1][it->second].grouped_cost) {
                         layers[step + 1][it->second] =
-                            {new_state, (int8_t)ridx, cost, i, mv};
+                            {new_state, (int8_t)landing, cost, i, mv};
                     }
                 }
             }

@@ -96,7 +96,7 @@ After computing the DP-optimal solution, a final **DP collision-signature dedup*
 - **Canonical BFS** eliminates D4-symmetric states during exploration, reducing states by ~8× compared to a full BFS with post-hoc filtering.
 - **Parallel BFS** via OpenMP with lock-free atomic insertions into a custom hash table.
 - 1 exit + 5 helpers (~1.76M canonical states): ~4 seconds single-threaded.
-- 1 exit + 5 helpers produces ~51K unique puzzles after all dedup stages.
+- 1 exit + 5 helpers produces ~50K unique puzzles after all dedup stages.
 - Multi-exit runs are dominated by collision-sig dedup time, not BFS time — deduplicating 45M states for 3 exits + 4 helpers takes ~14 minutes.
 
 ## Computational Complexity
@@ -152,14 +152,15 @@ Multi-exit BFS times scale roughly with state count. The collision-sig dedup (St
 | **1 exit** | 0 | 1 | 3 | 28 | 1,052 | 50,077 | 960,922 |
 | **2 exits** | 0 | 1 | 12 | 545 | 75,440 | 4,471,527 | — |
 | **3 exits** | 0 | 1 | 30 | 17,971 | 4,744,260 | — | — |
+| **4 exits** | 0 | 0 | 55 | — | — | — | — |
 
-#### Totals by variant (≤6 total robots, up to 3 exits — currently deployed)
+#### Totals by variant (≤6 total robots, up to 4 exits — currently deployed)
 
 | Variant | Puzzles | Stripped file size |
 |---|---|---|
-| Standard | 144,169 | 6.0 MB |
-| Solitaire | 27,022 | 968 KB |
-| UFO | 20,822 | 776 KB |
+| Standard | 182,935 | 6.6 MB |
+| Solitaire | 37,294 | 1.3 MB |
+| UFO | 26,204 | 934 KB |
 
 #### Totals by variant (≤7 total robots, up to 3 exits — full enumeration)
 

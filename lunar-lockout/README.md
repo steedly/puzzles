@@ -26,7 +26,6 @@ lunar-lockout/
 │   │   ├── Board.jsx            7x7 game board grid
 │   │   ├── Cell.jsx             Individual cell (center glow, landing preview)
 │   │   ├── Robot.jsx            Robot sprite (color-coded by role)
-│   │   ├── DirectionArrows.jsx  Touch-friendly arrow buttons
 │   │   ├── HUD.jsx              Move counter, undo/restart, solution toggle
 │   │   ├── WinModal.jsx         Victory screen (star for optimal solve)
 │   │   └── PuzzleNav.jsx        Collapsible filter/browse panel
@@ -76,7 +75,7 @@ Generate a new `.llp` file with the enumerator, strip solutions, and place it in
 
 ```bash
 cd ../ll-solver
-./enumerate 3 6 1 20 > full.llp
+./enumerate 4 6 > full.llp
 
 # Strip solutions (keep only positions)
 python3 -c "
@@ -98,7 +97,7 @@ for line in sys.stdin:
 
 The app includes a JavaScript forward BFS solver (`src/logic/solver.js`) that computes optimal solutions in the browser. This is used in two situations:
 
-1. **Stripped puzzle data.** The committed `puzzles.llp` omits solutions to keep file size manageable (~6 MB stripped vs. ~12 MB with solutions). When the user requests a solution hint, the solver runs on demand.
+1. **Stripped puzzle data.** The committed `puzzles.llp` omits solutions to keep file size manageable (~6.6 MB stripped vs. ~15 MB with solutions). When the user requests a solution hint, the solver runs on demand.
 
 2. **Blocked cells.** Users can mark cells as blocked (walls that robots cannot pass through). Blocked cells invalidate the precomputed solution, so the solver recomputes one that respects the current board constraints.
 
@@ -120,9 +119,9 @@ The nav panel includes a board selector with three variants:
 
 | Variant | Board | Puzzles | Description |
 |---------|-------|---------|-------------|
-| Standard | 7×7 | ~145K | Full board, no blocked cells |
-| Solitaire | 7×7 | ~27K | Four 2×2 corners blocked |
-| UFO | 5×5 | ~21K | Center 5×5 only (border blocked) |
+| Standard | 7×7 | ~183K | Full board, no blocked cells |
+| Solitaire | 7×7 | ~37K | Four 2×2 corners blocked |
+| UFO | 5×5 | ~26K | Center 5×5 only (border blocked) |
 
 Each variant has its own pre-generated puzzle library with correct optimal solutions and move counts. Variant puzzle files are lazy-loaded on first selection and cached in memory. Variant-blocked cells appear as dark inactive cells, visually distinct from user-blocked cells.
 
@@ -143,7 +142,7 @@ When blocks are active:
 
 Blocks persist across puzzles and browser sessions via `localStorage`.
 
-The filter uses a four-tier pipeline for efficiency over large libraries (~145K puzzles):
+The filter uses a four-tier pipeline for efficiency over large libraries (~183K puzzles):
 
 | Tier | Method | Cost |
 |------|--------|------|
@@ -207,13 +206,13 @@ Run `npm run build:bundle` and distribute `dist/index.bundle.html` as a single f
 
 ### Puzzle data size
 
-Current deployment uses up to 3 exits and ≤6 total robots:
+Current deployment uses up to 4 exits and ≤6 total robots:
 
 | File | Puzzles | Raw | Gzipped |
 |------|---------|-----|---------|
-| Standard (stripped) | ~145K | ~6 MB | ~1.2 MB |
-| Solitaire (stripped) | ~27K | ~1 MB | ~200 KB |
-| UFO (stripped) | ~21K | ~800 KB | ~160 KB |
+| Standard (stripped) | ~183K | ~6.6 MB | ~1.3 MB |
+| Solitaire (stripped) | ~37K | ~1.3 MB | ~260 KB |
+| UFO (stripped) | ~26K | ~934 KB | ~190 KB |
 
 Variant files are lazy-loaded, so only the standard file is fetched on initial page load. GitHub Pages applies gzip `Content-Encoding` automatically.
 
