@@ -9,9 +9,9 @@ const DIFF_COLOR = { easy: '#4caf50', medium: '#ffc107', hard: '#f44336', expert
 
 const VARIANTS = [
   { key: 'standard',  label: '7×7' },
+  { key: 'french',    label: 'French Solitaire' },
   { key: 'solitaire', label: 'Solitaire' },
   { key: 'ufo',       label: 'UFO 5×5' },
-  { key: 'french',    label: 'French' },
 ];
 
 // Click = select only this value; Shift+click = toggle add/remove
@@ -92,7 +92,7 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
     if (onFilteredChange) onFilteredChange(filtered);
   }, [filtered, onFilteredChange]);
 
-  const currentIdx  = currentPuzzle ? filtered.findIndex(p => p.id === currentPuzzle.id) : -1;
+  const currentIdx  = currentPuzzle ? filtered.findIndex(p => p.stableId === currentPuzzle.stableId) : -1;
   const totalPages  = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage    = Math.min(page, totalPages - 1);
   const pageStart   = safePage * PAGE_SIZE;
@@ -127,8 +127,7 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
 
   function handleJump(e) {
     e.preventDefault();
-    const id = parseInt(jumpId, 10);
-    const p  = allPuzzles.find(x => x.id === id);
+    const p = allPuzzles.find(x => x.stableId === jumpId.trim());
     if (p) { onSelect(p); setJumpId(''); }
   }
 
@@ -291,7 +290,7 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
               disabled={currentIdx < 0 || currentIdx >= filtered.length - 1}>→</button>
             <form className="pnav__jump-inline" onSubmit={handleJump}>
               <input
-                className="pnav__jump-input" type="number" placeholder="#"
+                className="pnav__jump-input" type="text" placeholder="ID"
                 value={jumpId} onChange={e => setJumpId(e.target.value)}
               />
               <button type="submit" className="pnav__nav-btn">Go</button>
@@ -304,14 +303,14 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
               <p className="pnav__empty">No puzzles match the current filters.</p>
             )}
             {pagePuzzles.map(p => {
-              const active = p.id === currentPuzzle?.id;
+              const active = p.stableId === currentPuzzle?.stableId;
               return (
                 <button
-                  key={p.id}
+                  key={p.stableId}
                   className={`pnav__item${active ? ' pnav__item--active' : ''}`}
                   onClick={() => onSelect(p)}
                 >
-                  <span className="pnav__item-id">#{p.id}</span>
+                  <span className="pnav__item-id">{p.stableId}</span>
                   <span className="pnav__item-meta">
                     {p.exits > 1 ? `${p.exits}E ` : ''}{p.helpers}H
                   </span>

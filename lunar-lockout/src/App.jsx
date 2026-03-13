@@ -37,7 +37,7 @@ const VARIANT_BLOCKS = {
 };
 
 export default function App() {
-  const { allPuzzles, loading, error, needsFilePicker, loadFile, variant, switchVariant } = usePuzzleLibrary();
+  const { allPuzzles, loading, error, needsFilePicker, loadFile, variant, switchVariant, pendingStableIdRef } = usePuzzleLibrary();
   const [currentPuzzle, setCurrentPuzzle] = useState(null);
   const filteredRef = useRef([]);
 
@@ -68,11 +68,6 @@ export default function App() {
     if (variant !== 'standard') setBlockMode(false);
   }, [variant]);
 
-  // Reset current puzzle when puzzle list changes (variant switch or initial load)
-  useEffect(() => {
-    setCurrentPuzzle(null);
-  }, [allPuzzles]);
-
   const handleToggleBlock = useCallback((row, col) => {
     if (variant !== 'standard') return; // can't modify variant blocks
     const key = `${row},${col}`;
@@ -84,6 +79,22 @@ export default function App() {
   }, [variant]);
 
   const { state, dispatch } = useGameState(currentPuzzle ?? DUMMY_PUZZLE, blockedCells);
+
+  // When puzzle list changes (variant switch or initial load), try to preserve
+  // the current puzzle by stableId; otherwise reset to null for auto-select.
+  useEffect(() => {
+    const pending = pendingStableIdRef.current;
+    if (pending) {
+      pendingStableIdRef.current = null;
+      const match = allPuzzles.find(p => p.stableId === pending);
+      if (match) {
+        setCurrentPuzzle(match);
+        dispatch({ type: 'LOAD_PUZZLE', puzzle: match });
+        return;
+      }
+    }
+    setCurrentPuzzle(null);
+  }, [allPuzzles, pendingStableIdRef, dispatch]);
 
   // Called by PuzzleNav whenever the filtered list changes.
   const handleFilteredChange = useCallback(list => {
@@ -116,13 +127,13 @@ export default function App() {
 
   function handleNext() {
     const fp  = filteredRef.current;
-    const idx = fp.findIndex(p => p.id === currentPuzzle?.id);
+    const idx = fp.findIndex(p => p.stableId === currentPuzzle?.stableId);
     if (idx >= 0 && idx < fp.length - 1) handleSelectPuzzle(fp[idx + 1]);
   }
 
   const hasNext = (() => {
     const fp  = filteredRef.current;
-    const idx = fp.findIndex(p => p.id === currentPuzzle?.id);
+    const idx = fp.findIndex(p => p.stableId === currentPuzzle?.stableId);
     return idx >= 0 && idx < fp.length - 1;
   })();
 
@@ -132,7 +143,7 @@ export default function App() {
         <h1 className="app__title">Lunar Lockout</h1>
         {currentPuzzle && (
           <div className="app__puzzle-info">
-            <span className="pinfo-badge">#{currentPuzzle.id}</span>
+            <span className="pinfo-badge">{currentPuzzle.stableId}</span>
             <span className="pinfo-badge">{currentPuzzle.exits ?? 1}E {currentPuzzle.helpers}H</span>
             <span className="pinfo-badge">{currentPuzzle.minMoves}M opt</span>
             <span className={`pinfo-badge pinfo-badge--${currentPuzzle.difficulty}`}>
@@ -211,7 +222,7 @@ export default function App() {
             onFilteredChange={handleFilteredChange}
             blockedCells={variant === 'standard' ? userBlockedCells : new Set()}
             variant={variant}
-            onVariantChange={switchVariant}
+            onVariantChange={(v) => switchVariant(v, currentPuzzle?.stableId)}
           />
         </div>
       </main>

@@ -17,7 +17,7 @@ export default function HUD({ state, dispatch, currentPuzzle, blockedCells, user
   const [computedSol, setComputedSol] = useState(null);
 
   // Reset when puzzle or blocked cells change
-  const puzzleId = currentPuzzle?.id;
+  const puzzleId = currentPuzzle?.stableId;
   const blockKey = blockedCells ? [...blockedCells].sort().join(';') : '';
   useEffect(() => {
     setShowSol(false);

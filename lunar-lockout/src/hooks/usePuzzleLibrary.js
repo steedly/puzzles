@@ -2,6 +2,21 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 
 const DIR_MAP = { U: 'up', D: 'down', L: 'left', R: 'right' };
 
+// Compute a stable, position-based puzzle ID.
+// Encodes cell indices as digits in base-49, then converts to base-36.
+// Prefixed with exit count and a dash: e.g. "1-174o0"
+function computeStableId(numExits, positionsStr) {
+  const cells = positionsStr.trim().split(' ').map(p => {
+    const [r, c] = p.split(',').map(Number);
+    return r * 7 + c;
+  });
+  let value = 0;
+  for (const cell of cells) {
+    value = value * 49 + cell;
+  }
+  return `${numExits}-${value.toString(36)}`;
+}
+
 // Map solution move characters to robot IDs.
 // A → 'target' (exit 0), B → 'exit1', C → 'exit2', D → 'exit3', …
 // '1'-'9' → 'r1'-'r9' (helpers)
@@ -100,7 +115,9 @@ function parseLine(line) {
   }
   const bbox = { minR, maxR, minC, maxC };
 
-  return { id, exits: numExits, helpers, minMoves, difficulty, robots, solution, bbox, name: `#${id}` };
+  const stableId = computeStableId(numExits, posStr);
+
+  return { id, stableId, exits: numExits, helpers, minMoves, difficulty, robots, solution, bbox, name: `#${id}` };
 }
 
 function parseText(text) {
@@ -135,9 +152,11 @@ export function usePuzzleLibrary() {
   const [error,           setError]           = useState(null);
   const [needsFilePicker, setNeedsFilePicker] = useState(false);
   const [variant,         setVariant]         = useState('standard');
+  const [stableIdMap,     setStableIdMap]     = useState(new Map());
 
   // Cache parsed puzzles per variant to avoid re-fetching/re-parsing
   const cacheRef = useRef({});
+  const pendingStableIdRef = useRef(null);
 
   // Load a puzzle file (fetch or from cache)
   const loadVariantFile = useCallback(async (v) => {
@@ -193,14 +212,24 @@ export function usePuzzleLibrary() {
     }
   }, []);
 
+  // Build stableIdMap whenever allPuzzles changes
+  useEffect(() => {
+    const map = new Map();
+    for (const p of allPuzzles) {
+      map.set(p.stableId, p);
+    }
+    setStableIdMap(map);
+  }, [allPuzzles]);
+
   // Initial load
   useEffect(() => {
     loadVariantFile('standard');
   }, [loadVariantFile]);
 
-  // Switch variant
-  const switchVariant = useCallback((v) => {
+  // Switch variant; caller can pass a stableId to try to preserve across the switch
+  const switchVariant = useCallback((v, pendingStableId) => {
     if (v === variant) return;
+    pendingStableIdRef.current = pendingStableId || null;
     setVariant(v);
     loadVariantFile(v);
   }, [variant, loadVariantFile]);
@@ -221,5 +250,5 @@ export function usePuzzleLibrary() {
     reader.readAsText(file);
   }
 
-  return { allPuzzles, loading, error, needsFilePicker, loadFile, variant, switchVariant };
+  return { allPuzzles, loading, error, needsFilePicker, loadFile, variant, switchVariant, stableIdMap, pendingStableIdRef };
 }
