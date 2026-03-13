@@ -19,7 +19,7 @@ npm run lint         # ESLint
 ```
 - React 19 + Vite 7, no TypeScript
 - Deployed to GitHub Pages via `.github/workflows/deploy.yml`
-- Puzzle data in `.llp` format (pipe-delimited): `id|exits|helpers|minMoves|positions|solution`
+- Puzzle data in `.llp` format (pipe-delimited): `id|exits|helpers|groupedMoves|rawSlides|criticalMoves|branchFactor10|forwardStates|solnCount|positions|solution`
 
 ### ll-solver/ — C++17 puzzle enumerator (generates .llp files for lunar-lockout)
 ```bash

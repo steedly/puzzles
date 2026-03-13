@@ -144,11 +144,22 @@ export default function App() {
         {currentPuzzle && (
           <div className="app__puzzle-info">
             <span className="pinfo-badge">{currentPuzzle.stableId}</span>
-            <span className="pinfo-badge">{currentPuzzle.exits ?? 1}E {currentPuzzle.helpers}H</span>
-            <span className="pinfo-badge">{currentPuzzle.minMoves}M opt</span>
-            <span className={`pinfo-badge pinfo-badge--${currentPuzzle.difficulty}`}>
-              {currentPuzzle.difficulty}
-            </span>
+            <span className="pinfo-badge">{currentPuzzle.minMoves}M</span>
+            {currentPuzzle.criticalMoves != null && (
+              <span className="pinfo-badge" title="Critical moves (forced steps)">{currentPuzzle.criticalMoves}C</span>
+            )}
+            {currentPuzzle.branchFactor != null && (
+              <span className="pinfo-badge" title="Avg branching factor">{currentPuzzle.branchFactor.toFixed(1)}B</span>
+            )}
+            {currentPuzzle.forwardStates != null && (
+              <span className="pinfo-badge" title="Reachable states">{currentPuzzle.forwardStates}S</span>
+            )}
+            {currentPuzzle.solnCount != null && (
+              <span className="pinfo-badge" title="Optimal paths">{currentPuzzle.solnCount}P</span>
+            )}
+            {currentPuzzle.groupedRawRatio != null && (
+              <span className="pinfo-badge" title="Grouped/raw ratio">{currentPuzzle.groupedRawRatio.toFixed(2)}R</span>
+            )}
           </div>
         )}
       </header>

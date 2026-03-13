@@ -44,9 +44,23 @@ function parseLine(line) {
   let numExits;
 
   let minMovesStr;
+  let rawSlides = null, criticalMoves = null, branchFactor10 = null;
+  let forwardStates = null, solnCount = null;
 
-  if (parts.length === 6) {
-    // New format: id|exits|helpers|minMoves|positions|solution
+  if (parts.length === 11) {
+    // New format with metrics: id|exits|helpers|groupedMoves|rawSlides|criticalMoves|branchFactor10|forwardStates|solnCount|positions|solution
+    [idStr, exitsStr, helpersStr, minMovesStr] = parts;
+    rawSlides = parseInt(parts[4], 10);
+    criticalMoves = parseInt(parts[5], 10);
+    branchFactor10 = parseInt(parts[6], 10);
+    forwardStates = parseInt(parts[7], 10);
+    solnCount = parseInt(parts[8], 10);
+    posStr = parts[9];
+    solStr = parts[10];
+    numExits = parseInt(exitsStr, 10);
+    if (isNaN(numExits)) return null;
+  } else if (parts.length === 6) {
+    // Legacy format: id|exits|helpers|minMoves|positions|solution
     [idStr, exitsStr, helpersStr, minMovesStr, posStr, solStr] = parts;
     numExits = parseInt(exitsStr, 10);
     if (isNaN(numExits)) return null;
@@ -117,7 +131,21 @@ function parseLine(line) {
 
   const stableId = computeStableId(numExits, posStr);
 
-  return { id, stableId, exits: numExits, helpers, minMoves, difficulty, robots, solution, bbox, name: `#${id}` };
+  // Compute derived metrics (use parsed values if available, else derive from solution)
+  const actualRawSlides = rawSlides ?? solution.length;
+  const branchFactor = branchFactor10 != null ? branchFactor10 / 10 : null;
+  const groupedRawRatio = actualRawSlides > 0 ? minMoves / actualRawSlides : null;
+
+  return {
+    id, stableId, exits: numExits, helpers, minMoves, difficulty, robots, solution, bbox,
+    name: `#${id}`,
+    rawSlides: actualRawSlides,
+    criticalMoves: criticalMoves ?? null,
+    branchFactor,
+    forwardStates: forwardStates ?? null,
+    solnCount: solnCount ?? null,
+    groupedRawRatio,
+  };
 }
 
 function parseText(text) {

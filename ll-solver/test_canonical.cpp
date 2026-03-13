@@ -76,8 +76,14 @@ static bool parse_puzzle(const std::string& line, Puzzle& p) {
     parts.push_back(tok);
     while (std::getline(iss, tok, '|')) parts.push_back(tok);
 
-    if (parts.size() == 6) {
-        // New format: id|exits|helpers|minMoves|positions|solution
+    if (parts.size() == 11) {
+        // Metrics format: id|exits|helpers|groupedMoves|rawSlides|criticalMoves|branchFactor10|forwardStates|solnCount|positions|solution
+        p.num_exits = std::stoi(parts[1]);
+        p.num_helpers = std::stoi(parts[2]);
+        p.min_moves = std::stoi(parts[3]);
+        tok = parts[9];
+    } else if (parts.size() == 6) {
+        // Legacy format: id|exits|helpers|minMoves|positions|solution
         p.num_exits = std::stoi(parts[1]);
         p.num_helpers = std::stoi(parts[2]);
         p.min_moves = std::stoi(parts[3]);

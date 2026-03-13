@@ -502,7 +502,8 @@ TEST(trace_dp_1exit_1helper) {
     FlatMap dist = retrograde(1, 1);
     int pos[2] = {3, 31};
     State s = canonical(encode(pos, 2), 2, 1);
-    auto sol = trace_solution(s, 2, 1, dist);
+    auto tr = trace_solution(s, 2, 1, dist);
+    auto& sol = tr.moves;
     ASSERT_EQ((size_t)1, sol.size());
     ASSERT_EQ(0, (int)sol[0].mover);
     ASSERT_EQ(1, (int)sol[0].blocker);
@@ -521,8 +522,8 @@ TEST(trace_dp_depth0_returns_empty) {
     FlatMap dist = retrograde(1, 1);
     int pos[2] = {EXITED, 10};
     State s = encode(pos, 2);
-    auto sol = trace_solution(s, 2, 1, dist);
-    ASSERT(sol.empty());
+    auto tr = trace_solution(s, 2, 1, dist);
+    ASSERT(tr.moves.empty());
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -576,9 +577,9 @@ TEST(validate_solution_dp_small) {
         if (d == 0 || d > 5) continue;
         int r[10]; decode(s, 3, r);
         if (r[0] == EXITED) continue;
-        auto sol = trace_solution(s, 3, 1, dist);
-        if (sol.size() != (size_t)d) continue;
-        ASSERT(validate_solution(s, sol, 3, 1));
+        auto tr = trace_solution(s, 3, 1, dist);
+        if (tr.moves.size() != (size_t)d) continue;
+        ASSERT(validate_solution(s, tr.moves, 3, 1));
         if (++validated >= 100) break;
     }
     ASSERT(validated > 0);
@@ -819,12 +820,12 @@ TEST(trace_dp_min_grouped_moves) {
         int r[10]; decode(s, n, r);
         if (r[0] == EXITED) continue;
 
-        auto dp_sol = trace_solution(s, n, 1, dist);
-        if (dp_sol.size() != (size_t)d) continue;
+        auto tr = trace_solution(s, n, 1, dist);
+        if (tr.moves.size() != (size_t)d) continue;
         auto greedy_sol = trace_solution_greedy(s, n, 1, dist);
         if (greedy_sol.size() != (size_t)d) continue;
 
-        int dp_grouped = count_grouped_moves(dp_sol);
+        int dp_grouped = count_grouped_moves(tr.moves);
         int greedy_grouped = count_grouped_moves(greedy_sol);
         ASSERT(dp_grouped <= greedy_grouped);
 
@@ -898,7 +899,8 @@ TEST(stabilise_indices_basic) {
         int r[10]; decode(s, n, r);
         if (r[0] == EXITED) continue;
 
-        auto sol = trace_solution(s, n, 1, dist);
+        auto tr = trace_solution(s, n, 1, dist);
+        auto& sol = tr.moves;
         if (sol.size() != (size_t)d) continue;
 
         // Stabilise and validate using identity-based simulation.
@@ -939,7 +941,8 @@ TEST(stabilise_indices_2exit) {
         int r[10]; decode(s, n, r);
         if (r[0] == EXITED || r[1] == EXITED) continue;
 
-        auto sol = trace_solution(s, n, 2, dist);
+        auto tr = trace_solution(s, n, 2, dist);
+        auto& sol = tr.moves;
         if (sol.size() != (size_t)d) continue;
 
         stabilise_indices(sol, s, n, 2);
@@ -1104,7 +1107,8 @@ TEST(compact_nonmover_toward_center) {
         if (r[0] == EXITED) continue;
         if (canonical(s, n, 1) != s) continue;
 
-        auto sol = trace_solution(s, n, 1, dist);
+        auto tr = trace_solution(s, n, 1, dist);
+        auto& sol = tr.moves;
         if (sol.size() != (size_t)d) continue;
         stabilise_indices(sol, s, n, 1);
 
@@ -1131,7 +1135,8 @@ TEST(compact_intermediate_gaps) {
         if (r[0] == EXITED) continue;
         if (canonical(s, n, 1) != s) continue;
 
-        auto sol = trace_solution(s, n, 1, dist);
+        auto tr = trace_solution(s, n, 1, dist);
+        auto& sol = tr.moves;
         if (sol.size() != (size_t)d) continue;
         stabilise_indices(sol, s, n, 1);
 
@@ -1163,7 +1168,8 @@ TEST(helper_on_center_during_solution) {
         int r[10]; decode(s, n, r);
         if (r[0] == EXITED) continue;
 
-        auto sol = trace_solution(s, n, 1, dist);
+        auto tr = trace_solution(s, n, 1, dist);
+        auto& sol = tr.moves;
         if (sol.size() != (size_t)d) continue;
         stabilise_indices(sol, s, n, 1);
 
@@ -1221,9 +1227,9 @@ TEST(end_to_end_all_solutions_valid_1exit_2helpers) {
         if (r[0] == EXITED) continue;
         if (canonical(s, 3, 1) != s) continue;
 
-        auto sol = trace_solution(s, 3, 1, dist);
-        if (sol.size() != (size_t)d) continue;
-        ASSERT(validate_solution(s, sol, 3, 1));
+        auto tr = trace_solution(s, 3, 1, dist);
+        if (tr.moves.size() != (size_t)d) continue;
+        ASSERT(validate_solution(s, tr.moves, 3, 1));
         validated++;
     }
     ASSERT(validated > 10); // should have plenty of depth ≤ 4 puzzles
@@ -1318,7 +1324,8 @@ TEST(exit_slides_through_center) {
         if (r[0] == EXITED) continue;
         if (canonical(s, n, 1) != s) continue;
 
-        auto sol = trace_solution(s, n, 1, dist);
+        auto tr = trace_solution(s, n, 1, dist);
+        auto& sol = tr.moves;
         if (sol.size() != (size_t)d) continue;
         stabilise_indices(sol, s, n, 1);
 
@@ -1368,7 +1375,8 @@ TEST(bfs_completeness_optimal_path_forward_check) {
         if (r[0] == EXITED) continue;
         if (canonical(s, n, 1) != s) continue;
 
-        auto sol = trace_solution(s, n, 1, dist);
+        auto tr = trace_solution(s, n, 1, dist);
+        auto& sol = tr.moves;
         if (sol.size() != (size_t)d) continue;
 
         // Simulate forward, check each intermediate state is at decreasing depth
@@ -1388,6 +1396,97 @@ TEST(bfs_completeness_optimal_path_forward_check) {
         if (verified >= 200) break;
     }
     ASSERT(verified > 50);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Difficulty metrics: forward_bfs_count, critical_moves, branching, solution_count
+// ═══════════════════════════════════════════════════════════════════════════════
+
+TEST(forward_bfs_count_trivial) {
+    // A single exit robot at a cell adjacent to center with no helpers:
+    // only the start state is reachable (no legal moves without a blocker).
+    BLOCKED = 0;
+    int pos[1] = {CTR - 1}; // cell 23
+    State s = encode(pos, 1);
+    int count = forward_bfs_count(s, 1, 1);
+    ASSERT_EQ(1, count); // stuck — no blocker, no moves
+}
+
+TEST(forward_bfs_count_small) {
+    // 1 exit + 1 helper: should have a modest number of reachable states.
+    BLOCKED = 0;
+    int pos[2] = {3, 31}; // exit at (0,3), helper at (4,3)
+    State s = encode(pos, 2);
+    int count = forward_bfs_count(s, 2, 1);
+    ASSERT(count >= 2);    // at least start + one move
+    ASSERT(count < 1000);  // bounded for a 2-robot board
+}
+
+TEST(trace_metrics_forced_puzzle) {
+    // For a depth-1 puzzle: only 1 optimal move, so critical=1, branch_sum=1, solnCount=1.
+    BLOCKED = 0;
+    FlatMap dist = retrograde(1, 1);
+    int pos[2] = {3, 31}; // exit at row 0 col 3, helper at row 4 col 3
+    State s = canonical(encode(pos, 2), 2, 1);
+    auto tr = trace_solution(s, 2, 1, dist);
+    ASSERT_EQ(1, (int)tr.moves.size());
+    ASSERT_EQ(1, tr.critical_moves); // only 1 optimal successor
+    ASSERT_EQ(1, tr.branch_sum);
+    ASSERT_EQ(1, tr.solution_count);
+}
+
+TEST(trace_metrics_solution_count_multiple) {
+    // Find a puzzle with solution_count > 1 (multiple optimal paths).
+    BLOCKED = 0;
+    FlatMap dist = retrograde(1, 2);
+    const int n = 3;
+    int found_multi = 0;
+    for (auto [s, d] : dist) {
+        if (d < 2 || d > 4) continue;
+        int r[10]; decode(s, n, r);
+        if (r[0] == EXITED) continue;
+        if (canonical(s, n, 1) != s) continue;
+
+        auto tr = trace_solution(s, n, 1, dist);
+        if (tr.moves.size() != (size_t)d) continue;
+        if (tr.solution_count > 1) found_multi++;
+        // Basic sanity: solution_count >= 1 for valid puzzles
+        ASSERT(tr.solution_count >= 1);
+        // branch_sum >= D (at least 1 successor per step)
+        ASSERT(tr.branch_sum >= (int)tr.moves.size());
+        // critical_moves <= D
+        ASSERT(tr.critical_moves <= (int)tr.moves.size());
+        if (found_multi >= 5) break;
+    }
+    // Should find at least some puzzles with multiple paths
+    ASSERT(found_multi > 0);
+}
+
+TEST(trace_metrics_branching_consistency) {
+    // Verify: if all steps have exactly 1 optimal successor, then
+    // critical_moves == D and branch_sum == D and solution_count == 1.
+    BLOCKED = 0;
+    FlatMap dist = retrograde(1, 2);
+    const int n = 3;
+    int checked = 0;
+    for (auto [s, d] : dist) {
+        if (d < 2 || d > 5) continue;
+        int r[10]; decode(s, n, r);
+        if (r[0] == EXITED) continue;
+        if (canonical(s, n, 1) != s) continue;
+
+        auto tr = trace_solution(s, n, 1, dist);
+        if (tr.moves.size() != (size_t)d) continue;
+        int D = (int)tr.moves.size();
+
+        if (tr.critical_moves == D) {
+            // All steps forced → branch_sum == D and exactly 1 path
+            ASSERT_EQ(D, tr.branch_sum);
+            ASSERT_EQ(1, tr.solution_count);
+        }
+        if (++checked >= 200) break;
+    }
+    ASSERT(checked > 0);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

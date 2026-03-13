@@ -41,7 +41,14 @@
 //
 // Output Format (.llp)
 // --------------------
-//   id|exits|helpers|minMoves|exit0_r,c [exit1_r,c ...] [helper_r,c ...]|solution
+//   id|exits|helpers|groupedMoves|rawSlides|criticalMoves|branchFactor10|forwardStates|solnCount|positions|solution
+//   groupedMoves: minimum grouped moves (consecutive same-robot slides = 1 move)
+//   rawSlides:    number of individual slides
+//   criticalMoves: steps where only 1 legal move leads to an optimal solution
+//   branchFactor10: avg optimal successors × 10 (e.g., 25 = avg 2.5)
+//   forwardStates: total reachable board states from start position
+//   solnCount:     number of distinct optimal-length paths (capped at 9999)
+//   positions: exit0_r,c [exit1_r,c ...] [helper_r,c ...]
 //   solution: space-separated moves, each = moverDIRblocker
 //     A,B,C = exit robots (by ascending initial position)
 //     1-9   = helper robots (by ascending initial position)
@@ -662,11 +669,18 @@ static bool forward_move(const int* pos, int n, int num_exits, int ridx, int dir
 
 struct Move { int8_t mover, dir, blocker; };
 
-static std::vector<Move> trace_solution(State start, int n, int num_exits,
-                                         const FlatMap& dist)
+struct TraceResult {
+    std::vector<Move> moves;
+    int critical_moves;    // steps with exactly 1 optimal successor
+    int branch_sum;        // sum of optimal-successor counts per step (avg = branch_sum/D)
+    int solution_count;    // distinct optimal paths (capped at 9999)
+};
+
+static TraceResult trace_solution(State start, int n, int num_exits,
+                                   const FlatMap& dist)
 {
     uint8_t start_dist;
-    if (!dist.find_val(start, &start_dist) || start_dist == 0) return {};
+    if (!dist.find_val(start, &start_dist) || start_dist == 0) return {{}, 0, 0, 0};
     const int D = (int)start_dist;
 
     struct Node {
@@ -744,7 +758,7 @@ static std::vector<Move> trace_solution(State start, int n, int num_exits,
             best_idx  = i;
         }
     }
-    if (best_idx < 0) return {};
+    if (best_idx < 0) return {{}, 0, 0, 0};
 
     // Walk back through layers to reconstruct the move sequence.
     std::vector<Move> sol;
@@ -755,7 +769,99 @@ static std::vector<Move> trace_solution(State start, int n, int num_exits,
         idx = layers[step][idx].prev_idx;
     }
     std::reverse(sol.begin(), sol.end());
-    return sol;
+
+    // Walk the traced path forward to compute branching metrics.
+    int critical = 0, bsum = 0;
+    {
+        int pos[10];
+        decode(start, n, pos);
+        uint8_t cur_dist = start_dist;
+
+        for (int step = 0; step < D; step++) {
+            int opt_successors = 0;
+            for (int ridx = 0; ridx < n; ridx++) {
+                for (int d = 0; d < 4; d++) {
+                    int nc, bi;
+                    State ns;
+                    if (!forward_move(pos, n, num_exits, ridx, d, nc, bi, ns))
+                        continue;
+                    uint8_t nd;
+                    if (dist.find_val(canonical(ns, n, num_exits), &nd)
+                        && nd == cur_dist - 1)
+                        opt_successors++;
+                }
+            }
+            if (opt_successors == 1) critical++;
+            bsum += opt_successors;
+
+            // Advance along the traced path.
+            int nc, bi;
+            State ns;
+            forward_move(pos, n, num_exits,
+                         (int)sol[step].mover, (int)sol[step].dir, nc, bi, ns);
+            decode(ns, n, pos);
+            cur_dist--;
+        }
+    }
+
+    // Count distinct optimal-length paths via forward BFS on the dist map.
+    int soln_count = 0;
+    {
+        std::unordered_map<State, int> cur_counts, next_counts;
+        cur_counts[start] = 1;
+
+        for (int step = (int)start_dist; step > 0; step--) {
+            next_counts.clear();
+            for (auto& [s, cnt] : cur_counts) {
+                int pos[10];
+                decode(s, n, pos);
+                for (int ridx = 0; ridx < n; ridx++) {
+                    for (int d = 0; d < 4; d++) {
+                        int nc, bi;
+                        State ns;
+                        if (!forward_move(pos, n, num_exits, ridx, d, nc, bi, ns))
+                            continue;
+                        uint8_t nd;
+                        if (!dist.find_val(canonical(ns, n, num_exits), &nd)
+                            || nd != (uint8_t)(step - 1))
+                            continue;
+                        int& dest = next_counts[ns];
+                        dest = std::min(9999, dest + cnt);
+                    }
+                }
+            }
+            cur_counts.swap(next_counts);
+        }
+        for (auto& [s, cnt] : cur_counts)
+            soln_count = std::min(9999, soln_count + cnt);
+    }
+
+    return {std::move(sol), critical, bsum, soln_count};
+}
+
+// ── Forward BFS: count all reachable states from a starting position ─────────
+static int forward_bfs_count(State start, int n, int num_exits) {
+    std::unordered_set<State> visited;
+    std::vector<State> queue;
+    queue.push_back(start);
+    visited.insert(start);
+    size_t head = 0;
+    while (head < queue.size()) {
+        State s = queue[head++];
+        int pos[10];
+        decode(s, n, pos);
+        for (int ridx = 0; ridx < n; ridx++) {
+            for (int d = 0; d < 4; d++) {
+                int nc, bi;
+                State ns;
+                if (!forward_move(pos, n, num_exits, ridx, d, nc, bi, ns))
+                    continue;
+                if (visited.insert(ns).second)
+                    queue.push_back(ns);
+            }
+        }
+    }
+    return (int)visited.size();
 }
 
 // ── Fast greedy solution trace ───────────────────────────────────────────────
@@ -1407,20 +1513,37 @@ static void emit(const FlatMap& dist, int n, int num_exits,
 #endif
     for (int j = 0; j < (int)survivors.size(); j++) {
         const int i = survivors[j];
-        auto sol = trace_solution(recs[i].s, n, num_exits, dist);
-        if (sol.size() != (size_t)recs[i].d) continue;
-        stabilise_indices(sol, recs[i].s, n, num_exits);
+        auto tr = trace_solution(recs[i].s, n, num_exits, dist);
+        if (tr.moves.size() != (size_t)recs[i].d) continue;
+        stabilise_indices(tr.moves, recs[i].s, n, num_exits);
 
         int init_pos[10];
         decode(recs[i].s, n, init_pos);
-        if (try_compact(init_pos, sol, n, num_exits, dist, recs[i].d))
+        if (try_compact(init_pos, tr.moves, n, num_exits, dist, recs[i].d))
             compact_count++;
-        sort_exits_and_remap(init_pos, sol, num_exits);
+        sort_exits_and_remap(init_pos, tr.moves, num_exits);
 
         bool used[10];
         std::vector<Move> pruned;
-        const int new_h = prune_unused_helpers(sol, num_exits, n, pruned, used);
+        const int new_h = prune_unused_helpers(tr.moves, num_exits, n, pruned, used);
         const int grouped_moves = count_grouped_moves(pruned);
+        const int raw_slides = (int)pruned.size();
+
+        // Compute forward reachable states from pruned starting position.
+        int fwd_states;
+        {
+            int compact_pos[10];
+            int ci = 0;
+            for (int e = 0; e < num_exits; e++) compact_pos[ci++] = init_pos[e];
+            for (int h = num_exits; h < n; h++)
+                if (used[h]) compact_pos[ci++] = init_pos[h];
+            State pruned_start = encode(compact_pos, ci);
+            fwd_states = forward_bfs_count(pruned_start, ci, num_exits);
+        }
+
+        // branchFactor10: (branch_sum * 10) / rawSlides as integer
+        const int branch_factor_10 = raw_slides > 0
+            ? (tr.branch_sum * 10) / raw_slides : 0;
 
         // Collision-sig hash of the DP solution (may differ from greedy).
         {
@@ -1443,11 +1566,17 @@ static void emit(const FlatMap& dist, int n, int num_exits,
         }
 
         // Format output line (ID assigned sequentially below).
+        // Format: exits|helpers|groupedMoves|rawSlides|criticalMoves|branchFactor10|forwardStates|solnCount|positions|solution
         std::string line;
-        line.reserve(128);
-        line += std::to_string(num_exits);  line += '|';
-        line += std::to_string(new_h);      line += '|';
-        line += std::to_string(grouped_moves); line += '|';
+        line.reserve(160);
+        line += std::to_string(num_exits);       line += '|';
+        line += std::to_string(new_h);           line += '|';
+        line += std::to_string(grouped_moves);   line += '|';
+        line += std::to_string(raw_slides);      line += '|';
+        line += std::to_string(tr.critical_moves); line += '|';
+        line += std::to_string(branch_factor_10); line += '|';
+        line += std::to_string(fwd_states);      line += '|';
+        line += std::to_string(tr.solution_count); line += '|';
 
         line += std::to_string(init_pos[0]/N); line += ',';
         line += std::to_string(init_pos[0]%N);
@@ -1544,7 +1673,8 @@ int main(int argc, char* argv[]) {
         "# Exit robots disappear when they reach center; helpers are blockers only.\n"
         "# Deduplicated by collision signature.\n"
         "#\n"
-        "# Format: id|exits|helpers|minMoves|exit0_r,c [exit1...] [helper...]|solution\n"
+        "# Format: id|exits|helpers|groupedMoves|rawSlides|criticalMoves|branchFactor10|forwardStates|solnCount|positions|solution\n"
+        "# positions: exit0_r,c [exit1...] [helper...]\n"
         "# solution: space-separated moves, each = moverDIRblocker\n"
         "#   A,B,C = exit robots (by ascending initial position)\n"
         "#   1-9   = helper robots (by ascending initial position)\n"

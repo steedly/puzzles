@@ -7,6 +7,16 @@ const DIFF_OPTS  = ['easy', 'medium', 'hard', 'expert'];
 const DIFF_LABEL = { easy: 'Easy', medium: 'Med', hard: 'Hard', expert: 'Exp' };
 const DIFF_COLOR = { easy: '#4caf50', medium: '#ffc107', hard: '#f44336', expert: '#9c27b0' };
 
+const SORT_OPTIONS = [
+  { key: 'id',        label: 'ID',        fn: p => p.id },
+  { key: 'moves',     label: 'Moves',     fn: p => p.minMoves },
+  { key: 'critical',  label: 'Critical',  fn: p => p.criticalMoves ?? 0 },
+  { key: 'branching', label: 'Branching', fn: p => p.branchFactor ?? 0 },
+  { key: 'states',    label: 'States',    fn: p => p.forwardStates ?? 0 },
+  { key: 'solutions', label: 'Solutions', fn: p => p.solnCount ?? 0 },
+  { key: 'ratio',     label: 'G/R Ratio', fn: p => p.groupedRawRatio ?? 0 },
+];
+
 const VARIANTS = [
   { key: 'standard',  label: '7×7' },
   { key: 'french',    label: 'French Solitaire' },
@@ -59,6 +69,8 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
   const [page,          setPage]          = useState(0);
   const [jumpId,        setJumpId]        = useState('');
   const [collapsed,     setCollapsed]     = useState(false);
+  const [sortBy,        setSortBy]        = useState('id');
+  const [sortAsc,       setSortAsc]       = useState(true);
 
   // Reset filters when puzzle library changes (variant switch)
   useEffect(() => {
@@ -76,7 +88,7 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
     [allPuzzles, blockedCells]
   );
 
-  const filtered = useMemo(() =>
+  const filteredUnsorted = useMemo(() =>
     unblocked.filter(p =>
       activeHelpers.has(p.helpers) &&
       activeExits.has(p.exits ?? 1) &&
@@ -86,6 +98,19 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
     ),
     [unblocked, activeHelpers, activeExits, activeDiffs, movesMin, movesMax]
   );
+
+  const filtered = useMemo(() => {
+    const sortOpt = SORT_OPTIONS.find(o => o.key === sortBy);
+    if (!sortOpt) return filteredUnsorted;
+    const arr = [...filteredUnsorted];
+    const fn = sortOpt.fn;
+    arr.sort((a, b) => {
+      const va = fn(a), vb = fn(b);
+      return sortAsc ? (va < vb ? -1 : va > vb ? 1 : 0)
+                     : (va > vb ? -1 : va < vb ? 1 : 0);
+    });
+    return arr;
+  }, [filteredUnsorted, sortBy, sortAsc]);
 
   // Notify parent of the current filtered list (for WinModal "Next").
   useEffect(() => {
@@ -280,6 +305,25 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
             </div>
           </div>
 
+          {/* ── Sort ── */}
+          <div className="pnav__filter-row">
+            <span className="pnav__label">Sort:</span>
+            <select
+              className="pnav__sort-select"
+              value={sortBy}
+              onChange={e => { setSortBy(e.target.value); setPage(0); }}
+            >
+              {SORT_OPTIONS.map(o => (
+                <option key={o.key} value={o.key}>{o.label}</option>
+              ))}
+            </select>
+            <button
+              className="pnav__chip pnav__chip--on"
+              onClick={() => setSortAsc(a => !a)}
+              title={sortAsc ? 'Ascending' : 'Descending'}
+            >{sortAsc ? '↑' : '↓'}</button>
+          </div>
+
           {/* ── Navigation: Prev / Random / Next + Jump ── */}
           <div className="pnav__nav-row">
             <button className="pnav__nav-btn" onClick={handlePrev}
@@ -304,6 +348,12 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
             )}
             {pagePuzzles.map(p => {
               const active = p.stableId === currentPuzzle?.stableId;
+              const sortOpt = SORT_OPTIONS.find(o => o.key === sortBy);
+              const sortVal = sortOpt && sortBy !== 'id' ? sortOpt.fn(p) : null;
+              const sortLabel = sortVal != null
+                ? (typeof sortVal === 'number' && !Number.isInteger(sortVal)
+                    ? sortVal.toFixed(2) : sortVal)
+                : null;
               return (
                 <button
                   key={p.stableId}
@@ -315,6 +365,9 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
                     {p.exits > 1 ? `${p.exits}E ` : ''}{p.helpers}H
                   </span>
                   <span className="pnav__item-moves">{p.minMoves}M</span>
+                  {sortLabel != null && (
+                    <span className="pnav__item-sort">{sortLabel}</span>
+                  )}
                   <span
                     className="pnav__item-diff"
                     style={{ color: DIFF_COLOR[p.difficulty] }}

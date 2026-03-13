@@ -46,7 +46,15 @@ def parse_puzzle(line):
     if not line or line.startswith('#'):
         return None
     parts = line.split('|')
-    if len(parts) == 6:
+    if len(parts) == 11:
+        # New format with metrics
+        pid = int(parts[0])
+        num_exits = int(parts[1])
+        num_helpers = int(parts[2])
+        min_moves = int(parts[3])  # groupedMoves
+        positions_str = parts[9]
+        solution_str = parts[10]
+    elif len(parts) == 6:
         pid = int(parts[0])
         num_exits = int(parts[1])
         num_helpers = int(parts[2])

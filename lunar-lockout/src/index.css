@@ -607,11 +607,27 @@ button { cursor: pointer; font-family: inherit; }
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
+.pnav__item-sort {
+  font-size: 0.72rem;
+  color: #88b;
+  min-width: 28px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
 .pnav__item-diff {
   font-weight: 700;
   font-size: 0.78rem;
   min-width: 28px;
   text-align: right;
+}
+.pnav__sort-select {
+  padding: 3px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--cell-border);
+  background: var(--btn-bg);
+  color: var(--text);
+  font-size: 0.78rem;
+  cursor: pointer;
 }
 
 .pnav__empty {
