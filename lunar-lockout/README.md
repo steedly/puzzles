@@ -13,7 +13,7 @@ npm install
 npm run dev
 ```
 
-The app loads puzzles from `public/puzzles.llp`. Variant puzzle files (`puzzles-solitaire.llp`, `puzzles-ufo.llp`) are loaded on demand when the user switches board variants. If the default file is missing or unreachable, a file picker appears so you can load one manually.
+The app loads puzzles from `public/puzzles.llp`. Variant puzzle files (`puzzles-french.llp`, `puzzles-solitaire.llp`, `puzzles-ufo.llp`) are loaded on demand when the user switches board variants. If the default file is missing or unreachable, a file picker appears so you can load one manually.
 
 ## Project Structure
 
@@ -38,6 +38,7 @@ lunar-lockout/
 │       └── puzzleFilter.js      Multi-tier blocked-cell filtering
 ├── public/
 │   ├── puzzles.llp              Standard puzzle library (positions only)
+│   ├── puzzles-french.llp       French Solitaire variant (lazy-loaded)
 │   ├── puzzles-solitaire.llp    Solitaire variant (lazy-loaded)
 │   └── puzzles-ufo.llp          UFO 5×5 variant (lazy-loaded)
 ├── scripts/
@@ -115,15 +116,16 @@ The solver runs fast enough for interactive use: typical puzzles (up to 6 robots
 
 ### Board variants
 
-The nav panel includes a board selector with three variants:
+The nav panel includes a board selector with four variants:
 
 | Variant | Board | Puzzles | Description |
 |---------|-------|---------|-------------|
 | Standard | 7×7 | ~243K | Full board, no blocked cells |
+| French | 7×7 | ~103K | Four inner-corner cells blocked |
 | Solitaire | 7×7 | ~45K | Four 2×2 corners blocked |
 | UFO | 5×5 | ~30K | Center 5×5 only (border blocked) |
 
-Each variant has its own pre-generated puzzle library with correct optimal solutions and move counts. Variant puzzle files are lazy-loaded on first selection and cached in memory. Variant-blocked cells appear as dark inactive cells, visually distinct from user-blocked cells.
+Each variant has its own pre-generated puzzle library with correct optimal solutions and move counts. Variant puzzle files are lazy-loaded on first selection and cached in memory. Variant-blocked cells appear as dark inactive cells, visually distinct from user-blocked cells. The variants form a hierarchy — blocking more cells can only reduce the set of solvable positions and increase minimum move counts. See the [ll-solver README](../ll-solver/README.md#how-variants-relate-to-each-other) for a detailed explanation of why.
 
 User-defined blocking (the Block button) is available only in Standard mode, since variant puzzles are already generated with their blocked cells baked in.
 
@@ -211,6 +213,7 @@ Current deployment uses up to 4 exits and ≤6 total robots:
 | File | Puzzles | Raw | Gzipped |
 |------|---------|-----|---------|
 | Standard (stripped) | ~243K | ~8.5 MB | ~1.7 MB |
+| French (stripped) | ~103K | ~3.5 MB | ~790 KB |
 | Solitaire (stripped) | ~45K | ~1.5 MB | ~300 KB |
 | UFO (stripped) | ~30K | ~1.0 MB | ~210 KB |
 

@@ -159,6 +159,7 @@ Multi-exit BFS times scale roughly with state count. The collision-sig dedup (St
 | Variant | Puzzles | Stripped file size |
 |---|---|---|
 | Standard | 242,934 | 8.5 MB |
+| French | 103,294 | 3.5 MB |
 | Solitaire | 44,613 | 1.5 MB |
 | UFO | 29,674 | 1.0 MB |
 
@@ -211,27 +212,58 @@ make NO_OPENMP=1
 | `max_total` | 6 | Maximum total robots (exits + helpers) |
 | `min_moves` | 1 | Minimum grouped moves to include |
 | `max_moves` | 99 | Maximum grouped moves to include |
-| `variant` | standard | Board variant: `standard` (7×7), `solitaire` (7×7 with 2×2 corners blocked), or `ufo` (5×5 center only) |
+| `variant` | standard | Board variant: `standard` (7×7), `french` (7×7 with inner corners blocked), `solitaire` (7×7 with 2×2 corners blocked), or `ufo` (5×5 center only) |
 
 Puzzle data goes to **stdout**; progress/stats go to **stderr**.
 
 ### Board Variants
 
-The enumerator supports three board variants via a blocked-cell bitmask:
+The enumerator supports four board variants via a blocked-cell bitmask:
 
-| Variant | Usable cells | Description |
-|---------|-------------|-------------|
-| `standard` | 49 | Full 7×7 board |
-| `solitaire` | 33 | 7×7 with four 2×2 corners blocked (16 cells) |
-| `ufo` | 25 | Center 5×5 only (24 border cells blocked) |
+| Variant | Usable cells | Blocked cells | Description |
+|---------|-------------|---------------|-------------|
+| `standard` | 49 | 0 | Full 7×7 board |
+| `french` | 45 | 4 | 7×7 with four inner-corner cells blocked: (1,1), (1,5), (5,1), (5,5) |
+| `solitaire` | 33 | 16 | 7×7 with four 2×2 corners blocked |
+| `ufo` | 25 | 24 | Center 5×5 only (border cells blocked) |
 
-Blocked cells act as walls — robots cannot occupy or slide through them, and stopping against one is a wall-stop (illegal). Both blocked patterns are D4-symmetric, so canonicalization works unchanged.
+Blocked cells act as walls — robots cannot occupy or slide through them, and stopping against one is a wall-stop (illegal). All blocked patterns are D4-symmetric, so canonicalization works unchanged.
+
+#### How variants relate to each other
+
+The four variants form a hierarchy based on which cells are blocked:
+
+```
+Standard (0 blocked)
+  └─ French (4 blocked: inner corners)
+       ├─ Solitaire (16 blocked: 2×2 corners ⊃ inner corners)
+       └─ UFO (24 blocked: full border ⊃ inner corners)
+```
+
+Solitaire and UFO are **incomparable** — Solitaire blocks the 2×2 corners that UFO leaves open (e.g., (0,2)–(0,4)), while UFO blocks border-edge cells that Solitaire leaves open (e.g., (0,2)–(0,4) are open in Solitaire but blocked in UFO).
+
+**Why solvable positions form supersets.** Blocked cells only *prevent* moves — they never *enable* them. A robot slides until it hits another robot; a blocked cell in the path simply makes that slide illegal. So any valid move on a restricted board (more blocked cells) is also valid on a less-restricted board (fewer blocked cells), because the path is still clear and the stopping robot is still there. This means if a position is solvable on Solitaire, the exact same move sequence works on French and Standard. The set of solvable positions satisfies:
+
+> Standard ⊇ French ⊇ Solitaire, and Standard ⊇ French ⊇ UFO
+
+**Why minimum moves can only increase.** More blocked cells mean fewer legal moves at each step — edges are removed from the state graph, never added. A shorter path that existed on Standard might be blocked on French, forcing a longer detour. The reverse can never happen: blocking a cell cannot create a new path. So:
+
+> Minimum moves: Standard ≤ French ≤ Solitaire (and Standard ≤ French ≤ UFO)
+
+**Why puzzle counts decrease.** With fewer solvable positions and fewer collision signatures (since fewer moves produce fewer distinct solution paths), each restriction reduces the number of unique puzzles that survive dedup:
+
+> Puzzle counts: Standard (243K) > French (103K) > Solitaire (45K) > UFO (30K)
+
+In the code, this hierarchy is visible in `reverse_moves_normal` in `enumerate.cpp`: each candidate predecessor slide is checked against the blocked-cell mask, and blocked cells cause the slide to be skipped — directly reducing the number of predecessors discovered by the BFS.
 
 ### Examples
 
 ```bash
 # Standard run: 1 exit, up to 5 helpers, all move counts
 ./enumerate 1 6 1 99 > puzzles.llp
+
+# French Solitaire variant
+./enumerate 1 6 1 20 french > puzzles-french.llp
 
 # Solitaire variant
 ./enumerate 1 6 1 20 solitaire > puzzles-solitaire.llp
@@ -271,7 +303,7 @@ make test
 ```
 
 This runs:
-1. **80 unit tests** (`test_enumerate`) — internal function correctness
+1. **85 unit tests** (`test_enumerate`) — internal function correctness
 2. **Puzzle generation** — full `./enumerate 1 6 1 20` run
 3. **Solution validation** (`validate_solutions.py`) — forward simulation, position validity, sequential IDs, D4 dedup, collision-sig dedup
 4. **D4 duplicate check** (`test_canonical`) — no two output puzzles are D4-equivalent
