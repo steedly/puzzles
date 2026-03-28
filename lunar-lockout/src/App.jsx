@@ -144,6 +144,7 @@ export default function App() {
         {currentPuzzle && (
           <div className="app__puzzle-info">
             <span className="pinfo-badge">{currentPuzzle.stableId}</span>
+            <span className="pinfo-badge">{currentPuzzle.exits ?? 1}E {currentPuzzle.helpers}H</span>
             <span className="pinfo-badge">{currentPuzzle.minMoves}M</span>
             {currentPuzzle.criticalMoves != null && (
               <span className="pinfo-badge" title="Critical moves (forced steps)">{currentPuzzle.criticalMoves}C</span>
