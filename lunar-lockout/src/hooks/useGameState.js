@@ -8,6 +8,7 @@ function buildInitial(puzzle) {
     positions:       initPositions(puzzle),
     selectedRobotId: null,
     moveCount:       0,
+    slideCount:      0,
     isWon:           false,
     exitIds,
     lastMoverId:     null,               // robot that made the last slide
@@ -40,6 +41,7 @@ function reducer(state, action) {
         ...state,
         positions:       newPositions,
         moveCount:       state.moveCount + (isNewGroup ? 1 : 0),
+        slideCount:      state.slideCount + 1,
         lastMoverId:     state.selectedRobotId,
         selectedRobotId: newSelected,
         history:         [...state.history, { positions: state.positions, lastMoverId: state.lastMoverId }],
@@ -56,6 +58,7 @@ function reducer(state, action) {
         positions:       prev.positions,
         history:         state.history.slice(0, -1),
         moveCount:       state.moveCount - (wasNewGroup ? 1 : 0),
+        slideCount:      state.slideCount - 1,
         lastMoverId:     prev.lastMoverId,
         isWon:           false,
         selectedRobotId: null,

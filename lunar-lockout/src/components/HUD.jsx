@@ -11,7 +11,7 @@ function robotLabel(id) {
   return id.replace('r', '');
 }
 
-export default function HUD({ state, dispatch, currentPuzzle, blockedCells, userBlockedCells, blockMode, onToggleBlockMode, onClearBlocks, showPaths, onTogglePaths }) {
+export default function HUD({ state, dispatch, currentPuzzle, blockedCells, userBlockedCells, blockMode, onToggleBlockMode, onClearBlocks, showPaths, onTogglePaths, scoreMode, onScoreModeChange, hideOptimal, onHideOptimalChange }) {
   const [showSol, setShowSol] = useState(false);
   // null = not computed, [] = computed but empty/failed, [...] = computed solution
   const [computedSol, setComputedSol] = useState(null);
@@ -53,10 +53,13 @@ export default function HUD({ state, dispatch, currentPuzzle, blockedCells, user
     <div className="hud">
       <div className="hud__top-row">
         <span className="hud__moves">
-          Moves: <strong>{state.moveCount}</strong>
-          {currentPuzzle?.minMoves > 0 && (
-            <span className="hud__optimum"> (opt: {currentPuzzle.minMoves})</span>
-          )}
+          {scoreMode === 'slides' ? 'Slides' : 'Moves'}:{' '}
+          <strong>{scoreMode === 'slides' ? state.slideCount : state.moveCount}</strong>
+          {!hideOptimal && (() => {
+            const target = scoreMode === 'slides' ? currentPuzzle?.minRawSlides : currentPuzzle?.minMoves;
+            const label = scoreMode === 'slides' ? 'Minimum Slides' : 'Minimum Moves';
+            return target > 0 ? <span className="hud__optimum"> ({label}: {target})</span> : null;
+          })()}
           {showExitProgress && (
             <span className="hud__exits"> · {exitedCount}/{totalExits} exits done</span>
           )}
@@ -100,6 +103,16 @@ export default function HUD({ state, dispatch, currentPuzzle, blockedCells, user
             onClick={onClearBlocks}
           >Clear ({blockedCells.size})</button>
         )}
+        <button
+          className={`hud__tool-btn${scoreMode === 'slides' ? ' hud__tool-btn--active' : ''}`}
+          onClick={() => onScoreModeChange(scoreMode === 'grouped' ? 'slides' : 'grouped')}
+          title={scoreMode === 'grouped' ? 'Scoring: grouped moves' : 'Scoring: individual slides'}
+        >{scoreMode === 'grouped' ? 'Moves' : 'Slides'}</button>
+        <button
+          className={`hud__tool-btn${hideOptimal ? ' hud__tool-btn--active' : ''}`}
+          onClick={() => onHideOptimalChange(!hideOptimal)}
+          title={hideOptimal ? 'Minimum hidden' : 'Minimum shown'}
+        >{hideOptimal ? 'Min: Hidden' : 'Min: Shown'}</button>
       </div>
 
       {showSol && solution.length > 0 && (

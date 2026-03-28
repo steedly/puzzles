@@ -50,6 +50,8 @@ export default function App() {
   });
   const [blockMode, setBlockMode] = useState(false);
   const [showPaths, setShowPaths] = useState(false);
+  const [scoreMode, setScoreMode] = useState('grouped'); // 'grouped' | 'slides'
+  const [hideOptimal, setHideOptimal] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('ll-blocked-cells', JSON.stringify([...userBlockedCells]));
@@ -211,6 +213,10 @@ export default function App() {
                   onClearBlocks={() => setUserBlockedCells(new Set())}
                   showPaths={showPaths}
                   onTogglePaths={() => setShowPaths(p => !p)}
+                  scoreMode={scoreMode}
+                  onScoreModeChange={setScoreMode}
+                  hideOptimal={hideOptimal}
+                  onHideOptimalChange={setHideOptimal}
                 />
               </div>
             )}
@@ -229,6 +235,7 @@ export default function App() {
             blockedCells={variant === 'standard' ? userBlockedCells : new Set()}
             variant={variant}
             onVariantChange={(v) => switchVariant(v, currentPuzzle?.stableId)}
+            scoreMode={scoreMode}
           />
         </div>
       </main>
@@ -236,7 +243,11 @@ export default function App() {
       {state.isWon && (
         <WinModal
           moveCount={state.moveCount}
+          slideCount={state.slideCount}
           minMoves={currentPuzzle?.minMoves}
+          minRawSlides={currentPuzzle?.minRawSlides}
+          scoreMode={scoreMode}
+          hideOptimal={hideOptimal}
           hasNext={hasNext}
           onNext={handleNext}
           onReplay={handleReplay}
