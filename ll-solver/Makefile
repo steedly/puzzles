@@ -34,8 +34,15 @@ ifndef NO_OPENMP
     CXXFLAGS += -Xpreprocessor -fopenmp -I$(OPENMP_PREFIX)/include
     LDFLAGS  += -L$(OPENMP_PREFIX)/lib -lomp
   else
-    # Linux / gcc default
-    CXXFLAGS += -fopenmp
+    # Auto-detect libomp on macOS via brew
+    BREW_OMP := $(shell brew --prefix libomp 2>/dev/null)
+    ifneq ($(BREW_OMP),)
+      CXXFLAGS += -Xpreprocessor -fopenmp -I$(BREW_OMP)/include
+      LDFLAGS  += -L$(BREW_OMP)/lib -lomp
+    else
+      # Linux / gcc default
+      CXXFLAGS += -fopenmp
+    endif
   endif
 endif
 

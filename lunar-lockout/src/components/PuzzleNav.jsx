@@ -10,11 +10,9 @@ const DIFF_COLOR = { easy: '#4caf50', medium: '#ffc107', hard: '#f44336', expert
 const SORT_OPTIONS = [
   { key: 'id',        label: 'ID',        fn: p => p.id },
   { key: 'moves',     label: 'Moves',     fn: p => p.minMoves },
-  { key: 'critical',  label: 'Critical',  fn: p => p.criticalMoves ?? 0 },
-  { key: 'branching', label: 'Branching', fn: p => p.branchFactor ?? 0 },
+  { key: 'slides',    label: 'Slides',    fn: p => p.rawSlides ?? 0 },
+  { key: 'minSlides', label: 'Min Slides', fn: p => p.minRawSlides ?? 0 },
   { key: 'states',    label: 'States',    fn: p => p.forwardStates ?? 0 },
-  { key: 'solutions', label: 'Solutions', fn: p => p.solnCount ?? 0 },
-  { key: 'ratio',     label: 'G/R Ratio', fn: p => p.groupedRawRatio ?? 0 },
 ];
 
 const VARIANTS = [

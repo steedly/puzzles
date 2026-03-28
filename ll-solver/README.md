@@ -75,11 +75,13 @@ This stage typically compacts ~260 puzzles, sometimes reducing their board size 
 
 ### Stage 4: Finding the best solution and writing output
 
-Stage 1's BFS tagged each state with its minimum number of **individual slides** — but a player experiences puzzles in terms of **grouped moves**, where consecutive slides by the same robot feel like a single action. For example, sliding robot A right then sliding robot A up is one grouped move (you're still "using" robot A), but then sliding robot 2 would start a second grouped move. A 10-slide solution might take only 5 grouped moves if robots are moved in streaks.
+Stage 1's BFS tagged each state with its minimum number of **individual slides** — but a player experiences puzzles in terms of **grouped moves**, where consecutive slides by the same robot feel like a single action. For example, sliding robot A right then sliding robot A up is one grouped move (you're still "using" robot A), but then sliding robot 2 would start a second grouped move.
 
-For each surviving unique puzzle, the solver does a forward-direction [dynamic programming (DP)](https://en.wikipedia.org/wiki/Dynamic_programming) pass along the distance-decreasing paths found by the BFS. It explores all slide sequences that use the minimum number of individual slides, and among those, selects the one with the fewest grouped moves. This is much cheaper than augmenting the BFS itself (which would multiply memory by the number of robots), since it only traces paths from a single starting position at a time.
+Critically, the solution with the fewest grouped moves is often **not** the one with the fewest individual slides. A path with more individual slides can chain multiple slides by the same robot into streaks, dramatically reducing the grouped move count. For example, a puzzle whose shortest path takes 18 individual slides and 17 grouped moves might have an alternative path using 22 slides but only 10 grouped moves — far better from the player's perspective.
 
-After computing the DP-optimal solution, a final **DP collision-signature dedup** catches any remaining duplicates that the earlier greedy-trace dedup missed (since the greedy and DP tracers may find different solution paths, occasionally producing different collision signatures for the same strategic puzzle).
+For each surviving unique puzzle, the solver runs a **[0-1 BFS](https://en.wikipedia.org/wiki/0-1_BFS)** from the start position over an augmented state space of (board configuration, last-mover landing cell). Edges where the same robot continues sliding cost 0; edges where a different robot starts cost 1. This explores **all** reachable states (not just those on minimum-slide paths) and finds the globally optimal grouped-move solution. Because the forward-reachable state space per puzzle is small (typically 50–5,000 board states × ~50 last-mover cells), this is fast even when run for hundreds of thousands of puzzles.
+
+After computing the optimal solution, a final **collision-signature dedup** catches any remaining duplicates that the earlier greedy-trace dedup missed (since the greedy and 0-1 BFS tracers may find different solution paths, occasionally producing different collision signatures for the same strategic puzzle).
 
 ### Technical summary
 

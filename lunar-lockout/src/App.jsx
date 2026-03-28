@@ -145,21 +145,15 @@ export default function App() {
           <div className="app__puzzle-info">
             <span className="pinfo-badge">{currentPuzzle.stableId}</span>
             <span className="pinfo-badge">{currentPuzzle.exits ?? 1}E {currentPuzzle.helpers}H</span>
-            <span className="pinfo-badge">{currentPuzzle.minMoves}M</span>
-            {currentPuzzle.criticalMoves != null && (
-              <span className="pinfo-badge" title="Critical moves (forced steps)">{currentPuzzle.criticalMoves}C</span>
+            <span className="pinfo-badge" title="Minimum grouped moves">{currentPuzzle.minMoves}M</span>
+            {currentPuzzle.rawSlides != null && (
+              <span className="pinfo-badge" title="Raw slides in solution">{currentPuzzle.rawSlides}S</span>
             )}
-            {currentPuzzle.branchFactor != null && (
-              <span className="pinfo-badge" title="Avg branching factor">{currentPuzzle.branchFactor.toFixed(1)}B</span>
+            {currentPuzzle.minRawSlides != null && (
+              <span className="pinfo-badge" title="Min possible raw slides">{currentPuzzle.minRawSlides}mS</span>
             )}
             {currentPuzzle.forwardStates != null && (
-              <span className="pinfo-badge" title="Reachable states">{currentPuzzle.forwardStates}S</span>
-            )}
-            {currentPuzzle.solnCount != null && (
-              <span className="pinfo-badge" title="Optimal paths">{currentPuzzle.solnCount}P</span>
-            )}
-            {currentPuzzle.groupedRawRatio != null && (
-              <span className="pinfo-badge" title="Grouped/raw ratio">{currentPuzzle.groupedRawRatio.toFixed(2)}R</span>
+              <span className="pinfo-badge" title="Reachable states">{currentPuzzle.forwardStates}R</span>
             )}
           </div>
         )}

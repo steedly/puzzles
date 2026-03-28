@@ -1484,68 +1484,57 @@ TEST(forward_bfs_count_small) {
     ASSERT(count < 1000);  // bounded for a 2-robot board
 }
 
-TEST(trace_metrics_forced_puzzle) {
-    // For a depth-1 puzzle: only 1 optimal move, so critical=1, branch_sum=1, solnCount=1.
+TEST(solve_min_grouped_depth1) {
+    // For a depth-1 puzzle: 1 grouped move, 1 raw slide.
     BLOCKED = 0;
-    FlatMap dist = retrograde(1, 1);
     int pos[2] = {3, 31}; // exit at row 0 col 3, helper at row 4 col 3
     State s = canonical(encode(pos, 2), 2, 1);
-    auto tr = trace_solution(s, 2, 1, dist);
+    auto tr = solve_min_grouped(s, 2, 1);
     ASSERT_EQ(1, (int)tr.moves.size());
-    ASSERT_EQ(1, tr.critical_moves); // only 1 optimal successor
-    ASSERT_EQ(1, tr.branch_sum);
-    ASSERT_EQ(1, tr.solution_count);
+    ASSERT_EQ(1, tr.grouped_moves);
 }
 
-TEST(trace_metrics_solution_count_multiple) {
-    // Find a puzzle with solution_count > 1 (multiple optimal paths).
+TEST(solve_min_grouped_valid_solutions) {
+    // Verify solve_min_grouped produces valid solutions (forward-simulate to goal).
     BLOCKED = 0;
     FlatMap dist = retrograde(1, 2);
     const int n = 3;
-    int found_multi = 0;
+    int validated = 0;
     for (auto [s, d] : dist) {
         if (d < 2 || d > 4) continue;
         int r[10]; decode(s, n, r);
         if (r[0] == EXITED) continue;
         if (canonical(s, n, 1) != s) continue;
 
-        auto tr = trace_solution(s, n, 1, dist);
-        if (tr.moves.size() != (size_t)d) continue;
-        if (tr.solution_count > 1) found_multi++;
-        // Basic sanity: solution_count >= 1 for valid puzzles
-        ASSERT(tr.solution_count >= 1);
-        // branch_sum >= D (at least 1 successor per step)
-        ASSERT(tr.branch_sum >= (int)tr.moves.size());
-        // critical_moves <= D
-        ASSERT(tr.critical_moves <= (int)tr.moves.size());
-        if (found_multi >= 5) break;
+        auto tr = solve_min_grouped(s, n, 1);
+        ASSERT(!tr.moves.empty());
+        ASSERT(validate_solution(s, tr.moves, n, 1));
+        // grouped_moves must match count_grouped_moves on the solution
+        ASSERT_EQ(tr.grouped_moves, count_grouped_moves(tr.moves));
+        if (++validated >= 100) break;
     }
-    // Should find at least some puzzles with multiple paths
-    ASSERT(found_multi > 0);
+    ASSERT(validated > 0);
 }
 
-TEST(trace_metrics_branching_consistency) {
-    // Verify: if all steps have exactly 1 optimal successor, then
-    // critical_moves == D and branch_sum == D and solution_count == 1.
+TEST(solve_min_grouped_at_least_as_good_as_dp) {
+    // Verify: solve_min_grouped always finds <= grouped moves compared to
+    // the old trace_solution (which only searched BFS-optimal raw-slide paths).
     BLOCKED = 0;
     FlatMap dist = retrograde(1, 2);
     const int n = 3;
-    int checked = 0;
+    int checked = 0, improved = 0;
     for (auto [s, d] : dist) {
         if (d < 2 || d > 5) continue;
         int r[10]; decode(s, n, r);
         if (r[0] == EXITED) continue;
         if (canonical(s, n, 1) != s) continue;
 
-        auto tr = trace_solution(s, n, 1, dist);
-        if (tr.moves.size() != (size_t)d) continue;
-        int D = (int)tr.moves.size();
-
-        if (tr.critical_moves == D) {
-            // All steps forced → branch_sum == D and exactly 1 path
-            ASSERT_EQ(D, tr.branch_sum);
-            ASSERT_EQ(1, tr.solution_count);
-        }
+        auto old_tr = trace_solution(s, n, 1, dist);
+        if (old_tr.moves.empty()) continue;
+        auto new_tr = solve_min_grouped(s, n, 1);
+        ASSERT(!new_tr.moves.empty());
+        ASSERT(new_tr.grouped_moves <= old_tr.grouped_moves);
+        if (new_tr.grouped_moves < old_tr.grouped_moves) improved++;
         if (++checked >= 200) break;
     }
     ASSERT(checked > 0);

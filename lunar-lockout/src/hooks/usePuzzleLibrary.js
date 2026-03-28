@@ -44,17 +44,23 @@ function parseLine(line) {
   let numExits;
 
   let minMovesStr;
-  let rawSlides = null, criticalMoves = null, branchFactor10 = null;
-  let forwardStates = null, solnCount = null;
+  let rawSlides = null, minRawSlides = null, forwardStates = null;
 
-  if (parts.length === 11) {
-    // New format with metrics: id|exits|helpers|groupedMoves|rawSlides|criticalMoves|branchFactor10|forwardStates|solnCount|positions|solution
+  if (parts.length === 9) {
+    // Current format: id|exits|helpers|groupedMoves|rawSlides|minRawSlides|forwardStates|positions|solution
     [idStr, exitsStr, helpersStr, minMovesStr] = parts;
     rawSlides = parseInt(parts[4], 10);
-    criticalMoves = parseInt(parts[5], 10);
-    branchFactor10 = parseInt(parts[6], 10);
+    minRawSlides = parseInt(parts[5], 10);
+    forwardStates = parseInt(parts[6], 10);
+    posStr = parts[7];
+    solStr = parts[8];
+    numExits = parseInt(exitsStr, 10);
+    if (isNaN(numExits)) return null;
+  } else if (parts.length === 11) {
+    // Old 11-field format (backward compat)
+    [idStr, exitsStr, helpersStr, minMovesStr] = parts;
+    rawSlides = parseInt(parts[4], 10);
     forwardStates = parseInt(parts[7], 10);
-    solnCount = parseInt(parts[8], 10);
     posStr = parts[9];
     solStr = parts[10];
     numExits = parseInt(exitsStr, 10);
@@ -131,20 +137,14 @@ function parseLine(line) {
 
   const stableId = computeStableId(numExits, posStr);
 
-  // Compute derived metrics (use parsed values if available, else derive from solution)
   const actualRawSlides = rawSlides ?? solution.length;
-  const branchFactor = branchFactor10 != null ? branchFactor10 / 10 : null;
-  const groupedRawRatio = actualRawSlides > 0 ? minMoves / actualRawSlides : null;
 
   return {
     id, stableId, exits: numExits, helpers, minMoves, difficulty, robots, solution, bbox,
     name: `#${id}`,
     rawSlides: actualRawSlides,
-    criticalMoves: criticalMoves ?? null,
-    branchFactor,
+    minRawSlides: minRawSlides ?? null,
     forwardStates: forwardStates ?? null,
-    solnCount: solnCount ?? null,
-    groupedRawRatio,
   };
 }
 
