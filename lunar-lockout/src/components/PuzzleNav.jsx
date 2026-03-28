@@ -199,8 +199,18 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
     };
   }
 
+  function handleKeyDown(e) {
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      handlePrev();
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      handleNext();
+    }
+  }
+
   return (
-    <div className="pnav">
+    <div className="pnav" tabIndex={-1} onKeyDown={handleKeyDown}>
       {/* ── Header bar ── */}
       <div className="pnav__header">
         <span className="pnav__title">Puzzles</span>

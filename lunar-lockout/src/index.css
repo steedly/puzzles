@@ -110,7 +110,6 @@ button { cursor: pointer; font-family: inherit; }
   display: flex;
   align-items: flex-start;
   gap: 24px;
-  flex-wrap: wrap;
 }
 
 .game-column {
@@ -390,6 +389,7 @@ button { cursor: pointer; font-family: inherit; }
 .pnav {
   width: 300px;
   min-width: 260px;
+  flex-shrink: 1;
   background: var(--board-bg);
   border: 1px solid var(--cell-border);
   border-radius: var(--border-radius);
@@ -398,6 +398,11 @@ button { cursor: pointer; font-family: inherit; }
   flex-direction: column;
   gap: 10px;
   align-self: flex-start;
+}
+
+.pnav:focus {
+  outline: 2px solid #6666bb;
+  outline-offset: -2px;
 }
 
 .pnav__header {
@@ -473,7 +478,7 @@ button { cursor: pointer; font-family: inherit; }
 .pnav__range-value {
   font-size: 0.75rem;
   color: var(--text-muted);
-  min-width: 18px;
+  min-width: 2em;
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
@@ -907,7 +912,7 @@ button { cursor: pointer; font-family: inherit; }
 }
 
 /* ── Responsive ────────────────────────────────────────────────────────────── */
-@media (max-width: 860px) {
+@media (max-width: 640px) {
   .game-layout { flex-direction: column; }
   .pnav { width: 100%; max-width: 100%; }
   .pnav__list { max-height: 200px; }
