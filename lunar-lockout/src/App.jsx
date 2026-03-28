@@ -1,7 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { usePuzzleLibrary } from './hooks/usePuzzleLibrary';
 import { useGameState } from './hooks/useGameState';
-import { resolvePuzzle } from './logic/puzzleFilter';
 import Board from './components/Board';
 import HUD from './components/HUD';
 import PuzzleNav from './components/PuzzleNav';
@@ -41,46 +40,16 @@ export default function App() {
   const [currentPuzzle, setCurrentPuzzle] = useState(null);
   const filteredRef = useRef([]);
 
-  // User-added blocked cells (only active in standard mode)
-  const [userBlockedCells, setUserBlockedCells] = useState(() => {
-    try {
-      const saved = localStorage.getItem('ll-blocked-cells');
-      return saved ? new Set(JSON.parse(saved)) : new Set();
-    } catch { return new Set(); }
-  });
-  const [blockMode, setBlockMode] = useState(false);
-  const [showPaths, setShowPaths] = useState(false);
+  const [showSolution, setShowSolution] = useState(false);
   const [scoreMode, setScoreMode] = useState('grouped'); // 'grouped' | 'slides'
-  const [hideOptimal, setHideOptimal] = useState(false);
+  const [hideOptimal, setHideOptimal] = useState(true);
 
-  useEffect(() => {
-    localStorage.setItem('ll-blocked-cells', JSON.stringify([...userBlockedCells]));
-  }, [userBlockedCells]);
-
-  // Variant blocks are fixed; user blocks only apply in standard mode
   const variantBlocks = VARIANT_BLOCKS[variant] || VARIANT_BLOCKS.standard;
-  const blockedCells = useMemo(() => {
-    if (variant !== 'standard') return variantBlocks;
-    if (userBlockedCells.size === 0) return variantBlocks; // empty set
-    return userBlockedCells;
-  }, [variant, variantBlocks, userBlockedCells]);
 
-  // Disable block mode when switching away from standard
-  useEffect(() => {
-    if (variant !== 'standard') setBlockMode(false);
-  }, [variant]);
+  const { state, dispatch } = useGameState(currentPuzzle ?? DUMMY_PUZZLE, variantBlocks);
 
-  const handleToggleBlock = useCallback((row, col) => {
-    if (variant !== 'standard') return; // can't modify variant blocks
-    const key = `${row},${col}`;
-    setUserBlockedCells(prev => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key); else next.add(key);
-      return next;
-    });
-  }, [variant]);
-
-  const { state, dispatch } = useGameState(currentPuzzle ?? DUMMY_PUZZLE, blockedCells);
+  // Reset solution display when puzzle changes
+  useEffect(() => { setShowSolution(false); }, [currentPuzzle?.stableId]);
 
   // When puzzle list changes (variant switch or initial load), try to preserve
   // the current puzzle by stableId; otherwise reset to null for auto-select.
@@ -103,24 +72,15 @@ export default function App() {
     filteredRef.current = list;
     // Auto-select the first puzzle when nothing is loaded yet.
     if (!currentPuzzle && list.length > 0) {
-      let first = list[0];
-      if (first.needsResolve && blockedCells.size > 0) {
-        first = resolvePuzzle(first, blockedCells) || first;
-      }
+      const first = list[0];
       setCurrentPuzzle(first);
       dispatch({ type: 'LOAD_PUZZLE', puzzle: first });
     }
-  }, [currentPuzzle, dispatch, blockedCells]);
+  }, [currentPuzzle, dispatch]);
 
   function handleSelectPuzzle(puzzle) {
-    // Tier 4 lazy resolve: if this puzzle needs re-solving with blocked cells, do it now
-    let resolved = puzzle;
-    if (puzzle.needsResolve && blockedCells.size > 0) {
-      resolved = resolvePuzzle(puzzle, blockedCells);
-      if (!resolved) return; // unsolvable with current blocks — skip
-    }
-    setCurrentPuzzle(resolved);
-    dispatch({ type: 'LOAD_PUZZLE', puzzle: resolved });
+    setCurrentPuzzle(puzzle);
+    dispatch({ type: 'LOAD_PUZZLE', puzzle });
   }
 
   function handleReplay() {
@@ -197,22 +157,15 @@ export default function App() {
               <div className="game-area">
                 <Board
                   state={state} dispatch={dispatch} puzzle={currentPuzzle}
-                  blockedCells={blockedCells} blockMode={blockMode}
-                  onToggleBlock={handleToggleBlock}
-                  showPaths={showPaths}
+                  showPaths={showSolution}
                   variantBlocks={variantBlocks}
                 />
                 <HUD
                   state={state}
                   dispatch={dispatch}
                   currentPuzzle={currentPuzzle}
-                  blockedCells={blockedCells}
-                  userBlockedCells={variant === 'standard' ? userBlockedCells : null}
-                  blockMode={blockMode}
-                  onToggleBlockMode={variant === 'standard' ? () => setBlockMode(m => !m) : null}
-                  onClearBlocks={() => setUserBlockedCells(new Set())}
-                  showPaths={showPaths}
-                  onTogglePaths={() => setShowPaths(p => !p)}
+                  showSolution={showSolution}
+                  onToggleSolution={() => setShowSolution(s => !s)}
                   scoreMode={scoreMode}
                   onScoreModeChange={setScoreMode}
                   hideOptimal={hideOptimal}
@@ -232,7 +185,7 @@ export default function App() {
             currentPuzzle={currentPuzzle}
             onSelect={handleSelectPuzzle}
             onFilteredChange={handleFilteredChange}
-            blockedCells={variant === 'standard' ? userBlockedCells : new Set()}
+            blockedCells={new Set()}
             variant={variant}
             onVariantChange={(v) => switchVariant(v, currentPuzzle?.stableId)}
             scoreMode={scoreMode}

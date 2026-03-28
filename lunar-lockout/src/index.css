@@ -306,8 +306,8 @@ button { cursor: pointer; font-family: inherit; }
 
 .hud__tools {
   display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .hud__tool-btn {
@@ -332,11 +332,6 @@ button { cursor: pointer; font-family: inherit; }
   color: #a0a0ff;
 }
 
-.hud__tool-btn--block-active {
-  background: #5a2a2a;
-  border-color: #f44336;
-  color: #f44336;
-}
 
 .hud__tool-btn--clear {
   color: #f44336;
@@ -859,37 +854,6 @@ button { cursor: pointer; font-family: inherit; }
   border-color: #1a1a2e !important;
   cursor: default !important;
 }
-
-/* ── User-blocked cells ───────────────────────────────────────────────────── */
-.cell--blocked {
-  background: repeating-linear-gradient(
-    45deg,
-    rgba(244, 67, 54, 0.15),
-    rgba(244, 67, 54, 0.15) 4px,
-    rgba(244, 67, 54, 0.05) 4px,
-    rgba(244, 67, 54, 0.05) 8px
-  ) !important;
-  border-color: rgba(244, 67, 54, 0.4) !important;
-}
-
-.cell--blocked::before {
-  content: '✕';
-  position: absolute;
-  font-size: 18px;
-  color: rgba(244, 67, 54, 0.5);
-  pointer-events: none;
-  user-select: none;
-  z-index: 0;
-}
-
-.board--block-mode { cursor: crosshair; }
-.board--block-mode .cell { cursor: crosshair; }
-
-.cell--blockable:hover {
-  background: rgba(244, 67, 54, 0.12) !important;
-  border-color: rgba(244, 67, 54, 0.5) !important;
-}
-
 
 .hud__no-sol {
   font-size: 0.82rem;

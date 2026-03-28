@@ -1,47 +1,15 @@
-import { useState, useEffect } from 'react';
-import { solvePuzzle } from '../logic/solver.js';
-
 const DIR_ARROW = { up: '↑', down: '↓', left: '←', right: '→' };
 
 function robotLabel(id) {
-  // target → 'A' (exit 0), exit1 → 'B', exit2 → 'C', …
   if (id === 'target') return 'A';
   const exitMatch = id.match(/^exit(\d+)$/);
   if (exitMatch) return String.fromCharCode(65 + parseInt(exitMatch[1], 10));
   return id.replace('r', '');
 }
 
-export default function HUD({ state, dispatch, currentPuzzle, blockedCells, userBlockedCells, blockMode, onToggleBlockMode, onClearBlocks, showPaths, onTogglePaths, scoreMode, onScoreModeChange, hideOptimal, onHideOptimalChange }) {
-  const [showSol, setShowSol] = useState(false);
-  // null = not computed, [] = computed but empty/failed, [...] = computed solution
-  const [computedSol, setComputedSol] = useState(null);
-
-  // Reset when puzzle or blocked cells change
-  const puzzleId = currentPuzzle?.stableId;
-  const blockKey = blockedCells ? [...blockedCells].sort().join(';') : '';
-  useEffect(() => {
-    setShowSol(false);
-    setComputedSol(null);
-  }, [puzzleId, blockKey]);
-
-  // User-added blocks invalidate embedded solutions; variant blocks do not
-  // (variant puzzles were generated with their blocks baked in).
-  const hasUserBlocks = userBlockedCells && userBlockedCells.size > 0;
-  const embeddedSol = (!hasUserBlocks && currentPuzzle?.solution) ? currentPuzzle.solution : [];
-  const solution = embeddedSol.length > 0 ? embeddedSol : (computedSol ?? []);
+export default function HUD({ state, dispatch, currentPuzzle, showSolution, onToggleSolution, scoreMode, onScoreModeChange, hideOptimal, onHideOptimalChange }) {
+  const solution = currentPuzzle?.solution ?? [];
   const canSolve = currentPuzzle?.minMoves > 0;
-
-  function handleSolutionClick() {
-    if (showSol) {
-      setShowSol(false);
-      return;
-    }
-    // Compute solution on first click if not using embedded
-    if (embeddedSol.length === 0 && computedSol === null && currentPuzzle) {
-      setComputedSol(solvePuzzle(currentPuzzle, blockedCells) || []);
-    }
-    setShowSol(true);
-  }
 
   // Exit progress: how many exit robots have already left the board
   const exitIds = state.exitIds ?? new Set(['target']);
@@ -81,33 +49,15 @@ export default function HUD({ state, dispatch, currentPuzzle, blockedCells, user
       <div className="hud__tools">
         {canSolve && (
           <button
-            className={`hud__tool-btn${showSol ? ' hud__tool-btn--active' : ''}`}
-            onClick={handleSolutionClick}
-          >{showSol ? 'Hide Solution' : 'Solution'}</button>
-        )}
-        {canSolve && (
-          <button
-            className={`hud__tool-btn${showPaths ? ' hud__tool-btn--active' : ''}`}
-            onClick={onTogglePaths}
-          >Paths</button>
-        )}
-        {onToggleBlockMode && (
-          <button
-            className={`hud__tool-btn${blockMode ? ' hud__tool-btn--block-active' : ''}`}
-            onClick={onToggleBlockMode}
-          >Block</button>
-        )}
-        {onToggleBlockMode && hasUserBlocks && (
-          <button
-            className="hud__tool-btn hud__tool-btn--clear"
-            onClick={onClearBlocks}
-          >Clear ({blockedCells.size})</button>
+            className={`hud__tool-btn${showSolution ? ' hud__tool-btn--active' : ''}`}
+            onClick={onToggleSolution}
+          >{showSolution ? 'Hide Solution' : 'Show Solution'}</button>
         )}
         <button
           className={`hud__tool-btn${scoreMode === 'slides' ? ' hud__tool-btn--active' : ''}`}
           onClick={() => onScoreModeChange(scoreMode === 'grouped' ? 'slides' : 'grouped')}
           title={scoreMode === 'grouped' ? 'Scoring: grouped moves' : 'Scoring: individual slides'}
-        >{scoreMode === 'grouped' ? 'Moves' : 'Slides'}</button>
+        >{scoreMode === 'grouped' ? 'Scoring: Moves' : 'Scoring: Slides'}</button>
         <button
           className={`hud__tool-btn${hideOptimal ? ' hud__tool-btn--active' : ''}`}
           onClick={() => onHideOptimalChange(!hideOptimal)}
@@ -115,7 +65,7 @@ export default function HUD({ state, dispatch, currentPuzzle, blockedCells, user
         >{hideOptimal ? 'Min: Hidden' : 'Min: Shown'}</button>
       </div>
 
-      {showSol && solution.length > 0 && (
+      {showSolution && solution.length > 0 && (
         <div className="hud__solution">
           {solution.map((m, i) => (
             <span key={i} className="hud__sol-step">
@@ -125,10 +75,6 @@ export default function HUD({ state, dispatch, currentPuzzle, blockedCells, user
             </span>
           ))}
         </div>
-      )}
-
-      {showSol && computedSol !== null && computedSol.length === 0 && (
-        <div className="hud__no-sol">No solution found</div>
       )}
     </div>
   );
