@@ -41,7 +41,7 @@ function chipClick(prev, value, shiftKey) {
   return new Set([value]);
 }
 
-export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilteredChange, blockedCells, variant, onVariantChange, scoreMode }) {
+export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilteredChange, blockedCells, variant, onVariantChange, scoreMode, hideOptimal }) {
   // Derive available options from the puzzle library
   const availableHelpers = useMemo(() =>
     [...new Set(allPuzzles.map(p => p.helpers))].sort((a, b) => a - b),
@@ -377,9 +377,11 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
                   <span className="pnav__item-meta">
                     {p.exits > 1 ? `${p.exits}E ` : ''}{p.helpers}H
                   </span>
-                  <span className="pnav__item-moves">
-                    {scoreMode === 'slides' ? `${p.minRawSlides ?? '?'}S` : `${p.minMoves}M`}
-                  </span>
+                  {!hideOptimal && (
+                    <span className="pnav__item-moves">
+                      {scoreMode === 'slides' ? `${p.minRawSlides ?? '?'}S` : `${p.minMoves}M`}
+                    </span>
+                  )}
                   {sortLabel != null && (
                     <span className="pnav__item-sort">{sortLabel}</span>
                   )}

@@ -192,6 +192,7 @@ export default function App() {
             variant={variant}
             onVariantChange={(v) => switchVariant(v, currentPuzzle?.stableId)}
             scoreMode={scoreMode}
+            hideOptimal={hideOptimal}
           />
         </div>
       </main>
