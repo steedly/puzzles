@@ -1219,21 +1219,24 @@ static bool try_compact(int* init_pos, std::vector<Move>& sol,
             Adj& a = adjustable[nadj];
             a.robot = r;
             a.npos = 0;
-            // Try positions 1 step closer to center in each axis direction
-            // that reduces Chebyshev distance.
-            int candidates[4];
-            int ncand = 0;
-            if (cr > 3 && cr > 0) candidates[ncand++] = (cr-1)*N + cc;
-            if (cr < 3 && cr < N-1) candidates[ncand++] = (cr+1)*N + cc;
-            if (cc > 3 && cc > 0) candidates[ncand++] = cr*N + (cc-1);
-            if (cc < 3 && cc < N-1) candidates[ncand++] = cr*N + (cc+1);
-            for (int i = 0; i < ncand; i++) {
-                if (BLOCKED & ((uint64_t)1 << candidates[i])) continue;
-                int nr = candidates[i]/N, nc_val = candidates[i]%N;
-                int new_cheb = std::max(std::abs(nr-3), std::abs(nc_val-3));
-                if (new_cheb < cheb)
-                    a.positions[a.npos++] = candidates[i];
-            }
+            // Try multiple steps toward center along each axis direction.
+            // Most-compact-first ordering so subset enumeration prefers
+            // the tightest valid position.
+            auto try_dir = [&](int dr, int dc) {
+                for (int step = 1; step < N && a.npos < 7; step++) {
+                    int nr = cr + step * dr, nc_val = cc + step * dc;
+                    if (nr < 0 || nr >= N || nc_val < 0 || nc_val >= N) break;
+                    int np = nr * N + nc_val;
+                    if (BLOCKED & ((uint64_t)1 << np)) break;
+                    int new_cheb = std::max(std::abs(nr - 3), std::abs(nc_val - 3));
+                    if (new_cheb < cheb)
+                        a.positions[a.npos++] = np;
+                }
+            };
+            if (cr > 3) try_dir(-1, 0);
+            if (cr < 3) try_dir( 1, 0);
+            if (cc > 3) try_dir(0, -1);
+            if (cc < 3) try_dir(0,  1);
             if (a.npos > 0) nadj++;
         }
     }
@@ -1244,7 +1247,16 @@ static bool try_compact(int* init_pos, std::vector<Move>& sol,
     //    (most compact first) or original.  Use subset enumeration over
     //    which robots to adjust, then for each adjusted robot pick its
     //    best candidate that validates.
+    // Sum of Manhattan distances to center — tiebreaker for equal board_size.
+    auto sum_manhattan = [&](const int* pos_arr) {
+        int sum = 0;
+        for (int i = 0; i < n; i++)
+            sum += std::abs(pos_arr[i]/N - 3) + std::abs(pos_arr[i]%N - 3);
+        return sum;
+    };
+
     int best_board = 8;
+    int best_sum = 999;
     int best_pos[10];
     bool found_better = false;
 
@@ -1295,12 +1307,14 @@ static bool try_compact(int* init_pos, std::vector<Move>& sol,
         uint8_t d;
         if (!dist.find_val(cs, &d) || d != (uint8_t)original_dist) continue;
 
-        // Compute board_size for this candidate.
+        // Compute board_size and sum-of-Manhattan for this candidate.
         bool all_used[10];
         std::fill(all_used, all_used + n, true);
         const int bs = compute_board_size(cand, all_used, n);
-        if (bs < best_board) {
+        const int sm = sum_manhattan(cand);
+        if (bs < best_board || (bs == best_board && sm < best_sum)) {
             best_board = bs;
+            best_sum = sm;
             std::memcpy(best_pos, cand, n * sizeof(int));
             found_better = true;
         }
@@ -1313,7 +1327,9 @@ static bool try_compact(int* init_pos, std::vector<Move>& sol,
         bool all_used[10];
         std::fill(all_used, all_used + n, true);
         const int orig_board = compute_board_size(init_pos, all_used, n);
-        if (best_board >= orig_board) return false;
+        const int orig_sum = sum_manhattan(init_pos);
+        if (best_board > orig_board) return false;
+        if (best_board == orig_board && best_sum >= orig_sum) return false;
     }
 
     // 4. Apply compaction: re-sort helpers and remap solution indices.

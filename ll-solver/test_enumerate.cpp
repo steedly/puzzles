@@ -1402,6 +1402,68 @@ TEST(bfs_completeness_optimal_path_forward_check) {
 // Difficulty metrics: forward_bfs_count, critical_moves, branching, solution_count
 // ═══════════════════════════════════════════════════════════════════════════════
 
+TEST(compact_manhattan_tiebreaker) {
+    // Puzzle #11: exit A at (3,5), helpers 1:(0,4) 2:(3,0) 3:(3,3)
+    // Helper 1 at (0,4) can shift to (1,4) — same board_size but smaller
+    // sum-of-Manhattan. Verifies the tiebreaker compaction works.
+    BLOCKED = 0;
+    FlatMap dist = retrograde(1, 3);
+    const int n = 4;
+    // A(3,5)=26, 1(0,4)=4, 2(3,0)=21, 3(3,3)=24
+    int pos[4] = {26, 4, 21, 24};
+    std::sort(pos + 1, pos + n);
+    State s = encode(pos, n);
+    uint8_t d;
+    ASSERT(dist.find_val(canonical(s, n, 1), &d));
+
+    auto tr = trace_solution(s, n, 1, dist);
+    auto& sol = tr.moves;
+    ASSERT_EQ((int)sol.size(), (int)d);
+    stabilise_indices(sol, s, n, 1);
+
+    int init_pos[10]; decode(s, n, init_pos);
+    std::vector<Move> sol_copy = sol;
+    bool compacted = try_compact(init_pos, sol_copy, n, 1, dist, d);
+    ASSERT(compacted);
+
+    // Helper originally at (0,4) = cell 4 should have moved closer to center.
+    bool still_at_04 = false;
+    for (int i = 1; i < n; i++)
+        if (init_pos[i] == 4) still_at_04 = true;
+    ASSERT(!still_at_04);
+}
+
+TEST(compact_manhattan_tiebreaker_puzzle43) {
+    // Puzzle #43: A(5,4) 1(1,1) 2(1,2) 3(1,5) 4(4,1)
+    // Helper 2 at (1,2) can shift to (1,3) — same board_size and Chebyshev
+    // but smaller Manhattan distance. Depth 12 is preserved.
+    BLOCKED = 0;
+    FlatMap dist = retrograde(1, 4);
+    const int n = 5;
+    int pos[5] = {5*7+4, 1*7+1, 1*7+2, 1*7+5, 4*7+1};
+    std::sort(pos + 1, pos + n);
+    State s = encode(pos, n);
+    uint8_t d;
+    ASSERT(dist.find_val(canonical(s, n, 1), &d));
+    ASSERT_EQ(12, (int)d);
+
+    auto tr = trace_solution(s, n, 1, dist);
+    auto& sol = tr.moves;
+    ASSERT_EQ((int)sol.size(), (int)d);
+    stabilise_indices(sol, s, n, 1);
+
+    int init_pos[10]; decode(s, n, init_pos);
+    std::vector<Move> sol_copy = sol;
+    bool compacted = try_compact(init_pos, sol_copy, n, 1, dist, d);
+    ASSERT(compacted);
+
+    // Helper 2 should have moved from (1,2)=cell 9 to (1,3)=cell 10
+    bool has_cell_10 = false;
+    for (int i = 1; i < n; i++)
+        if (init_pos[i] == 1*7+3) has_cell_10 = true;
+    ASSERT(has_cell_10);
+}
+
 TEST(forward_bfs_count_trivial) {
     // A single exit robot at a cell adjacent to center with no helpers:
     // only the start state is reachable (no legal moves without a blocker).
