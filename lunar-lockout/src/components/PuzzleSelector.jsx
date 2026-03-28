@@ -1,3 +1,6 @@
+// Copyright (c) 2025-2026 Drew Steedly. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
 const DIFFICULTY_LABEL = { easy: 'Easy', medium: 'Medium', hard: 'Hard' };
 
 export default function PuzzleSelector({ puzzles, currentId, onSelect }) {

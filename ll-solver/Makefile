@@ -1,3 +1,6 @@
+# Copyright (c) 2025-2026 Drew Steedly. All rights reserved.
+# Licensed under the MIT License. See LICENSE file in the project root.
+
 CXX      ?= g++
 CXXFLAGS  = -O3 -std=c++17 -Wall -Wextra
 LDFLAGS   =

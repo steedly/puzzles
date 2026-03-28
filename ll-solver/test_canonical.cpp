@@ -1,3 +1,6 @@
+// Copyright (c) 2025-2026 Drew Steedly. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
 // test_canonical.cpp — Verify no D4-duplicate puzzles in enumerate output.
 //
 // Reads puzzles from stdin (enumerate output), computes the D4 canonical form

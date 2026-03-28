@@ -1,3 +1,6 @@
+// Copyright (c) 2025-2026 Drew Steedly. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
 export default function DirectionArrows({ selectedRobotId, dispatch, blockedCells }) {
   const disabled = !selectedRobotId;
   const slide = (dir) => dispatch({ type: 'SLIDE', direction: dir, blockedCells });

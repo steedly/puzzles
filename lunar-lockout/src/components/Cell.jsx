@@ -1,3 +1,6 @@
+// Copyright (c) 2025-2026 Drew Steedly. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
 import Robot from './Robot';
 
 export default function Cell({ row, col, isCenter, robotId, robotMeta, selectedRobotId, isLandingCell, isVariantBlocked, onClick }) {

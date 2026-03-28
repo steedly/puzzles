@@ -1,3 +1,6 @@
+// Copyright (c) 2025-2026 Drew Steedly. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 const DIR_MAP = { U: 'up', D: 'down', L: 'left', R: 'right' };

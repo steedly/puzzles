@@ -1,3 +1,6 @@
+// Copyright (c) 2025-2026 Drew Steedly. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
 export default function WinModal({ moveCount, slideCount, minMoves, minRawSlides, scoreMode, hideOptimal, hasNext, onNext, onReplay }) {
   const isSlides = scoreMode === 'slides';
   const userCount = isSlides ? slideCount : moveCount;

@@ -1,3 +1,6 @@
+// Copyright (c) 2025-2026 Drew Steedly. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
 // enumerate.cpp — Lunar Lockout puzzle enumerator
 //
 // Finds every canonically unique, solvable starting position on a 7×7 board
