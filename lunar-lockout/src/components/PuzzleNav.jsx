@@ -236,13 +236,15 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
           {/* ── Board variant ── */}
           <div className="pnav__filter-row">
             <span className="pnav__label">Board:</span>
-            {VARIANTS.map(v => (
-              <button
-                key={v.key}
-                className={`pnav__chip${variant === v.key ? ' pnav__chip--on' : ''}`}
-                onClick={() => onVariantChange(v.key)}
-              >{v.label}</button>
-            ))}
+            <select
+              className="pnav__sort-select"
+              value={variant}
+              onChange={e => onVariantChange(e.target.value)}
+            >
+              {VARIANTS.map(v => (
+                <option key={v.key} value={v.key}>{v.label}</option>
+              ))}
+            </select>
           </div>
 
           {/* ── Filters ── */}
