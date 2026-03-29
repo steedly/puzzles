@@ -1638,7 +1638,8 @@ static void emit(const FlatMap& dist, int n, int num_exits,
             for (int e = 0; e < num_exits; e++) compact[ci++] = init_pos[e];
             for (int h = num_exits; h < n; h++)
                 if (used[h]) compact[ci++] = init_pos[h];
-            pruned_canons[j] = canonical(encode(compact, ci), ci, num_exits);
+            pruned_canons[j] = canonical(encode(compact, ci), ci, num_exits)
+                             | ((uint64_t)num_exits << 60);
         }
 
         // Format output line (ID assigned sequentially below).
