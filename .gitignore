@@ -137,6 +137,10 @@ node_modules/
 # C++ compiled binaries
 ll-solver/enumerate
 ll-solver/test_enumerate
+ll-solver/test_canonical
+
+# Generated puzzle files (ll-solver produces these; lunar-lockout/public/ has the deployed copies)
+ll-solver/*.llp
 
 # Vite build output
 lunar-lockout/dist/
