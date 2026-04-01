@@ -85,20 +85,20 @@ After computing the optimal solution, a final **collision-signature dedup** catc
 
 ### Technical summary
 
-| Stage | What it does | 1e+5h | 3e+4h |
-|-------|-------------|-------|-------|
-| 1. Canonical retrograde BFS | Finds all solvable canonical positions | 1,763,957 states | 44,282,845 states |
-| — non-goal states collected | States with at least one exit robot still on the board | 1,548,611 | 33,835,553 |
-| 2. Collision-sig dedup | Removes strategically identical puzzles | 58,505 unique | 5,406,234 unique |
-| 3. Compaction | Tightens starting positions | 259 improved | 27,024 improved |
-| 4. DP trace + final dedup | Finds optimal grouped-move solutions, removes remaining dups | 50,077 final (462 cross-D4 + 7,966 DP dups removed) | 4,744,260 final (41,640 cross-D4 + 620,334 DP dups removed) |
+| Stage | What it does | 1e+5h |
+|-------|-------------|-------|
+| 1. Canonical retrograde BFS | Finds all solvable canonical positions | 2,135,377 states |
+| — non-goal states collected | States with at least one exit robot still on the board | 1,903,904 |
+| 2. Collision-sig dedup | Removes strategically identical puzzles | 78,058 unique |
+| 3. CSP compaction | Tightens starting positions via constraint search | 67,128 improved |
+| 4. DP trace + final dedup | Finds optimal grouped-move solutions, removes remaining dups | 27,632 final (36,391 cross-D4 + 14,035 DP dups removed) |
 
 ### Performance
 
 - **Canonical BFS** eliminates D4-symmetric states during exploration, reducing states by ~8× compared to a full BFS with post-hoc filtering.
 - **Parallel BFS** via OpenMP with lock-free atomic insertions into a custom hash table.
-- 1 exit + 5 helpers (~1.76M canonical states): ~4 seconds single-threaded.
-- 1 exit + 5 helpers produces ~50K unique puzzles after all dedup stages.
+- 1 exit + 5 helpers (~2.1M canonical states): ~4 seconds single-threaded.
+- 1 exit + 5 helpers produces ~28K unique puzzles after all dedup stages (CSP compaction increases dedup effectiveness by ~45%).
 - Multi-exit runs are dominated by collision-sig dedup time, not BFS time — deduplicating 45M states for 3 exits + 4 helpers takes ~14 minutes.
 
 ## Computational Complexity
@@ -151,19 +151,21 @@ Multi-exit BFS times scale roughly with state count. The collision-sig dedup (St
 
 | | 0 helpers | 1 helper | 2 helpers | 3 helpers | 4 helpers | 5 helpers | 6 helpers |
 |---|---|---|---|---|---|---|---|
-| **1 exit** | 0 | 1 | 3 | 28 | 1,052 | 50,077 | 960,922 |
-| **2 exits** | 0 | 1 | 12 | 545 | 75,440 | 4,471,527 | — |
-| **3 exits** | 0 | 1 | 30 | 17,971 | 4,744,260 | — | — |
-| **4 exits** | 0 | 0 | 55 | — | — | — | — |
+| **1 exit** | 0 | 1 | 3 | 39 | 1,222 | 27,143 | — |
+| **2 exits** | 0 | 1 | 19 | 809 | 78,646 | — | — |
+| **3 exits** | 0 | 1 | 50 | 21,078 | — | — | — |
+| **4 exits** | 0 | 0 | 72 | — | — | — | — |
+
+CSP compaction reduces final puzzle counts by ~35% compared to the old heuristic compaction, because tighter layouts create more collision-signature and cross-combo D4 overlaps.
 
 #### Totals by variant (≤6 total robots, up to 4 exits — currently deployed)
 
-| Variant | Puzzles | Stripped file size |
+| Variant | Puzzles | File size |
 |---|---|---|
-| Standard | 242,934 | 8.5 MB |
-| French | 103,294 | 3.5 MB |
-| Solitaire | 44,613 | 1.5 MB |
-| UFO | 29,674 | 1.0 MB |
+| Standard | 129,084 | 12 MB |
+| French | 56,764 | 4.8 MB |
+| Solitaire | 23,834 | 1.9 MB |
+| UFO | 17,996 | 1.5 MB |
 
 #### Totals by variant (≤7 total robots, up to 3 exits — full enumeration)
 
@@ -305,7 +307,7 @@ make test
 ```
 
 This runs:
-1. **85 unit tests** (`test_enumerate`) — internal function correctness
+1. **96 unit tests** (`test_enumerate`) — internal function correctness
 2. **Puzzle generation** — full `./enumerate 1 6 1 20` run
 3. **Solution validation** (`validate_solutions.py`) — forward simulation, position validity, sequential IDs, D4 dedup, collision-sig dedup
 4. **D4 duplicate check** (`test_canonical`) — no two output puzzles are D4-equivalent
