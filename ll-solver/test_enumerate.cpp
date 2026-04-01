@@ -1405,6 +1405,38 @@ TEST(bfs_completeness_optimal_path_forward_check) {
 // Difficulty metrics: forward_bfs_count, critical_moves, branching, solution_count
 // ═══════════════════════════════════════════════════════════════════════════════
 
+TEST(compact_csp_perpendicular_shift) {
+    // Puzzle 1-4xtgjun: A(5,3) 1(0,3) 2(0,5) 3(3,0) 4(4,6) 5(6,0)
+    // Helpers 1,2 at row 0 can shift to row 1 (perpendicular to their
+    // movement axis). The old heuristic compaction missed this because
+    // helper 2's first-move gap was 1 (slides Left by 1 cell) and movers
+    // with gap<=1 were skipped. The CSP compaction finds all valid cells.
+    BLOCKED = 0;
+    FlatMap dist = retrograde(1, 5);
+    const int n = 6;
+    // A(5,3)=38, 1(0,3)=3, 2(0,5)=5, 3(3,0)=21, 4(4,6)=34, 5(6,0)=42
+    int pos[6] = {38, 3, 5, 21, 34, 42};
+    std::sort(pos + 1, pos + n);
+    State s = encode(pos, n);
+    State cs = canonical(s, n, 1);
+    uint8_t d;
+    ASSERT(dist.find_val(cs, &d));
+
+    auto tr = solve_min_grouped(cs, n, 1);
+    ASSERT(!tr.moves.empty());
+    stabilise_indices(tr.moves, cs, n, 1);
+
+    int init_pos[10]; decode(cs, n, init_pos);
+    std::vector<Move> sol_copy = tr.moves;
+    bool compacted = try_compact(init_pos, sol_copy, n, 1, dist, d);
+    ASSERT(compacted);
+
+    // After compaction, no robot should be at row 0
+    // (helpers 1,2 should have shifted from row 0 to row 1).
+    for (int i = 0; i < n; i++)
+        ASSERT(init_pos[i] / 7 != 0);
+}
+
 TEST(compact_manhattan_tiebreaker) {
     // Puzzle #11: exit A at (3,5), helpers 1:(0,4) 2:(3,0) 3:(3,3)
     // Helper 1 at (0,4) can shift to (1,4) — same board_size but smaller
