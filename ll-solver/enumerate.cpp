@@ -85,6 +85,7 @@
 #include <chrono>
 #include <climits>
 #include <cstdint>
+#include <deque>
 #include <cstdlib>
 #include <cstring>
 #include <functional>
@@ -1180,205 +1181,186 @@ static bool validate_collision_seq(const int* init_pos,
 // shifting non-moving robots toward center.  On success, modifies init_pos
 // and sol in place (helpers re-sorted and solution indices remapped) and
 // returns true.
+static int compute_bounding_area(const int* pos, int n) {
+    int minR=6, maxR=0, minC=6, maxC=0;
+    for (int i = 0; i < n; i++) {
+        if (pos[i] == EXITED) continue;
+        int r = pos[i]/N, c = pos[i]%N;
+        if (r < minR) minR = r;
+        if (r > maxR) maxR = r;
+        if (c < minC) minC = c;
+        if (c > maxC) maxC = c;
+    }
+    return (maxR - minR + 1) * (maxC - minC + 1);
+}
+
+static int sum_manhattan(const int* pos, int n) {
+    int sum = 0;
+    for (int i = 0; i < n; i++) {
+        if (pos[i] == EXITED) continue;
+        sum += std::abs(pos[i]/N - 3) + std::abs(pos[i]%N - 3);
+    }
+    return sum;
+}
+
 static bool try_compact(int* init_pos, std::vector<Move>& sol,
                         int n, int num_exits, const FlatMap& dist,
                         int original_dist)
 {
-    // 1. Replay solution to find each mover's first-move gap and landing.
-    int first_move[10]; // index into sol, or -1 if never moves
-    int landing[10];    // landing cell at first move
-    std::fill(first_move, first_move + 10, -1);
+    // CSP-based compaction: for each robot, find ALL valid cells that
+    // preserve the collision sequence, then backtracking search for the
+    // combination with smallest bounding rectangle area (Manhattan tiebreaker).
 
-    int pos[10];
-    std::memcpy(pos, init_pos, n * sizeof(int));
-
-    // Track which robots appear as blockers in the solution, and for
-    // non-movers, the first move where they act as blocker (to find
-    // which direction the mover approaches from).
-    int first_blocker_move[10]; // index into sol, or -1
-    std::fill(first_blocker_move, first_blocker_move + 10, -1);
-
-    for (int k = 0; k < (int)sol.size(); k++) {
-        const int mover   = (int)sol[k].mover;
-        const int dir     = (int)sol[k].dir;
-        const int blocker = (int)sol[k].blocker;
-
-        // Compute landing: one cell before blocker in the slide direction.
-        const int br = pos[blocker] / N, bc = pos[blocker] % N;
-        const int land_r = br - DR[dir], land_c = bc - DC[dir];
-        const int land = land_r * N + land_c;
-
-        if (first_move[mover] < 0) {
-            first_move[mover] = k;
-            landing[mover] = land;
-        }
-        if (first_blocker_move[blocker] < 0)
-            first_blocker_move[blocker] = k;
-
-        if (mover < num_exits && land == CTR)
-            pos[mover] = EXITED;
-        else
-            pos[mover] = land;
-    }
-
-    // 2. Identify adjustable robots: movers with gap > 1 AND non-moving
-    //    robots that can shift toward center.
-    struct Adj {
-        int robot;              // robot index
-        int positions[7];       // candidate positions (most compact first)
-        int npos;               // number of candidates
-    };
-    Adj adjustable[10];
-    int nadj = 0;
+    // 1. For each robot, find all valid cells by individually testing each
+    //    candidate.  Per-robot validation is a necessary condition but not
+    //    sufficient (combinations may enable shifts that fail individually).
+    //    To handle inter-robot dependencies, we also include cells within
+    //    1 step of the original in each direction — these are cheap to test
+    //    in combination even if they fail individually.
+    int valid_cells[10][49];
+    int nvalid[10];
+    bool any_movable = false;
 
     for (int r = 0; r < n; r++) {
-        if (first_move[r] >= 0) {
-            // Mover: try reducing gap from current to 1.
-            const int dir  = (int)sol[first_move[r]].dir;
-            const int land = landing[r];
-            const int land_r = land / N, land_c = land % N;
-            const int mr = init_pos[r] / N, mc = init_pos[r] % N;
-            const int gap = std::abs(mr - land_r) + std::abs(mc - land_c);
-            if (gap <= 1) continue;
+        nvalid[r] = 0;
+        bool seen[49] = {};
 
-            Adj& a = adjustable[nadj];
-            a.robot = r;
-            a.npos = 0;
-            // Generate candidate positions from gap=1 up to gap-1
-            // (most compact first).
-            for (int g = 1; g < gap; g++) {
-                const int sr = land_r - g * DR[dir];
-                const int sc = land_c - g * DC[dir];
-                if (sr < 0 || sr >= N || sc < 0 || sc >= N) break;
-                const int sp = sr * N + sc;
-                if (BLOCKED & ((uint64_t)1 << sp)) break; // can't place on or past wall
-                a.positions[a.npos++] = sp;
-                if (a.npos >= 7) break;
+        const int or_ = init_pos[r] / N, oc = init_pos[r] % N;
+
+        for (int cell = 0; cell < NC; cell++) {
+            if (BLOCKED & ((uint64_t)1 << cell)) continue;
+            // Only consider cells at least as close to center as original.
+            const int cr = cell / N, cc = cell % N;
+            const int orig_cheb = std::max(std::abs(or_ - 3), std::abs(oc - 3));
+            const int new_cheb = std::max(std::abs(cr - 3), std::abs(cc - 3));
+            if (new_cheb > orig_cheb) continue;
+
+            // Test individually (keeping other robots at original positions).
+            bool occupied = false;
+            for (int i = 0; i < n; i++)
+                if (i != r && init_pos[i] == cell) { occupied = true; break; }
+            if (occupied) continue;
+
+            int tmp[10];
+            std::memcpy(tmp, init_pos, n * sizeof(int));
+            tmp[r] = cell;
+            if (validate_collision_seq(tmp, sol, n, num_exits)) {
+                valid_cells[r][nvalid[r]++] = cell;
+                seen[cell] = true;
             }
-            if (a.npos > 0) nadj++;
-        } else {
-            // Non-mover: try shifting toward center in each direction.
-            // Only shift if the robot is used as a blocker.
-            if (first_blocker_move[r] < 0) continue;
-
-            const int cr = init_pos[r] / N, cc = init_pos[r] % N;
-            const int cheb = std::max(std::abs(cr - 3), std::abs(cc - 3));
-            if (cheb <= 1) continue; // already near center
-
-            Adj& a = adjustable[nadj];
-            a.robot = r;
-            a.npos = 0;
-            // Try multiple steps toward center along each axis direction.
-            // Most-compact-first ordering so subset enumeration prefers
-            // the tightest valid position.
-            auto try_dir = [&](int dr, int dc) {
-                for (int step = 1; step < N && a.npos < 7; step++) {
-                    int nr = cr + step * dr, nc_val = cc + step * dc;
-                    if (nr < 0 || nr >= N || nc_val < 0 || nc_val >= N) break;
-                    int np = nr * N + nc_val;
-                    if (BLOCKED & ((uint64_t)1 << np)) break;
-                    int new_cheb = std::max(std::abs(nr - 3), std::abs(nc_val - 3));
-                    if (new_cheb < cheb)
-                        a.positions[a.npos++] = np;
-                }
-            };
-            if (cr > 3) try_dir(-1, 0);
-            if (cr < 3) try_dir( 1, 0);
-            if (cc > 3) try_dir(0, -1);
-            if (cc < 3) try_dir(0,  1);
-            if (a.npos > 0) nadj++;
         }
+
+        // Also add neighbor cells (1 step each direction) even if they fail
+        // individual validation — they may work in combination.
+        for (int dr = -1; dr <= 1; dr++) {
+            for (int dc = -1; dc <= 1; dc++) {
+                if (dr == 0 && dc == 0) continue;
+                if (std::abs(dr) + std::abs(dc) > 1) continue; // only cardinal
+                const int nr = or_ + dr, nc = oc + dc;
+                if (nr < 0 || nr >= N || nc < 0 || nc >= N) continue;
+                const int cell = nr * N + nc;
+                if (seen[cell]) continue;
+                if (BLOCKED & ((uint64_t)1 << cell)) continue;
+                // Only if closer to center.
+                const int orig_cheb = std::max(std::abs(or_ - 3), std::abs(oc - 3));
+                const int new_cheb = std::max(std::abs(nr - 3), std::abs(nc - 3));
+                if (new_cheb >= orig_cheb) continue;
+                valid_cells[r][nvalid[r]++] = cell;
+                seen[cell] = true;
+            }
+        }
+
+        // Sort: closer to center first.
+        std::sort(valid_cells[r], valid_cells[r] + nvalid[r], [](int a, int b) {
+            int da = std::max(std::abs(a/N-3), std::abs(a%N-3));
+            int db = std::max(std::abs(b/N-3), std::abs(b%N-3));
+            if (da != db) return da < db;
+            return (std::abs(a/N-3) + std::abs(a%N-3)) < (std::abs(b/N-3) + std::abs(b%N-3));
+        });
+
+        if (nvalid[r] > 1) any_movable = true;
     }
 
-    if (nadj == 0) return false;
+    if (!any_movable) return false;
 
-    // 3. Try subsets: for each adjustable robot, try its candidate positions
-    //    (most compact first) or original.  Use subset enumeration over
-    //    which robots to adjust, then for each adjusted robot pick its
-    //    best candidate that validates.
-    // Sum of Manhattan distances to center — tiebreaker for equal board_size.
-    auto sum_manhattan = [&](const int* pos_arr) {
-        int sum = 0;
-        for (int i = 0; i < n; i++)
-            sum += std::abs(pos_arr[i]/N - 3) + std::abs(pos_arr[i]%N - 3);
-        return sum;
-    };
+    // 2. Backtracking search: try all combinations of valid cells.
+    //    Optimize for minimum bounding area, then minimum Manhattan distance.
+    const int orig_area = compute_bounding_area(init_pos, n);
+    const int orig_manh = sum_manhattan(init_pos, n);
 
-    int best_board = 8;
-    int best_sum = 999;
+    int best_area = orig_area;
+    int best_manh = orig_manh;
     int best_pos[10];
+    std::memcpy(best_pos, init_pos, n * sizeof(int));
     bool found_better = false;
 
-    // With up to ~7 adjustable robots, enumerate 2^nadj subsets.
-    // For each subset, try the first valid candidate for each adjusted robot.
-    const int total_masks = 1 << nadj;
-    for (int mask = total_masks - 1; mask > 0; mask--) {
-        int cand[10];
-        std::memcpy(cand, init_pos, n * sizeof(int));
+    int cand[10];
 
-        // For each adjusted robot in this mask, try candidates in order.
-        // Use backtracking for multi-candidate robots.
-        // Simple approach: for each robot in mask, use its first candidate.
-        // If that fails validation, try next candidate.
-        // For simplicity (and because nadj <= ~7), just try first candidate.
-        bool ok = true;
-        for (int b = 0; b < nadj; b++) {
-            if (!(mask & (1 << b))) continue;
-            // Try candidates in order (most compact first)
-            bool placed = false;
-            for (int ci = 0; ci < adjustable[b].npos; ci++) {
-                cand[adjustable[b].robot] = adjustable[b].positions[ci];
-                // Quick collision check with already-placed robots
-                bool collision = false;
-                for (int i = 0; i < n && !collision; i++)
-                    if (i != adjustable[b].robot && cand[i] == cand[adjustable[b].robot])
-                        collision = true;
-                if (!collision) { placed = true; break; }
+    // Backtracking search with bounding-box pruning.
+    // Track partial bounding box as we place robots.
+    int pMinR, pMaxR, pMinC, pMaxC;
+
+    std::function<void(int)> search = [&](int robot) {
+        if (robot == n) {
+            // Full combination — validate collision seq.
+            if (!validate_collision_seq(cand, sol, n, num_exits)) return;
+
+            const int area = (pMaxR - pMinR + 1) * (pMaxC - pMinC + 1);
+            const int manh = sum_manhattan(cand, n);
+            if (area < best_area || (area == best_area && manh < best_manh)) {
+                best_area = area;
+                best_manh = manh;
+                std::memcpy(best_pos, cand, n * sizeof(int));
+                found_better = true;
             }
-            if (!placed) { ok = false; break; }
+            return;
         }
-        if (!ok) continue;
 
-        // Full position-collision check.
-        bool collision = false;
-        for (int i = 0; i < n && !collision; i++)
-            for (int j = i + 1; j < n && !collision; j++)
-                if (cand[i] == cand[j]) collision = true;
-        if (collision) continue;
+        // Save partial bounds.
+        const int sMinR = pMinR, sMaxR = pMaxR, sMinC = pMinC, sMaxC = pMaxC;
 
-        if (!validate_collision_seq(cand, sol, n, num_exits)) continue;
+        for (int ci = 0; ci < nvalid[robot]; ci++) {
+            const int cell = valid_cells[robot][ci];
+            // Collision check with already-placed robots.
+            bool collision = false;
+            for (int i = 0; i < robot; i++)
+                if (cand[i] == cell) { collision = true; break; }
+            if (collision) continue;
 
-        // FlatMap verification: encode with sorted helpers, canonicalize.
-        int sorted[10];
-        std::memcpy(sorted, cand, n * sizeof(int));
-        std::sort(sorted + num_exits, sorted + n);
-        const State cs = canonical(encode(sorted, n), n, num_exits);
-        uint8_t d;
-        if (!dist.find_val(cs, &d) || d != (uint8_t)original_dist) continue;
+            cand[robot] = cell;
 
-        // Compute board_size and sum-of-Manhattan for this candidate.
-        bool all_used[10];
-        std::fill(all_used, all_used + n, true);
-        const int bs = compute_board_size(cand, all_used, n);
-        const int sm = sum_manhattan(cand);
-        if (bs < best_board || (bs == best_board && sm < best_sum)) {
-            best_board = bs;
-            best_sum = sm;
-            std::memcpy(best_pos, cand, n * sizeof(int));
-            found_better = true;
+            // Update partial bounding box and prune.
+            const int cr = cell / N, cc = cell % N;
+            pMinR = std::min(sMinR, cr);
+            pMaxR = std::max(sMaxR, cr);
+            pMinC = std::min(sMinC, cc);
+            pMaxC = std::max(sMaxC, cc);
+            const int partial_area = (pMaxR - pMinR + 1) * (pMaxC - pMinC + 1);
+            if (partial_area > best_area) {
+                pMinR = sMinR; pMaxR = sMaxR; pMinC = sMinC; pMaxC = sMaxC;
+                continue; // can't beat best
+            }
+
+            search(robot + 1);
+
+            // Restore partial bounds.
+            pMinR = sMinR; pMaxR = sMaxR; pMinC = sMinC; pMaxC = sMaxC;
         }
-    }
+    };
+
+    pMinR = 6; pMaxR = 0; pMinC = 6; pMaxC = 0;
+    search(0);
 
     if (!found_better) return false;
 
-    // Check that compact version is actually better than original.
+    // 3. Verify the compacted state is in the BFS (solvable).
     {
-        bool all_used[10];
-        std::fill(all_used, all_used + n, true);
-        const int orig_board = compute_board_size(init_pos, all_used, n);
-        const int orig_sum = sum_manhattan(init_pos);
-        if (best_board > orig_board) return false;
-        if (best_board == orig_board && best_sum >= orig_sum) return false;
+        int sorted[10];
+        std::memcpy(sorted, best_pos, n * sizeof(int));
+        std::sort(sorted + num_exits, sorted + n);
+        const State cs = canonical(encode(sorted, n), n, num_exits);
+        uint8_t d;
+        if (!dist.find_val(cs, &d)) return false;
     }
 
     // 4. Apply compaction: re-sort helpers and remap solution indices.
