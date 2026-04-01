@@ -41,7 +41,7 @@ function chipClick(prev, value, shiftKey) {
   return new Set([value]);
 }
 
-export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilteredChange, blockedCells, variant, onVariantChange, scoreMode, hideOptimal }) {
+export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilteredChange, blockedCells, variant, onVariantChange, scoreMode, hideOptimal, filterState, onFilterChange }) {
   // Derive available options from the puzzle library
   const availableHelpers = useMemo(() =>
     [...new Set(allPuzzles.map(p => p.helpers))].sort((a, b) => a - b),
@@ -61,26 +61,47 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
     return { min, max };
   }, [allPuzzles]);
 
-  // Filter state — initialize to "all selected"
-  const [activeHelpers, setActiveHelpers] = useState(new Set(availableHelpers));
-  const [activeExits,   setActiveExits]   = useState(new Set(availableExits));
-  const [activeDiffs,   setActiveDiffs]   = useState(new Set(DIFF_OPTS));
-  const [movesMin,      setMovesMin]      = useState(movesRange.min);
-  const [movesMax,      setMovesMax]      = useState(movesRange.max);
+  // Filter state comes from props (owned by App); derive with defaults
+  const activeHelpers = filterState?.helpers ?? new Set(availableHelpers);
+  const activeExits   = filterState?.exits   ?? new Set(availableExits);
+  const activeDiffs   = filterState?.diffs   ?? new Set(DIFF_OPTS);
+  const movesMin      = filterState?.movesMin ?? movesRange.min;
+  const movesMax      = filterState?.movesMax ?? movesRange.max;
+  const sortBy        = filterState?.sortBy  ?? 'id';
+  const sortAsc       = filterState?.sortAsc ?? true;
+
   const [page,          setPage]          = useState(0);
   const [jumpId,        setJumpId]        = useState('');
   const [collapsed,     setCollapsed]     = useState(false);
-  const [sortBy,        setSortBy]        = useState('id');
-  const [sortAsc,       setSortAsc]       = useState(true);
+
+  // Helper to update a single filter field
+  function updateFilter(patch) {
+    onFilterChange({
+      helpers: activeHelpers,
+      exits: activeExits,
+      diffs: activeDiffs,
+      movesMin,
+      movesMax,
+      sortBy,
+      sortAsc,
+      ...patch,
+    });
+  }
+
+  // Setter-like functions for compatibility with existing chip/slider handlers
+  function setActiveHelpers(v) { updateFilter({ helpers: typeof v === 'function' ? v(activeHelpers) : v }); }
+  function setActiveExits(v)   { updateFilter({ exits: typeof v === 'function' ? v(activeExits) : v }); }
+  function setActiveDiffs(v)   { updateFilter({ diffs: typeof v === 'function' ? v(activeDiffs) : v }); }
+  function setMovesMin(v)      { updateFilter({ movesMin: typeof v === 'function' ? v(movesMin) : v }); }
+  function setMovesMax(v)      { updateFilter({ movesMax: typeof v === 'function' ? v(movesMax) : v }); }
+  function setSortBy(v)        { updateFilter({ sortBy: typeof v === 'function' ? v(sortBy) : v }); }
+  function setSortAsc(v)       { updateFilter({ sortAsc: typeof v === 'function' ? v(sortAsc) : v }); }
 
   // Reset filters when puzzle library changes (variant switch)
   useEffect(() => {
-    setActiveHelpers(new Set(availableHelpers));
-    setActiveExits(new Set(availableExits));
-    setActiveDiffs(new Set(DIFF_OPTS));
-    setMovesMin(movesRange.min);
-    setMovesMax(movesRange.max);
+    onFilterChange(null); // signal reset to defaults
     setPage(0);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [availableHelpers, availableExits, movesRange]);
 
   // Apply blocked-cell filter first, then the standard filters.
@@ -132,11 +153,11 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
     }
   }, [currentIdx]);
 
-  const handleChip = useCallback((setter, allValues, value, e) => {
-    const result = chipClick(setter === setActiveHelpers ? activeHelpers : setter === setActiveExits ? activeExits : activeDiffs, value, e.shiftKey);
+  const handleChip = useCallback((currentSet, setter, allValues, value, e) => {
+    const result = chipClick(currentSet, value, e.shiftKey);
     setter(result ?? new Set(allValues));
     setPage(0);
-  }, [activeHelpers, activeExits, activeDiffs]);
+  }, []);
 
   function handlePrev() {
     if (currentIdx > 0) onSelect(filtered[currentIdx - 1]);
@@ -260,7 +281,7 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
                     key={e}
                     className={`pnav__chip${activeExits.has(e) ? ' pnav__chip--on' : ''}`}
                     title="Click to select; Shift+click to toggle"
-                    onClick={(ev) => handleChip(setActiveExits, availableExits, e, ev)}
+                    onClick={(ev) => handleChip(activeExits, setActiveExits, availableExits, e, ev)}
                   >{e}</button>
                 ))}
               </div>
@@ -272,7 +293,7 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
                   key={h}
                   className={`pnav__chip${activeHelpers.has(h) ? ' pnav__chip--on' : ''}`}
                   title="Click to select; Shift+click to toggle"
-                  onClick={(ev) => handleChip(setActiveHelpers, availableHelpers, h, ev)}
+                  onClick={(ev) => handleChip(activeHelpers, setActiveHelpers, availableHelpers, h, ev)}
                 >{h}</button>
               ))}
             </div>
@@ -284,7 +305,7 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
                   className={`pnav__chip${activeDiffs.has(d) ? ' pnav__chip--on' : ''}`}
                   style={activeDiffs.has(d) ? { borderColor: DIFF_COLOR[d], color: DIFF_COLOR[d] } : {}}
                   title="Click to select; Shift+click to toggle"
-                  onClick={(ev) => handleChip(setActiveDiffs, DIFF_OPTS, d, ev)}
+                  onClick={(ev) => handleChip(activeDiffs, setActiveDiffs, DIFF_OPTS, d, ev)}
                 >{DIFF_LABEL[d]}</button>
               ))}
             </div>

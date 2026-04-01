@@ -2,8 +2,9 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import { usePuzzleLibrary } from './hooks/usePuzzleLibrary';
+import { usePuzzleLibrary, decodeStableId } from './hooks/usePuzzleLibrary';
 import { useGameState } from './hooks/useGameState';
+import { usePermalink } from './hooks/usePermalink';
 import Board from './components/Board';
 import HUD from './components/HUD';
 import PuzzleNav from './components/PuzzleNav';
@@ -39,13 +40,25 @@ const VARIANT_BLOCKS = {
 };
 
 export default function App() {
-  const { allPuzzles, loading, error, needsFilePicker, loadFile, variant, switchVariant, pendingStableIdRef } = usePuzzleLibrary();
+  // Parse URL hash before any hooks that depend on variant
+  const { initialState, updateHash, externalState, externalChange } = usePermalink();
+
+  const { allPuzzles, loading, error, needsFilePicker, loadFile, variant, switchVariant, stableIdMap, pendingStableIdRef, findByPositions } = usePuzzleLibrary(initialState.variant || 'standard');
   const [currentPuzzle, setCurrentPuzzle] = useState(null);
   const filteredRef = useRef([]);
 
   const [showSolution, setShowSolution] = useState(false);
   const [scoreMode, setScoreMode] = useState('grouped'); // 'grouped' | 'slides'
   const [hideOptimal, setHideOptimal] = useState(true);
+
+  // Filter state (lifted from PuzzleNav for permalink sync)
+  const [filterState, setFilterState] = useState(null); // null = use defaults
+
+  // Buffer URL-provided stableId and filters until puzzles load
+  const pendingUrlRef = useRef({
+    stableId: initialState.stableId || null,
+    filters: Object.keys(initialState.filters).length > 0 ? initialState.filters : null,
+  });
 
   const variantBlocks = VARIANT_BLOCKS[variant] || VARIANT_BLOCKS.standard;
 
@@ -54,21 +67,119 @@ export default function App() {
   // Reset solution display when puzzle changes
   useEffect(() => { setShowSolution(false); }, [currentPuzzle?.stableId]);
 
-  // When puzzle list changes (variant switch or initial load), try to preserve
-  // the current puzzle by stableId; otherwise reset to null for auto-select.
+  // Resolve a stableId to a puzzle (exact match or position-based fallback)
+  const resolvePuzzle = useCallback((stableId) => {
+    if (!stableId) return null;
+    // Try exact match first
+    const exact = stableIdMap.get(stableId);
+    if (exact) return exact;
+    // Decode positions and search
+    const decoded = decodeStableId(stableId);
+    if (decoded) return findByPositions(decoded.numExits, decoded.positions);
+    return null;
+  }, [stableIdMap, findByPositions]);
+
+  // When puzzle list changes (variant switch or initial load), apply buffered URL state
+  // or try to preserve current puzzle by stableId.
   useEffect(() => {
-    const pending = pendingStableIdRef.current;
-    if (pending) {
-      pendingStableIdRef.current = null;
-      const match = allPuzzles.find(p => p.stableId === pending);
+    if (allPuzzles.length === 0) return;
+
+    // Check for URL-buffered stableId first
+    const pending = pendingUrlRef.current;
+    if (pending.stableId) {
+      const match = resolvePuzzle(pending.stableId);
       if (match) {
         setCurrentPuzzle(match);
         dispatch({ type: 'LOAD_PUZZLE', puzzle: match });
-        return;
+      }
+      pending.stableId = null;
+    } else {
+      // Check for variant-switch preservation
+      const vsId = pendingStableIdRef.current;
+      if (vsId) {
+        pendingStableIdRef.current = null;
+        const match = allPuzzles.find(p => p.stableId === vsId);
+        if (match) {
+          setCurrentPuzzle(match);
+          dispatch({ type: 'LOAD_PUZZLE', puzzle: match });
+          return;
+        }
+      }
+      setCurrentPuzzle(null);
+    }
+
+    // Apply URL-buffered filters
+    if (pending.filters) {
+      const f = pending.filters;
+      setFilterState({
+        helpers: f.helpers ? new Set(f.helpers) : null,
+        exits: f.exits ? new Set(f.exits) : null,
+        diffs: f.diffs ? new Set(f.diffs) : null,
+        movesMin: f.movesMin ?? null,
+        movesMax: f.movesMax ?? null,
+        sortBy: f.sortBy ?? 'id',
+        sortAsc: f.sortAsc ?? true,
+      });
+      pending.filters = null;
+    }
+  }, [allPuzzles, resolvePuzzle, pendingStableIdRef, dispatch]);
+
+  // Handle external hash changes (user pastes URL while app is running)
+  useEffect(() => {
+    if (externalChange === 0 || !externalState) return;
+    if (externalState.variant && externalState.variant !== variant) {
+      pendingUrlRef.current = {
+        stableId: externalState.stableId || null,
+        filters: Object.keys(externalState.filters).length > 0 ? externalState.filters : null,
+      };
+      switchVariant(externalState.variant);
+      return;
+    }
+    if (externalState.stableId) {
+      const match = resolvePuzzle(externalState.stableId);
+      if (match) {
+        setCurrentPuzzle(match);
+        dispatch({ type: 'LOAD_PUZZLE', puzzle: match });
       }
     }
-    setCurrentPuzzle(null);
-  }, [allPuzzles, pendingStableIdRef, dispatch]);
+    if (Object.keys(externalState.filters).length > 0) {
+      const f = externalState.filters;
+      setFilterState({
+        helpers: f.helpers ? new Set(f.helpers) : null,
+        exits: f.exits ? new Set(f.exits) : null,
+        diffs: f.diffs ? new Set(f.diffs) : null,
+        movesMin: f.movesMin ?? null,
+        movesMax: f.movesMax ?? null,
+        sortBy: f.sortBy ?? 'id',
+        sortAsc: f.sortAsc ?? true,
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalChange]);
+
+  // Compute defaults for serialization (needed to know which filters are non-default)
+  const filterDefaults = useMemo(() => {
+    if (allPuzzles.length === 0) return null;
+    const helpers = [...new Set(allPuzzles.map(p => p.helpers))].sort((a, b) => a - b);
+    const exits = [...new Set(allPuzzles.map(p => p.exits ?? 1))].sort((a, b) => a - b);
+    let min = Infinity, max = -Infinity;
+    for (const p of allPuzzles) {
+      if (p.minMoves < min) min = p.minMoves;
+      if (p.minMoves > max) max = p.minMoves;
+    }
+    return { availableHelpers: helpers, availableExits: exits, movesRange: { min, max } };
+  }, [allPuzzles]);
+
+  // Update URL hash when state changes
+  useEffect(() => {
+    if (!filterDefaults) return;
+    updateHash({
+      variant,
+      stableId: currentPuzzle?.stableId || null,
+      filters: filterState || {},
+      defaults: filterDefaults,
+    });
+  }, [variant, currentPuzzle?.stableId, filterState, filterDefaults, updateHash]);
 
   // Called by PuzzleNav whenever the filtered list changes.
   const handleFilteredChange = useCallback(list => {
@@ -101,6 +212,10 @@ export default function App() {
     const idx = fp.findIndex(p => p.stableId === currentPuzzle?.stableId);
     return idx >= 0 && idx < fp.length - 1;
   })();
+
+  const handleFilterChange = useCallback((newFilter) => {
+    setFilterState(newFilter);
+  }, []);
 
   return (
     <div className="app">
@@ -193,6 +308,8 @@ export default function App() {
             onVariantChange={(v) => switchVariant(v, currentPuzzle?.stableId)}
             scoreMode={scoreMode}
             hideOptimal={hideOptimal}
+            filterState={filterState}
+            onFilterChange={handleFilterChange}
           />
         </div>
       </main>

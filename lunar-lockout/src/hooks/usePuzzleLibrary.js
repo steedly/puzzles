@@ -20,6 +20,26 @@ function computeStableId(numExits, positionsStr) {
   return `${numExits}-${value.toString(36)}`;
 }
 
+// Reverse of computeStableId: decode a stableId back to board positions.
+// Returns { numExits, positions: [[row,col], ...] } or null if invalid.
+// This enables forward-compatible permalinks — if a stableId becomes stale
+// after puzzle regeneration, we can decode it to positions and find the
+// current puzzle at those positions.
+export function decodeStableId(stableId) {
+  const dash = stableId.indexOf('-');
+  if (dash < 0) return null;
+  const numExits = parseInt(stableId.slice(0, dash), 10);
+  if (isNaN(numExits) || numExits < 1) return null;
+  let value = parseInt(stableId.slice(dash + 1), 36);
+  if (isNaN(value) || value < 0) return null;
+  const cells = [];
+  while (value > 0) {
+    cells.unshift(value % 49);
+    value = Math.floor(value / 49);
+  }
+  return { numExits, positions: cells.map(c => [Math.floor(c / 7), c % 7]) };
+}
+
 // Map solution move characters to robot IDs.
 // A → 'target' (exit 0), B → 'exit1', C → 'exit2', D → 'exit3', …
 // '1'-'9' → 'r1'-'r9' (helpers)
@@ -177,12 +197,12 @@ const VARIANT_FILES = {
   french:    'puzzles-french.llp',
 };
 
-export function usePuzzleLibrary() {
+export function usePuzzleLibrary(initialVariant = 'standard') {
   const [allPuzzles,      setAllPuzzles]      = useState([]);
   const [loading,         setLoading]         = useState(true);
   const [error,           setError]           = useState(null);
   const [needsFilePicker, setNeedsFilePicker] = useState(false);
-  const [variant,         setVariant]         = useState('standard');
+  const [variant,         setVariant]         = useState(initialVariant);
   const [stableIdMap,     setStableIdMap]     = useState(new Map());
 
   // Cache parsed puzzles per variant to avoid re-fetching/re-parsing
@@ -254,7 +274,8 @@ export function usePuzzleLibrary() {
 
   // Initial load
   useEffect(() => {
-    loadVariantFile('standard');
+    loadVariantFile(initialVariant);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadVariantFile]);
 
   // Switch variant; caller can pass a stableId to try to preserve across the switch
@@ -281,5 +302,23 @@ export function usePuzzleLibrary() {
     reader.readAsText(file);
   }
 
-  return { allPuzzles, loading, error, needsFilePicker, loadFile, variant, switchVariant, stableIdMap, pendingStableIdRef };
+  // Find a puzzle by decoded positions (forward-compatibility fallback).
+  // Searches for a puzzle with the same set of robot positions and exit count.
+  const findByPositions = useCallback((numExits, positions) => {
+    if (!positions || positions.length === 0) return null;
+    const posKey = positions.map(([r, c]) => `${r},${c}`).join(' ');
+    // Recompute what the stableId would be for these positions
+    const newStableId = computeStableId(numExits, posKey);
+    const exact = stableIdMap.get(newStableId);
+    if (exact) return exact;
+    // Fallback: linear search by matching position sets
+    const posSet = new Set(positions.map(([r, c]) => r * 7 + c));
+    return allPuzzles.find(p =>
+      p.exits === numExits &&
+      p.robots.length === positions.length &&
+      p.robots.every(r => posSet.has(r.row * 7 + r.col))
+    ) || null;
+  }, [allPuzzles, stableIdMap]);
+
+  return { allPuzzles, loading, error, needsFilePicker, loadFile, variant, switchVariant, stableIdMap, pendingStableIdRef, findByPositions };
 }
