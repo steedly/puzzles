@@ -145,10 +145,12 @@ int main() {
     // Two puzzles are D4-equivalent only if they have the same number of exits
     // and helpers, AND some D4 transform maps one's positions to the other's
     // with exit/helper roles preserved.
-    std::map<std::vector<int>, std::vector<int>> canon_to_ids;
+    // Key includes num_exits: same positions with different exit/helper roles
+    // are different puzzles.
+    std::map<std::pair<int, std::vector<int>>, std::vector<int>> canon_to_ids;
     for (const auto& p : puzzles) {
         auto canon = canonical_positions(p.cells, p.num_exits);
-        canon_to_ids[canon].push_back(p.id);
+        canon_to_ids[{p.num_exits, canon}].push_back(p.id);
     }
 
     int dup_groups = 0;

@@ -422,10 +422,12 @@ def main():
             break  # one error is enough to flag the issue
 
     # ── Check 4: D4 position duplicates ──
-    canon_map = defaultdict(list)  # canonical_positions → list of IDs
+    # Key includes num_exits because same positions with different exit/helper
+    # role assignments are different puzzles (different gameplay).
+    canon_map = defaultdict(list)  # (num_exits, canonical_positions) → list of IDs
     for p in puzzles:
         canon = d4_canonical(p['positions'], p['num_exits'])
-        canon_map[canon].append(p['id'])
+        canon_map[(p['num_exits'], canon)].append(p['id'])
     d4_dup_groups = 0
     d4_dup_puzzles = 0
     for canon, ids in canon_map.items():
