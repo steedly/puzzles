@@ -53,25 +53,25 @@ This is the biggest source of deduplication. For 1 exit + 5 helpers, it reduces 
 
 ### Stage 3: Compacting puzzles to the smallest board
 
-After dedup picks a representative for each collision signature, the solver tries to make each puzzle even more compact by **reconstructing** a tighter starting position.
+After dedup picks a representative for each collision signature, the solver tries to make each puzzle even more compact by **reconstructing** a tighter starting position via CSP (constraint satisfaction) search.
 
-The key insight: when a robot makes its first slide, only the *direction* and *blocker* matter — the distance it travels (the "gap") is irrelevant to the gameplay. A robot that slides 5 cells right before hitting a blocker plays exactly the same as one that slides 1 cell right to the same blocker. By reducing each mover's first-move gap, all movers start closer to their first blocking interaction, pulling the board inward.
+The key insight: when a robot makes its first slide, only the *direction* and *blocker* matter — the distance it travels (the "gap") is irrelevant to the gameplay. A robot that slides 5 cells right before hitting a blocker plays exactly the same as one that slides 1 cell right to the same blocker. More broadly, a robot can be repositioned to **any** cell that preserves the collision sequence — not just along its movement axis.
 
 Concretely, for each puzzle:
 
-1. **Identify adjustable robots.** Two categories:
-   - **Movers** with gap > 1: robots whose first slide travels more than one cell. These can be moved to any intermediate gap position (gap=1, gap=2, etc.).
-   - **Non-moving blockers**: helpers that never move in the solution but serve as blockers. These can be shifted one cell toward center if it doesn't change the collision sequence.
+1. **For each robot, find all valid cells.** Test every non-blocked cell that is at least as close to center as the robot's current position. A cell is valid if, with that robot moved there (and all others fixed), the full collision sequence replays correctly. Also include 1-step neighbor cells toward center as candidates for inter-robot-dependent shifts (cells that fail individual validation but may work when multiple robots shift together).
 
-2. **Try candidate positions.** For movers, try gap=1 first (most compact), then gap=2, etc. For non-movers, try positions one step closer to center.
+2. **Backtracking search.** Try all combinations of valid cells across robots, with bounding-box pruning: if the partial bounding rectangle from already-placed robots already exceeds the best found, prune the branch. Candidates are sorted center-first so good solutions are found early and pruning is aggressive.
 
-3. **Validate the collision sequence.** Replay the solution with the candidate positions, verifying that each move still produces the same mover/direction/blocker triple and that all exits reach center. This can fail if a robot's new position puts it in another robot's slide path.
+3. **Optimize bounding rectangle area.** The primary metric is the area of the smallest axis-aligned rectangle containing all robots. Tiebreaker: sum of Manhattan distances from each robot to center (3,3). This produces tighter layouts than the old Chebyshev-based "board size" metric.
 
-4. **Verify BFS distance.** Look up the candidate state in the BFS hash table. If the BFS distance matches the original, the solution is still optimal — the compact position doesn't have a shortcut.
+4. **Verify difficulty is preserved.** After compaction selects the best layout, `solve_min_grouped()` is re-run on the compacted positions. If the minimum grouped moves changed (the compacted board enables a shorter solution), the compaction is rejected — it would create a different puzzle.
 
-5. **If full compaction fails, try subsets.** With at most ~7 adjustable robots, the solver tries all 2^k combinations, picking the combination with the smallest board size.
+5. **Verify BFS reachability.** The compacted state must exist in the retrograde BFS (i.e., it's a valid solvable position).
 
-This stage typically compacts ~260 puzzles, sometimes reducing their board size from 7×7 to 5×5.
+**Why CSP instead of the old heuristic:** The previous approach only shifted movers along their movement axis (reducing the "gap") and non-movers toward center. This missed perpendicular shifts — e.g., a robot that slides Left could also start one row closer to center without affecting the collision sequence, but the old code never tried this. The CSP search finds all valid positions exhaustively.
+
+**Performance:** With ~2-5 valid cells per robot on average, the backtracking search with pruning handles 6-robot puzzles in under 1ms. For 200K puzzles this adds ~60 seconds to generation time (~10% overhead).
 
 ### Stage 4: Finding the best solution and writing output
 
