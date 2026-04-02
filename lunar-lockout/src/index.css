@@ -571,6 +571,22 @@ button { cursor: pointer; font-family: inherit; }
   max-height: 320px;
   overflow-y: auto;
 }
+.pnav__list-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--cell-border);
+  position: sticky;
+  top: 0;
+  background: var(--board-bg);
+  z-index: 1;
+}
 
 .pnav__list::-webkit-scrollbar { width: 5px; }
 .pnav__list::-webkit-scrollbar-track { background: transparent; }

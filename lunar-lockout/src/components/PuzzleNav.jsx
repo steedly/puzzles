@@ -265,6 +265,7 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
             <span className="pnav__label">Board:</span>
             <select
               className="pnav__sort-select"
+              title="Board shape — variants block corner cells, reducing the playing area"
               value={variant}
               onChange={e => onVariantChange(e.target.value)}
             >
@@ -364,12 +365,12 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
           {/* ── Navigation: Prev / Random / Next + Jump ── */}
           <div className="pnav__nav-row">
             <button className="pnav__nav-btn" onClick={handlePrev}
-              disabled={currentIdx <= 0}>←</button>
+              disabled={currentIdx <= 0} title="Previous puzzle">←</button>
             <button className="pnav__nav-btn pnav__nav-btn--rand" onClick={handleRandom}
-              disabled={filtered.length === 0}>Random</button>
+              disabled={filtered.length === 0} title="Pick a random puzzle">Random</button>
             <button className="pnav__nav-btn" onClick={handleNext}
-              disabled={currentIdx < 0 || currentIdx >= filtered.length - 1}>→</button>
-            <form className="pnav__jump-inline" onSubmit={handleJump}>
+              disabled={currentIdx < 0 || currentIdx >= filtered.length - 1} title="Next puzzle">→</button>
+            <form className="pnav__jump-inline" onSubmit={handleJump} title="Jump to a puzzle by its stable ID">
               <input
                 className="pnav__jump-input" type="text" placeholder="ID"
                 value={jumpId} onChange={e => setJumpId(e.target.value)}
@@ -380,6 +381,13 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
 
           {/* ── Puzzle list ── */}
           <div className="pnav__list">
+            <div className="pnav__list-header" title="Column headers for the puzzle list">
+              <span className="pnav__item-id" title="Unique puzzle identifier">ID</span>
+              <span className="pnav__item-meta" title="Exit robots (E) and helper robots (H)">Cfg</span>
+              <span className="pnav__item-fits" title="Which variant boards this puzzle fits on: S=Solitaire U=UFO F=French">Fits</span>
+              {!hideOptimal && <span className="pnav__item-moves" title={scoreMode === 'slides' ? 'Minimum individual slides' : 'Minimum grouped moves (consecutive slides by same robot = 1 move)'}>{scoreMode === 'slides' ? 'Sld' : 'Mov'}</span>}
+              <span className="pnav__item-diff" title="Difficulty based on helper count: Easy (1-2), Med (3), Hard (4), Exp (5+)">Dif</span>
+            </div>
             {pagePuzzles.length === 0 && (
               <p className="pnav__empty">No puzzles match the current filters.</p>
             )}
@@ -396,21 +404,20 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
                   key={p.stableId}
                   className={`pnav__item${active ? ' pnav__item--active' : ''}`}
                   onClick={() => onSelect(p)}
+                  title={`${p.exits} exit${p.exits>1?'s':''}, ${p.helpers} helper${p.helpers>1?'s':''}, ${p.minMoves} moves`}
                 >
                   <span className="pnav__item-id">{p.stableId}</span>
                   <span className="pnav__item-meta">
                     {p.exits > 1 ? `${p.exits}E ` : ''}{p.helpers}H
                   </span>
-                  {variant === 'standard' && (
-                    <span className="pnav__item-fits">
-                      {p.fitsSolitaire && <span title="Fits Solitaire board">S</span>}
-                      {p.fitsUfo && <span title="Fits UFO board">U</span>}
-                      {p.fitsFrench && <span title="Fits French board">F</span>}
-                    </span>
-                  )}
+                  <span className="pnav__item-fits">
+                    {p.fitsSolitaire && <span title="Playable on Solitaire board">S</span>}
+                    {p.fitsUfo && <span title="Playable on UFO board">U</span>}
+                    {p.fitsFrench && <span title="Playable on French board">F</span>}
+                  </span>
                   {!hideOptimal && (
                     <span className="pnav__item-moves">
-                      {scoreMode === 'slides' ? `${p.minRawSlides ?? '?'}S` : `${p.minMoves}M`}
+                      {scoreMode === 'slides' ? `${p.minRawSlides ?? '?'}` : `${p.minMoves}`}
                     </span>
                   )}
                   {sortLabel != null && (
