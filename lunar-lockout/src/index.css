@@ -543,6 +543,7 @@ button { cursor: pointer; font-family: inherit; }
   display: flex;
   align-items: center;
   gap: 4px;
+  flex-wrap: wrap;
 }
 
 .pnav__nav-btn {
@@ -712,7 +713,7 @@ button { cursor: pointer; font-family: inherit; }
 }
 
 .pnav__jump-input {
-  width: 90px;
+  width: 76px;
   padding: 4px 6px;
   border-radius: 5px;
   border: 1px solid var(--cell-border);
