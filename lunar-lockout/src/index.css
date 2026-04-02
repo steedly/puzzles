@@ -624,8 +624,9 @@ button { cursor: pointer; font-family: inherit; }
 }
 .pnav__item-meta {
   font-size: 0.8rem;
-  width: 32px;
+  width: 48px;
   flex-shrink: 0;
+  white-space: nowrap;
 }
 .pnav__item-fits {
   font-size: 0.65rem;
