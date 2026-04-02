@@ -22,7 +22,7 @@ const VARIANTS = [
   { key: 'standard',  label: '7×7' },
   { key: 'french',    label: 'French Solitaire' },
   { key: 'solitaire', label: 'Solitaire' },
-  { key: 'ufo',       label: 'UFO 5×5' },
+  { key: 'ufo',       label: 'UFO' },
 ];
 
 // Click = select only this value; Shift+click = toggle add/remove
@@ -222,6 +222,7 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
   }
 
   function handleKeyDown(e) {
+    if (e.target.tagName === 'INPUT') return;
     if (e.key === 'ArrowUp') {
       e.preventDefault();
       handlePrev();
