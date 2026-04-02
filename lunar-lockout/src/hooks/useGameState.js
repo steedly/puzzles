@@ -84,6 +84,7 @@ export function useGameState(initialPuzzle, blockedCells) {
   useEffect(() => {
     const map = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };
     function handler(e) {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
       if (map[e.key]) {
         e.preventDefault();
         dispatch({ type: 'SLIDE', direction: map[e.key], blockedCells: blockedRef.current });

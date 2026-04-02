@@ -600,7 +600,8 @@ button { cursor: pointer; font-family: inherit; }
   font-family: monospace;
   font-size: 0.78rem;
   color: var(--text-muted);
-  min-width: 48px;
+  min-width: 80px;
+  overflow: visible;
 }
 .pnav__item-meta {
   flex: 1;
@@ -678,7 +679,7 @@ button { cursor: pointer; font-family: inherit; }
 }
 
 .pnav__jump-input {
-  width: 48px;
+  width: 90px;
   padding: 4px 6px;
   border-radius: 5px;
   border: 1px solid var(--cell-border);
