@@ -401,6 +401,13 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
                   <span className="pnav__item-meta">
                     {p.exits > 1 ? `${p.exits}E ` : ''}{p.helpers}H
                   </span>
+                  {variant === 'standard' && (
+                    <span className="pnav__item-fits">
+                      {p.fitsSolitaire && <span title="Fits Solitaire board">S</span>}
+                      {p.fitsUfo && <span title="Fits UFO board">U</span>}
+                      {p.fitsFrench && <span title="Fits French board">F</span>}
+                    </span>
+                  )}
                   {!hideOptimal && (
                     <span className="pnav__item-moves">
                       {scoreMode === 'slides' ? `${p.minRawSlides ?? '?'}S` : `${p.minMoves}M`}

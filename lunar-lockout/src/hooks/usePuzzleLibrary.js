@@ -162,12 +162,23 @@ function parseLine(line) {
 
   const actualRawSlides = rawSlides ?? solution.length;
 
+  // Check which variant boards this puzzle fits on (no robot on a blocked cell).
+  const fitsVariant = (blockedTest) => robots.every(r => !blockedTest(r.row, r.col));
+  const fitsSolitaire = fitsVariant((r, c) => (r <= 1 || r >= 5) && (c <= 1 || c >= 5));
+  const fitsUfo       = fitsVariant((r, c) => r === 0 || r === 6 || c === 0 || c === 6);
+  const fitsFrench    = fitsVariant((r, c) =>
+    (r === 0 && c === 0) || (r === 0 && c === 1) || (r === 1 && c === 0) ||
+    (r === 0 && c === 5) || (r === 0 && c === 6) || (r === 1 && c === 6) ||
+    (r === 5 && c === 0) || (r === 6 && c === 0) || (r === 6 && c === 1) ||
+    (r === 5 && c === 6) || (r === 6 && c === 5) || (r === 6 && c === 6));
+
   return {
     id, stableId, exits: numExits, helpers, minMoves, difficulty, robots, solution, bbox,
     name: `#${id}`,
     rawSlides: actualRawSlides,
     minRawSlides: minRawSlides ?? null,
     forwardStates: forwardStates ?? null,
+    fitsSolitaire, fitsUfo, fitsFrench,
   };
 }
 

@@ -604,8 +604,13 @@ button { cursor: pointer; font-family: inherit; }
   overflow: visible;
 }
 .pnav__item-meta {
-  flex: 1;
   font-size: 0.8rem;
+}
+.pnav__item-fits {
+  font-size: 0.65rem;
+  color: #888;
+  letter-spacing: 1px;
+  min-width: 26px;
 }
 .pnav__item-moves {
   font-size: 0.78rem;
