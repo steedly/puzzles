@@ -1319,6 +1319,8 @@ static int count_grouped_moves(const std::vector<Move>& sol) {
 static void emit(const FlatMap& dist, int n, int num_exits,
                  int min_moves, int max_moves,
                  int& id, std::unordered_set<uint64_t>& seen_sigs,
+                 std::unordered_set<uint64_t>& seen_pruned_canons,
+                 std::unordered_set<uint64_t>& seen_dp_sigs,
                  std::unordered_set<uint64_t>& seen_state_sets,
                  int& emitted, int& deduped)
 {
@@ -1405,9 +1407,13 @@ static void emit(const FlatMap& dist, int n, int num_exits,
               << dup_count << " deduped, "
               << std::chrono::duration<double>(t2 - t1).count() << "s\n";
 
-    // ── Pass 3: DP trace for survivors → compact → output ──
+    // ── Pass 3: DP trace for survivors → dedup → output ──
     std::vector<std::string> output_lines(survivors.size());
-    // State-set hashes for provably correct dedup.
+    // D4-canonical form of pruned positions (with num_exits packed in bits 60-63).
+    std::vector<uint64_t> pruned_canons(survivors.size(), ~(uint64_t)0);
+    // Collision-sig hash of the DP (min-grouped) solution.
+    std::vector<uint64_t> dp_sig_hashes(survivors.size(), 0);
+    // State-set hashes for third-layer dedup.
     std::vector<uint64_t> state_set_hashes(survivors.size(), 0);
     // Bounding area + Manhattan for picking most compact representative.
     std::vector<int> bounding_areas(survivors.size(), 99);
@@ -1445,7 +1451,19 @@ static void emit(const FlatMap& dist, int n, int num_exits,
         auto fwd_states_vec = forward_bfs_states(pruned_start, ci, num_exits);
         int fwd_states = (int)fwd_states_vec.size();
 
-        // Global-D4-normalized forward state-set hash for provably correct dedup.
+        // D4-canonical form of pruned positions (cross-combo D4 dedup).
+        pruned_canons[j] = canonical(encode(pruned_pos, ci), ci, num_exits)
+                         | ((uint64_t)num_exits << 60);
+
+        // Collision-sig hash of the DP solution (catches greedy/DP path differences).
+        {
+            std::string sig = collision_signature(pruned, num_exits);
+            std::string key = "e" + std::to_string(num_exits)
+                            + "h" + std::to_string(new_h) + "|" + sig;
+            dp_sig_hashes[j] = hash_dedup_key(key);
+        }
+
+        // Forward state-set hash for third-layer dedup.
         state_set_hashes[j] = forward_state_set_hash(fwd_states_vec);
 
         // Bounding area and Manhattan for picking most compact representative.
@@ -1491,19 +1509,72 @@ static void emit(const FlatMap& dist, int n, int num_exits,
     }
 
     // Sequential output with IDs.
-    // Dedup by global-D4-normalized forward-reachable state-set hash.
-    // Among duplicates, keep the most compact representative (smallest
-    // bounding area, then smallest sum-of-Manhattan).
+    // Two-layer dedup:
+    //   (1) D4-canonical form of pruned positions (catches D4 positional dups)
+    //   (2) Forward state-set hash (catches collision-sig dups with same reachable states)
+    // Among state-set dups, keep the most compact representative.
     emitted = 0;
     deduped = dup_count;
+    int pruned_dup_count = 0;
     int state_set_dup_count = 0;
 
-    // First pass: for each state-set hash, pick the best (most compact) index.
-    std::unordered_map<uint64_t, int> best_for_hash; // hash → index j
+    // Layer 1: D4-canonical dedup — filter out positional D4 duplicates.
+    // Among D4 dups, keep the most compact representative.
+    std::unordered_map<uint64_t, int> best_for_canon; // pruned_canon → best j
     for (int j = 0; j < (int)output_lines.size(); j++) {
         if (output_lines[j].empty()) continue;
+        auto it = best_for_canon.find(pruned_canons[j]);
+        if (it == best_for_canon.end()) {
+            best_for_canon[pruned_canons[j]] = j;
+        } else {
+            int prev = it->second;
+            if (bounding_areas[j] < bounding_areas[prev] ||
+                (bounding_areas[j] == bounding_areas[prev] &&
+                 manhattan_sums[j] < manhattan_sums[prev])) {
+                it->second = j;
+            }
+            pruned_dup_count++;
+        }
+    }
+    // Cross-combo D4 dedup.
+    for (auto& [canon, j] : best_for_canon) {
+        if (!seen_pruned_canons.insert(canon).second) {
+            best_for_canon[canon] = -1; // mark as cross-combo dup
+            pruned_dup_count++;
+        }
+    }
+
+    // Layer 2: DP collision-sig dedup — among D4 survivors, catch greedy/DP divergences.
+    int dp_sig_dup_count = 0;
+    std::unordered_map<uint64_t, int> best_for_dp_sig; // dp_sig_hash → best j
+    for (auto& [canon, j] : best_for_canon) {
+        if (j < 0) continue; // D4-deduped
+        auto it = best_for_dp_sig.find(dp_sig_hashes[j]);
+        if (it == best_for_dp_sig.end()) {
+            best_for_dp_sig[dp_sig_hashes[j]] = j;
+        } else {
+            int prev = it->second;
+            if (bounding_areas[j] < bounding_areas[prev] ||
+                (bounding_areas[j] == bounding_areas[prev] &&
+                 manhattan_sums[j] < manhattan_sums[prev])) {
+                it->second = j;
+            }
+            dp_sig_dup_count++;
+        }
+    }
+    // Cross-combo DP sig dedup.
+    for (auto& [h, j] : best_for_dp_sig) {
+        if (!seen_dp_sigs.insert(h).second) {
+            best_for_dp_sig[h] = -1;
+            dp_sig_dup_count++;
+        }
+    }
+
+    // Layer 3: State-set hash dedup — among DP-sig survivors, catch remaining dups.
+    std::unordered_map<uint64_t, int> best_for_hash; // state_set_hash → best j
+    for (auto& [sig, j] : best_for_dp_sig) {
+        if (j < 0) continue; // DP-sig-deduped
         uint64_t h = state_set_hashes[j];
-        // Include num_exits in hash to prevent cross-exit-count false dedup.
         h ^= ((uint64_t)num_exits * 0x9e3779b97f4a7c15ULL);
         auto it = best_for_hash.find(h);
         if (it == best_for_hash.end()) {
@@ -1518,28 +1589,31 @@ static void emit(const FlatMap& dist, int n, int num_exits,
             state_set_dup_count++;
         }
     }
-
-    // Also check against previously emitted state-set hashes (cross-combo).
+    // Cross-combo state-set dedup.
     for (auto& [h, j] : best_for_hash) {
         if (!seen_state_sets.insert(h).second) {
-            output_lines[j].clear(); // already emitted from prior combo
+            best_for_hash[h] = -1;
             state_set_dup_count++;
         }
     }
 
     // Emit winners.
+    std::unordered_set<int> winners;
+    for (auto& [h, j] : best_for_hash) {
+        if (j >= 0) winners.insert(j);
+    }
     for (int j = 0; j < (int)output_lines.size(); j++) {
-        if (output_lines[j].empty()) continue;
-        uint64_t h = state_set_hashes[j];
-        h ^= ((uint64_t)num_exits * 0x9e3779b97f4a7c15ULL);
-        auto it = best_for_hash.find(h);
-        if (it == best_for_hash.end() || it->second != j) continue;
+        if (!winners.count(j)) continue;
         std::cout << ++id << '|' << output_lines[j] << '\n';
         emitted++;
     }
 
     auto t3 = Clock::now();
     std::cerr << "  pass 3 (solve + dedup + output): " << emitted << " emitted";
+    if (pruned_dup_count > 0)
+        std::cerr << ", " << pruned_dup_count << " D4 dups removed";
+    if (dp_sig_dup_count > 0)
+        std::cerr << ", " << dp_sig_dup_count << " DP collision-sig dups removed";
     if (state_set_dup_count > 0)
         std::cerr << ", " << state_set_dup_count << " state-set dups removed";
     std::cerr << ", " << std::chrono::duration<double>(t3 - t2).count() << "s\n";
@@ -1590,6 +1664,8 @@ int main(int argc, char* argv[]) {
         "#\n";
 
     std::unordered_set<uint64_t> seen_sigs;
+    std::unordered_set<uint64_t> seen_pruned_canons;
+    std::unordered_set<uint64_t> seen_dp_sigs;
     std::unordered_set<uint64_t> seen_state_sets;
     int id = 0, total_emitted = 0;
 
@@ -1610,8 +1686,8 @@ int main(int argc, char* argv[]) {
 
             int k_emitted = 0, k_deduped = 0;
             emit(dist, ne + nh, ne, min_moves, max_moves,
-                 id, seen_sigs, seen_state_sets,
-                 k_emitted, k_deduped);
+                 id, seen_sigs, seen_pruned_canons, seen_dp_sigs,
+                 seen_state_sets, k_emitted, k_deduped);
 
             std::cerr << "  emitted: " << k_emitted
                       << "  deduped by collision sig: " << k_deduped << "\n";

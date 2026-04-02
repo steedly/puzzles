@@ -51,14 +51,12 @@ The `seen_pruned_canons` set deduplicates across exit/helper combinations. The k
 ### Variant independence
 Each board variant (standard, solitaire, ufo, french) runs its own independent enumeration pipeline. The puzzle sets are NOT strict subsets of each other — different dedup survivors are selected per variant. A UFO puzzle's solution works on the standard board, but the standard pipeline may have selected a different representative with robots on blocked cells.
 
-### Forward-state-set dedup (IN PROGRESS — not yet correct)
-The current code (commit 3ecb8f7) replaces compaction with forward-state-set hashing as the Pass 3 dedup. **It has D4 duplicate bugs**: 291 D4-duplicate groups and 11,243 collision-sig duplicate groups in the test output. The state-set hash alone is insufficient because:
-1. Different self-canonical starting states can have the same forward states after pruning unused helpers (D4 equivalents across combos)
-2. The hash doesn't account for D4 transforms of the state set — two puzzles that are D4 reflections of each other will have different raw state sets but should be considered duplicates
-3. The old `seen_pruned_canons` dedup (D4-canonical form of pruned positions with num_exits packed in) was removed and needs to be restored or replaced
-4. **Independent per-state D4 canonicalization produces false positives** (~2.4% proven empirically). A global D4 transform of the entire state set is needed, but the sym() transform doesn't compose cleanly with the State encoding (helpers are sorted by cell index, so transforming and re-sorting changes the encoding).
-
-**Next steps:** Either (a) restore the `seen_pruned_canons` dedup alongside the state-set hash, or (b) fix the global D4 state-set hash to work correctly with the encoding. Option (a) is simpler and catches the D4 dups that were caught before.
+### Three-layer dedup in Pass 3
+After the greedy collision-sig dedup in Pass 2, Pass 3 applies three sequential dedup layers:
+1. **D4-canonical positions** (`seen_pruned_canons`): canonical form of pruned robot positions with `num_exits` packed in bits 60-63. Catches cross-combo D4 positional duplicates.
+2. **DP collision-sig** (`seen_dp_sigs`): collision signature of the min-grouped-moves solution. Catches greedy/DP path divergences where different starting states produce the same optimal solution structure.
+3. **Forward state-set hash** (`seen_state_sets`): FNV hash of all forward-reachable states. Catches remaining duplicates where different positions have identical reachability.
+Among duplicates at each layer, the most compact representative (smallest bounding area, then smallest Manhattan distance) is kept.
 
 ### StableIds are position-based
 `stableId = numExits + "-" + base36(cells packed as base-49)`. They survive regeneration as long as the same positions exist. But regeneration changes which puzzles survive dedup, so some stableIds may appear/disappear. StableIds are fully reversible — you can decode positions from them.
