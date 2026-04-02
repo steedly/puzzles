@@ -802,6 +802,50 @@ static int forward_bfs_count(State start, int n, int num_exits) {
     return (int)visited.size();
 }
 
+// ── Forward BFS: collect all reachable states ────────────────────────────────
+static std::vector<State> forward_bfs_states(State start, int n, int num_exits) {
+    std::unordered_set<State> seen;
+    std::vector<State> queue;
+    queue.push_back(start);
+    seen.insert(start);
+    size_t head = 0;
+    while (head < queue.size()) {
+        State s = queue[head++];
+        int pos[10];
+        decode(s, n, pos);
+        for (int ridx = 0; ridx < n; ridx++) {
+            for (int d = 0; d < 4; d++) {
+                int nc, bi;
+                State ns;
+                if (!forward_move(pos, n, num_exits, ridx, d, nc, bi, ns))
+                    continue;
+                if (seen.insert(ns).second)
+                    queue.push_back(ns);
+            }
+        }
+    }
+    std::sort(queue.begin(), queue.end());
+    return queue;
+}
+
+// ── Forward state-set hash ────────────────────────────────────────────────────
+// Hash the sorted set of forward-reachable states.  Since we only process
+// self-canonical starting states (D4 equivalents share the same canonical
+// start and thus the same forward states), no D4 transform is needed here.
+// Cross-combo D4 dedup is handled by canonicalizing the pruned positions
+// and including num_exits in the hash.
+static uint64_t forward_state_set_hash(const std::vector<State>& states) {
+    uint64_t h = 14695981039346656037ULL; // FNV offset basis
+    for (auto s : states) {
+        h ^= s;
+        h *= 1099511628211ULL; // FNV prime
+    }
+    // Mix in the count to distinguish empty/small sets
+    h ^= (uint64_t)states.size();
+    h *= 1099511628211ULL;
+    return h;
+}
+
 // ── Minimum grouped moves via 0-1 BFS ────────────────────────────────────────
 // Finds the solution with minimum GROUPED moves (consecutive slides by the
 // same robot = 1 move), allowing any number of raw slides.  This is the
@@ -1176,11 +1220,7 @@ static bool validate_collision_seq(const int* init_pos,
     return true;
 }
 
-// Try to compact the starting position by reducing each mover's first-move
-// gap to 1 (or an intermediate gap if 1 fails due to collisions), and by
-// shifting non-moving robots toward center.  On success, modifies init_pos
-// and sol in place (helpers re-sorted and solution indices remapped) and
-// returns true.
+// ── Bounding area metric (used for picking most compact representative) ──────
 static int compute_bounding_area(const int* pos, int n) {
     int minR=6, maxR=0, minC=6, maxC=0;
     for (int i = 0; i < n; i++) {
@@ -1203,189 +1243,6 @@ static int sum_manhattan(const int* pos, int n) {
     return sum;
 }
 
-static bool try_compact(int* init_pos, std::vector<Move>& sol,
-                        int n, int num_exits, const FlatMap& dist,
-                        int original_dist)
-{
-    // CSP-based compaction: for each robot, find ALL valid cells that
-    // preserve the collision sequence, then backtracking search for the
-    // combination with smallest bounding rectangle area (Manhattan tiebreaker).
-
-    // 1. For each robot, find all valid cells by individually testing each
-    //    candidate.  Per-robot validation is a necessary condition but not
-    //    sufficient (combinations may enable shifts that fail individually).
-    //    To handle inter-robot dependencies, we also include cells within
-    //    1 step of the original in each direction — these are cheap to test
-    //    in combination even if they fail individually.
-    int valid_cells[10][49];
-    int nvalid[10];
-    bool any_movable = false;
-
-    for (int r = 0; r < n; r++) {
-        nvalid[r] = 0;
-        bool seen[49] = {};
-
-        const int or_ = init_pos[r] / N, oc = init_pos[r] % N;
-
-        for (int cell = 0; cell < NC; cell++) {
-            if (BLOCKED & ((uint64_t)1 << cell)) continue;
-            // Only consider cells at least as close to center as original.
-            const int cr = cell / N, cc = cell % N;
-            const int orig_cheb = std::max(std::abs(or_ - 3), std::abs(oc - 3));
-            const int new_cheb = std::max(std::abs(cr - 3), std::abs(cc - 3));
-            if (new_cheb > orig_cheb) continue;
-
-            // Test individually (keeping other robots at original positions).
-            bool occupied = false;
-            for (int i = 0; i < n; i++)
-                if (i != r && init_pos[i] == cell) { occupied = true; break; }
-            if (occupied) continue;
-
-            int tmp[10];
-            std::memcpy(tmp, init_pos, n * sizeof(int));
-            tmp[r] = cell;
-            if (validate_collision_seq(tmp, sol, n, num_exits)) {
-                valid_cells[r][nvalid[r]++] = cell;
-                seen[cell] = true;
-            }
-        }
-
-        // Also add neighbor cells (1 step each direction) even if they fail
-        // individual validation — they may work in combination.
-        for (int dr = -1; dr <= 1; dr++) {
-            for (int dc = -1; dc <= 1; dc++) {
-                if (dr == 0 && dc == 0) continue;
-                if (std::abs(dr) + std::abs(dc) > 1) continue; // only cardinal
-                const int nr = or_ + dr, nc = oc + dc;
-                if (nr < 0 || nr >= N || nc < 0 || nc >= N) continue;
-                const int cell = nr * N + nc;
-                if (seen[cell]) continue;
-                if (BLOCKED & ((uint64_t)1 << cell)) continue;
-                // Only if closer to center.
-                const int orig_cheb = std::max(std::abs(or_ - 3), std::abs(oc - 3));
-                const int new_cheb = std::max(std::abs(nr - 3), std::abs(nc - 3));
-                if (new_cheb >= orig_cheb) continue;
-                valid_cells[r][nvalid[r]++] = cell;
-                seen[cell] = true;
-            }
-        }
-
-        // Sort: closer to center first.
-        std::sort(valid_cells[r], valid_cells[r] + nvalid[r], [](int a, int b) {
-            int da = std::max(std::abs(a/N-3), std::abs(a%N-3));
-            int db = std::max(std::abs(b/N-3), std::abs(b%N-3));
-            if (da != db) return da < db;
-            return (std::abs(a/N-3) + std::abs(a%N-3)) < (std::abs(b/N-3) + std::abs(b%N-3));
-        });
-
-        if (nvalid[r] > 1) any_movable = true;
-    }
-
-    if (!any_movable) return false;
-
-    // 2. Backtracking search: try all combinations of valid cells.
-    //    Optimize for minimum bounding area, then minimum Manhattan distance.
-    const int orig_area = compute_bounding_area(init_pos, n);
-    const int orig_manh = sum_manhattan(init_pos, n);
-
-    int best_area = orig_area;
-    int best_manh = orig_manh;
-    int best_pos[10];
-    std::memcpy(best_pos, init_pos, n * sizeof(int));
-    bool found_better = false;
-
-    int cand[10];
-
-    // Backtracking search with bounding-box pruning.
-    // Track partial bounding box as we place robots.
-    int pMinR, pMaxR, pMinC, pMaxC;
-
-    std::function<void(int)> search = [&](int robot) {
-        if (robot == n) {
-            // Full combination — validate collision seq.
-            if (!validate_collision_seq(cand, sol, n, num_exits)) return;
-
-            const int area = (pMaxR - pMinR + 1) * (pMaxC - pMinC + 1);
-            const int manh = sum_manhattan(cand, n);
-            if (area < best_area || (area == best_area && manh < best_manh)) {
-                best_area = area;
-                best_manh = manh;
-                std::memcpy(best_pos, cand, n * sizeof(int));
-                found_better = true;
-            }
-            return;
-        }
-
-        // Save partial bounds.
-        const int sMinR = pMinR, sMaxR = pMaxR, sMinC = pMinC, sMaxC = pMaxC;
-
-        for (int ci = 0; ci < nvalid[robot]; ci++) {
-            const int cell = valid_cells[robot][ci];
-            // Collision check with already-placed robots.
-            bool collision = false;
-            for (int i = 0; i < robot; i++)
-                if (cand[i] == cell) { collision = true; break; }
-            if (collision) continue;
-
-            cand[robot] = cell;
-
-            // Update partial bounding box and prune.
-            const int cr = cell / N, cc = cell % N;
-            pMinR = std::min(sMinR, cr);
-            pMaxR = std::max(sMaxR, cr);
-            pMinC = std::min(sMinC, cc);
-            pMaxC = std::max(sMaxC, cc);
-            const int partial_area = (pMaxR - pMinR + 1) * (pMaxC - pMinC + 1);
-            if (partial_area > best_area) {
-                pMinR = sMinR; pMaxR = sMaxR; pMinC = sMinC; pMaxC = sMaxC;
-                continue; // can't beat best
-            }
-
-            search(robot + 1);
-
-            // Restore partial bounds.
-            pMinR = sMinR; pMaxR = sMaxR; pMinC = sMinC; pMaxC = sMaxC;
-        }
-    };
-
-    pMinR = 6; pMaxR = 0; pMinC = 6; pMaxC = 0;
-    search(0);
-
-    if (!found_better) return false;
-
-    // 3. Verify the compacted state is in the BFS (solvable).
-    {
-        int sorted[10];
-        std::memcpy(sorted, best_pos, n * sizeof(int));
-        std::sort(sorted + num_exits, sorted + n);
-        const State cs = canonical(encode(sorted, n), n, num_exits);
-        uint8_t d;
-        if (!dist.find_val(cs, &d)) return false;
-    }
-
-    // 4. Apply compaction: re-sort helpers and remap solution indices.
-    //    Exits keep their indices; helpers are sorted by position.
-    int perm[10], inv[10];
-    for (int e = 0; e < num_exits; e++) perm[e] = e;
-
-    int helper_order[10];
-    const int nh = n - num_exits;
-    std::iota(helper_order, helper_order + nh, num_exits);
-    std::sort(helper_order, helper_order + nh,
-              [&](int a, int b) { return best_pos[a] < best_pos[b]; });
-    for (int i = 0; i < nh; i++) perm[num_exits + i] = helper_order[i];
-
-    for (int i = 0; i < n; i++) inv[perm[i]] = i;
-
-    for (int i = 0; i < n; i++) init_pos[i] = best_pos[perm[i]];
-
-    for (auto& m : sol) {
-        m.mover   = (int8_t)inv[(int)m.mover];
-        m.blocker = (int8_t)inv[(int)m.blocker];
-    }
-
-    return true;
-}
 
 // ── Output helpers ──────────────────────────────────────────────────────────
 
@@ -1462,8 +1319,7 @@ static int count_grouped_moves(const std::vector<Move>& sol) {
 static void emit(const FlatMap& dist, int n, int num_exits,
                  int min_moves, int max_moves,
                  int& id, std::unordered_set<uint64_t>& seen_sigs,
-                 std::unordered_set<uint64_t>& seen_pruned_canons,
-                 std::unordered_set<uint64_t>& seen_dp_sigs,
+                 std::unordered_set<uint64_t>& seen_state_sets,
                  int& emitted, int& deduped)
 {
     using Clock = std::chrono::steady_clock;
@@ -1551,9 +1407,11 @@ static void emit(const FlatMap& dist, int n, int num_exits,
 
     // ── Pass 3: DP trace for survivors → compact → output ──
     std::vector<std::string> output_lines(survivors.size());
-    std::vector<State> pruned_canons(survivors.size(), ~(State)0);
-    std::vector<uint64_t> dp_sig_hashes(survivors.size(), 0);
-    std::atomic<int> compact_count{0};
+    // State-set hashes for provably correct dedup.
+    std::vector<uint64_t> state_set_hashes(survivors.size(), 0);
+    // Bounding area + Manhattan for picking most compact representative.
+    std::vector<int> bounding_areas(survivors.size(), 99);
+    std::vector<int> manhattan_sums(survivors.size(), 999);
 
 #ifdef _OPENMP
     #pragma omp parallel for schedule(dynamic, 64)
@@ -1567,23 +1425,6 @@ static void emit(const FlatMap& dist, int n, int num_exits,
 
         int init_pos[10];
         decode(recs[i].s, n, init_pos);
-        if (try_compact(init_pos, tr.moves, n, num_exits, dist, recs[i].d))
-            compact_count++;
-
-        // Re-verify grouped moves after compaction.
-        {
-            int compact_pos[10];
-            std::memcpy(compact_pos, init_pos, n * sizeof(int));
-            std::sort(compact_pos + num_exits, compact_pos + n);
-            State cs = encode(compact_pos, n);
-            auto tr2 = solve_min_grouped(cs, n, num_exits);
-            if (!tr2.moves.empty() && tr2.grouped_moves <= tr.grouped_moves) {
-                tr = std::move(tr2);
-                stabilise_indices(tr.moves, cs, n, num_exits);
-                decode(cs, n, init_pos);
-            }
-        }
-
         sort_exits_and_remap(init_pos, tr.moves, num_exits);
 
         bool used[10];
@@ -1594,35 +1435,22 @@ static void emit(const FlatMap& dist, int n, int num_exits,
         const int min_raw_slides = (int)recs[i].d;  // BFS depth
 
         // Compute forward reachable states from pruned starting position.
-        int fwd_states;
-        {
-            int compact_pos[10];
-            int ci = 0;
-            for (int e = 0; e < num_exits; e++) compact_pos[ci++] = init_pos[e];
-            for (int h = num_exits; h < n; h++)
-                if (used[h]) compact_pos[ci++] = init_pos[h];
-            State pruned_start = encode(compact_pos, ci);
-            fwd_states = forward_bfs_count(pruned_start, ci, num_exits);
-        }
+        int pruned_pos[10];
+        int ci = 0;
+        for (int e = 0; e < num_exits; e++) pruned_pos[ci++] = init_pos[e];
+        for (int h = num_exits; h < n; h++)
+            if (used[h]) pruned_pos[ci++] = init_pos[h];
+        State pruned_start = encode(pruned_pos, ci);
 
-        // Collision-sig hash of the grouped-optimal solution.
-        {
-            std::string sig = collision_signature(pruned, num_exits);
-            std::string key = "e" + std::to_string(num_exits)
-                            + "h" + std::to_string(new_h) + "|" + sig;
-            dp_sig_hashes[j] = hash_dedup_key(key);
-        }
+        auto fwd_states_vec = forward_bfs_states(pruned_start, ci, num_exits);
+        int fwd_states = (int)fwd_states_vec.size();
 
-        // Compute D4-canonical form of the PRUNED positions.
-        {
-            int compact[10];
-            int ci = 0;
-            for (int e = 0; e < num_exits; e++) compact[ci++] = init_pos[e];
-            for (int h = num_exits; h < n; h++)
-                if (used[h]) compact[ci++] = init_pos[h];
-            pruned_canons[j] = canonical(encode(compact, ci), ci, num_exits)
-                             | ((uint64_t)num_exits << 60);
-        }
+        // Global-D4-normalized forward state-set hash for provably correct dedup.
+        state_set_hashes[j] = forward_state_set_hash(fwd_states_vec);
+
+        // Bounding area and Manhattan for picking most compact representative.
+        bounding_areas[j] = compute_bounding_area(pruned_pos, ci);
+        manhattan_sums[j] = sum_manhattan(pruned_pos, ci);
 
         // Format output line (ID assigned sequentially below).
         // Format: exits|helpers|groupedMoves|rawSlides|minRawSlides|forwardStates|positions|solution
@@ -1663,34 +1491,57 @@ static void emit(const FlatMap& dist, int n, int num_exits,
     }
 
     // Sequential output with IDs.
-    // Dedup by: (1) D4-canonical form of pruned positions (cross-combo dups),
-    //           (2) collision-sig of DP solution (greedy/DP path differences).
+    // Dedup by global-D4-normalized forward-reachable state-set hash.
+    // Among duplicates, keep the most compact representative (smallest
+    // bounding area, then smallest sum-of-Manhattan).
     emitted = 0;
     deduped = dup_count;
-    int pruned_dup_count = 0;
-    int dp_sig_dup_count = 0;
+    int state_set_dup_count = 0;
+
+    // First pass: for each state-set hash, pick the best (most compact) index.
+    std::unordered_map<uint64_t, int> best_for_hash; // hash → index j
     for (int j = 0; j < (int)output_lines.size(); j++) {
         if (output_lines[j].empty()) continue;
-        if (!seen_pruned_canons.insert(pruned_canons[j]).second) {
-            pruned_dup_count++;
-            continue;
+        uint64_t h = state_set_hashes[j];
+        // Include num_exits in hash to prevent cross-exit-count false dedup.
+        h ^= ((uint64_t)num_exits * 0x9e3779b97f4a7c15ULL);
+        auto it = best_for_hash.find(h);
+        if (it == best_for_hash.end()) {
+            best_for_hash[h] = j;
+        } else {
+            int prev = it->second;
+            if (bounding_areas[j] < bounding_areas[prev] ||
+                (bounding_areas[j] == bounding_areas[prev] &&
+                 manhattan_sums[j] < manhattan_sums[prev])) {
+                it->second = j;
+            }
+            state_set_dup_count++;
         }
-        if (!seen_dp_sigs.insert(dp_sig_hashes[j]).second) {
-            dp_sig_dup_count++;
-            continue;
+    }
+
+    // Also check against previously emitted state-set hashes (cross-combo).
+    for (auto& [h, j] : best_for_hash) {
+        if (!seen_state_sets.insert(h).second) {
+            output_lines[j].clear(); // already emitted from prior combo
+            state_set_dup_count++;
         }
+    }
+
+    // Emit winners.
+    for (int j = 0; j < (int)output_lines.size(); j++) {
+        if (output_lines[j].empty()) continue;
+        uint64_t h = state_set_hashes[j];
+        h ^= ((uint64_t)num_exits * 0x9e3779b97f4a7c15ULL);
+        auto it = best_for_hash.find(h);
+        if (it == best_for_hash.end() || it->second != j) continue;
         std::cout << ++id << '|' << output_lines[j] << '\n';
         emitted++;
     }
 
     auto t3 = Clock::now();
-    std::cerr << "  pass 3 (DP trace + output): " << emitted << " emitted";
-    if (compact_count.load() > 0)
-        std::cerr << ", " << compact_count.load() << " compacted";
-    if (pruned_dup_count > 0)
-        std::cerr << ", " << pruned_dup_count << " cross-combo D4 dups removed";
-    if (dp_sig_dup_count > 0)
-        std::cerr << ", " << dp_sig_dup_count << " DP collision-sig dups removed";
+    std::cerr << "  pass 3 (solve + dedup + output): " << emitted << " emitted";
+    if (state_set_dup_count > 0)
+        std::cerr << ", " << state_set_dup_count << " state-set dups removed";
     std::cerr << ", " << std::chrono::duration<double>(t3 - t2).count() << "s\n";
 }
 
@@ -1739,8 +1590,7 @@ int main(int argc, char* argv[]) {
         "#\n";
 
     std::unordered_set<uint64_t> seen_sigs;
-    std::unordered_set<uint64_t> seen_pruned_canons;
-    std::unordered_set<uint64_t> seen_dp_sigs;
+    std::unordered_set<uint64_t> seen_state_sets;
     int id = 0, total_emitted = 0;
 
     for (int ne = 1; ne <= max_exits; ne++) {
@@ -1760,7 +1610,7 @@ int main(int argc, char* argv[]) {
 
             int k_emitted = 0, k_deduped = 0;
             emit(dist, ne + nh, ne, min_moves, max_moves,
-                 id, seen_sigs, seen_pruned_canons, seen_dp_sigs,
+                 id, seen_sigs, seen_state_sets,
                  k_emitted, k_deduped);
 
             std::cerr << "  emitted: " << k_emitted

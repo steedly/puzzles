@@ -1093,72 +1093,70 @@ TEST(collision_sig_d4_reported_duplicates) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Compaction improvements
+// Forward state-set dedup
 // ═══════════════════════════════════════════════════════════════════════════════
 
-TEST(compact_nonmover_toward_center) {
-    // Verify that try_compact can shift a non-moving blocker toward center.
-    // Setup: 1 exit + 2 helpers. Exit at center-adjacent, helper far from center
-    // acts as blocker but never moves.
-    FlatMap dist = retrograde(1, 2);
-    const int n = 3;
-    int compacted = 0;
-    int total_checked = 0;
+TEST(forward_bfs_states_basic) {
+    BLOCKED = 0;
+    // 1 exit + 1 helper: small reachable set
+    int pos[2] = {3, 31}; // exit at (0,3), helper at (4,3)
+    State s = encode(pos, 2);
+    auto states = forward_bfs_states(s, 2, 1);
+    ASSERT(states.size() >= 2);  // at least start + one move
+    ASSERT(states.size() < 100);
+    // Should be sorted
+    for (size_t i = 1; i < states.size(); i++)
+        ASSERT(states[i] > states[i-1]);
+}
+
+TEST(forward_state_set_hash_same_start) {
+    // Same starting state should always produce the same hash.
+    BLOCKED = 0;
+    int pos[3] = {3*7+5, 1*7+5, 3*7+2};
+    std::sort(pos+1, pos+3);
+    State s = encode(pos, 3);
+    auto st1 = forward_bfs_states(s, 3, 1);
+    auto st2 = forward_bfs_states(s, 3, 1);
+    ASSERT_EQ(forward_state_set_hash(st1), forward_state_set_hash(st2));
+}
+
+TEST(forward_state_set_hash_different_puzzles) {
+    // Two genuinely different puzzles should produce different hashes.
+    BLOCKED = 0;
+    int pos1[3] = {3*7+5, 1*7+5, 3*7+2};
+    int pos2[3] = {4*7+3, 0*7+3, 2*7+3};
+    std::sort(pos1+1, pos1+3);
+    std::sort(pos2+1, pos2+3);
+    State s1 = encode(pos1, 3), s2 = encode(pos2, 3);
+    auto st1 = forward_bfs_states(s1, 3, 1);
+    auto st2 = forward_bfs_states(s2, 3, 1);
+    ASSERT(forward_state_set_hash(st1) != forward_state_set_hash(st2));
+}
+
+TEST(forward_state_set_dedup_no_false_positives) {
+    // Verify that state-set hash distinguishes puzzles that are NOT
+    // D4-equivalent (self-canonical states with different forward sets).
+    BLOCKED = 0;
+    FlatMap dist = retrograde(1, 3);
+    const int n = 4;
+    std::unordered_map<uint64_t, int> hash_groups;
+    int checked = 0;
     for (auto [s, d] : dist) {
-        if (d < 2 || d > 4) continue;
+        if (d < 2 || d > 5) continue;
         int r[10]; decode(s, n, r);
         if (r[0] == EXITED) continue;
         if (canonical(s, n, 1) != s) continue;
-
-        auto tr = trace_solution(s, n, 1, dist);
-        auto& sol = tr.moves;
-        if (sol.size() != (size_t)d) continue;
-        stabilise_indices(sol, s, n, 1);
-
-        int init_pos[10]; decode(s, n, init_pos);
-        std::vector<Move> sol_copy = sol;
-        if (try_compact(init_pos, sol_copy, n, 1, dist, d))
-            compacted++;
-        total_checked++;
-        if (total_checked >= 200) break;
+        auto states = forward_bfs_states(s, n, 1);
+        uint64_t h = forward_state_set_hash(states);
+        hash_groups[h]++;
+        if (++checked >= 500) break;
     }
-    // Just verify the function works without crashing; some puzzles may compact.
-    ASSERT(total_checked > 0);
+    ASSERT(checked > 100);
+    // Self-canonical states should mostly have unique forward state sets.
+    // Some may share (legitimate D4-equivalent pruned forms across combos).
+    ASSERT((int)hash_groups.size() > checked * 85 / 100);
 }
 
-TEST(compact_intermediate_gaps) {
-    // Verify that try_compact can use intermediate gaps (not just gap=1).
-    // This tests the fix for puzzle #2 where gap=1 fails but gap=2 works.
-    FlatMap dist = retrograde(1, 2);
-    const int n = 3;
-    int compacted = 0;
-    for (auto [s, d] : dist) {
-        if (d < 2) continue;
-        int r[10]; decode(s, n, r);
-        if (r[0] == EXITED) continue;
-        if (canonical(s, n, 1) != s) continue;
-
-        auto tr = trace_solution(s, n, 1, dist);
-        auto& sol = tr.moves;
-        if (sol.size() != (size_t)d) continue;
-        stabilise_indices(sol, s, n, 1);
-
-        int init_pos[10]; decode(s, n, init_pos);
-        std::vector<Move> sol_copy = sol;
-        if (try_compact(init_pos, sol_copy, n, 1, dist, d)) {
-            // Verify the compacted solution is still valid
-            int sorted[10];
-            std::memcpy(sorted, init_pos, n * sizeof(int));
-            std::sort(sorted + 1, sorted + n);
-            State cs = canonical(encode(sorted, n), n, 1);
-            uint8_t cd;
-            ASSERT(dist.find_val(cs, &cd));
-            ASSERT_EQ((int)cd, (int)d);
-            compacted++;
-        }
-        if (compacted >= 10) break;
-    }
-}
 
 TEST(helper_on_center_during_solution) {
     // Verify that a helper can land on center cell (3,3) during solution
@@ -1405,99 +1403,6 @@ TEST(bfs_completeness_optimal_path_forward_check) {
 // Difficulty metrics: forward_bfs_count, critical_moves, branching, solution_count
 // ═══════════════════════════════════════════════════════════════════════════════
 
-TEST(compact_csp_perpendicular_shift) {
-    // Puzzle 1-4xtgjun: A(5,3) 1(0,3) 2(0,5) 3(3,0) 4(4,6) 5(6,0)
-    // Helpers 1,2 at row 0 can shift to row 1 (perpendicular to their
-    // movement axis). The old heuristic compaction missed this because
-    // helper 2's first-move gap was 1 (slides Left by 1 cell) and movers
-    // with gap<=1 were skipped. The CSP compaction finds all valid cells.
-    BLOCKED = 0;
-    FlatMap dist = retrograde(1, 5);
-    const int n = 6;
-    // A(5,3)=38, 1(0,3)=3, 2(0,5)=5, 3(3,0)=21, 4(4,6)=34, 5(6,0)=42
-    int pos[6] = {38, 3, 5, 21, 34, 42};
-    std::sort(pos + 1, pos + n);
-    State s = encode(pos, n);
-    State cs = canonical(s, n, 1);
-    uint8_t d;
-    ASSERT(dist.find_val(cs, &d));
-
-    auto tr = solve_min_grouped(cs, n, 1);
-    ASSERT(!tr.moves.empty());
-    stabilise_indices(tr.moves, cs, n, 1);
-
-    int init_pos[10]; decode(cs, n, init_pos);
-    std::vector<Move> sol_copy = tr.moves;
-    bool compacted = try_compact(init_pos, sol_copy, n, 1, dist, d);
-    ASSERT(compacted);
-
-    // After compaction, no robot should be at row 0
-    // (helpers 1,2 should have shifted from row 0 to row 1).
-    for (int i = 0; i < n; i++)
-        ASSERT(init_pos[i] / 7 != 0);
-}
-
-TEST(compact_manhattan_tiebreaker) {
-    // Puzzle #11: exit A at (3,5), helpers 1:(0,4) 2:(3,0) 3:(3,3)
-    // Helper 1 at (0,4) can shift to (1,4) — same board_size but smaller
-    // sum-of-Manhattan. Verifies the tiebreaker compaction works.
-    BLOCKED = 0;
-    FlatMap dist = retrograde(1, 3);
-    const int n = 4;
-    // A(3,5)=26, 1(0,4)=4, 2(3,0)=21, 3(3,3)=24
-    int pos[4] = {26, 4, 21, 24};
-    std::sort(pos + 1, pos + n);
-    State s = encode(pos, n);
-    uint8_t d;
-    ASSERT(dist.find_val(canonical(s, n, 1), &d));
-
-    auto tr = trace_solution(s, n, 1, dist);
-    auto& sol = tr.moves;
-    ASSERT_EQ((int)sol.size(), (int)d);
-    stabilise_indices(sol, s, n, 1);
-
-    int init_pos[10]; decode(s, n, init_pos);
-    std::vector<Move> sol_copy = sol;
-    bool compacted = try_compact(init_pos, sol_copy, n, 1, dist, d);
-    ASSERT(compacted);
-
-    // Helper originally at (0,4) = cell 4 should have moved closer to center.
-    bool still_at_04 = false;
-    for (int i = 1; i < n; i++)
-        if (init_pos[i] == 4) still_at_04 = true;
-    ASSERT(!still_at_04);
-}
-
-TEST(compact_manhattan_tiebreaker_puzzle43) {
-    // Puzzle #43: A(5,4) 1(1,1) 2(1,2) 3(1,5) 4(4,1)
-    // Helper 2 at (1,2) can shift to (1,3) — same board_size and Chebyshev
-    // but smaller Manhattan distance. Depth 12 is preserved.
-    BLOCKED = 0;
-    FlatMap dist = retrograde(1, 4);
-    const int n = 5;
-    int pos[5] = {5*7+4, 1*7+1, 1*7+2, 1*7+5, 4*7+1};
-    std::sort(pos + 1, pos + n);
-    State s = encode(pos, n);
-    uint8_t d;
-    ASSERT(dist.find_val(canonical(s, n, 1), &d));
-    ASSERT_EQ(12, (int)d);
-
-    auto tr = trace_solution(s, n, 1, dist);
-    auto& sol = tr.moves;
-    ASSERT_EQ((int)sol.size(), (int)d);
-    stabilise_indices(sol, s, n, 1);
-
-    int init_pos[10]; decode(s, n, init_pos);
-    std::vector<Move> sol_copy = sol;
-    bool compacted = try_compact(init_pos, sol_copy, n, 1, dist, d);
-    ASSERT(compacted);
-
-    // Helper 2 should have moved from (1,2)=cell 9 to (1,3)=cell 10
-    bool has_cell_10 = false;
-    for (int i = 1; i < n; i++)
-        if (init_pos[i] == 1*7+3) has_cell_10 = true;
-    ASSERT(has_cell_10);
-}
 
 TEST(forward_bfs_count_trivial) {
     // A single exit robot at a cell adjacent to center with no helpers:
