@@ -73,6 +73,7 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
   const [page,          setPage]          = useState(0);
   const [jumpId,        setJumpId]        = useState('');
   const [collapsed,     setCollapsed]     = useState(false);
+  const [activeThumb,   setActiveThumb]   = useState('max'); // last-dragged thumb gets higher z-index
 
   // Helper to update a single filter field
   function updateFilter(patch) {
@@ -193,9 +194,10 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
   const sliderRightPct = ((movesMax - movesRange.min) / sliderTotal) * 100;
   const trackRef = useRef(null);
 
-  function thumbDrag(setter, clampLo, clampHi) {
+  function thumbDrag(setter, clampLo, clampHi, thumbName) {
     return (e) => {
       e.preventDefault();
+      setActiveThumb(thumbName);
       const track = trackRef.current;
       if (!track) return;
       const move = (clientX) => {
@@ -323,16 +325,16 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
                 />
                 <div
                   className="pnav__range-thumb pnav__range-thumb--min"
-                  style={{ left: `${sliderLeftPct}%` }}
-                  onMouseDown={thumbDrag(setMovesMin, () => movesRange.min, () => movesMax)}
-                  onTouchStart={thumbDrag(setMovesMin, () => movesRange.min, () => movesMax)}
+                  style={{ left: `${sliderLeftPct}%`, zIndex: activeThumb === 'min' ? 3 : 2 }}
+                  onMouseDown={thumbDrag(setMovesMin, () => movesRange.min, () => movesMax, 'min')}
+                  onTouchStart={thumbDrag(setMovesMin, () => movesRange.min, () => movesMax, 'min')}
                   title="Min moves"
                 >◀</div>
                 <div
                   className="pnav__range-thumb pnav__range-thumb--max"
-                  style={{ left: `${sliderRightPct}%` }}
-                  onMouseDown={thumbDrag(setMovesMax, () => movesMin, () => movesRange.max)}
-                  onTouchStart={thumbDrag(setMovesMax, () => movesMin, () => movesRange.max)}
+                  style={{ left: `${sliderRightPct}%`, zIndex: activeThumb === 'max' ? 3 : 2 }}
+                  onMouseDown={thumbDrag(setMovesMax, () => movesMin, () => movesRange.max, 'max')}
+                  onTouchStart={thumbDrag(setMovesMax, () => movesMin, () => movesRange.max, 'max')}
                   title="Max moves"
                 >▶</div>
               </div>
