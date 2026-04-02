@@ -14,7 +14,7 @@
   --robot-selected-ring: #ffd700;
   --exit0:           #e63946;   /* A — red     */
   --exit1:           #22c55e;   /* B — green   */
-  --exit2:           #06b6d4;   /* C — cyan    */
+  --exit2:           #eab308;   /* C — gold    */
   --exit3:           #a855f7;   /* D — purple  */
   --exit4:           #f97316;   /* E — orange  */
   --text:            #e8e8f0;
@@ -231,8 +231,8 @@ button { cursor: pointer; font-family: inherit; }
 }
 
 .robot--exit2 {
-  background: radial-gradient(circle at 35% 35%, #38bdf8, var(--exit2));
-  box-shadow: 0 2px 8px rgba(6, 182, 212, 0.5);
+  background: radial-gradient(circle at 35% 35%, #fde047, var(--exit2));
+  box-shadow: 0 2px 8px rgba(234, 179, 8, 0.5);
 }
 
 .robot--exit3 {
@@ -855,8 +855,8 @@ button { cursor: pointer; font-family: inherit; }
 
 /* ── Variant-blocked cells (corners/border for solitaire/ufo) ──────────────── */
 .cell--variant-blocked {
-  background: #1a1a2e !important;
-  border-color: #1a1a2e !important;
+  background: var(--bg) !important;
+  border-color: var(--bg) !important;
   cursor: default !important;
 }
 
