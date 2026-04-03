@@ -75,8 +75,8 @@ export default function App() {
 
   const { state, dispatch } = useGameState(currentPuzzle ?? DUMMY_PUZZLE, variantBlocks);
 
-  // Reset solution display when puzzle changes
-  useEffect(() => { setShowSolution(false); }, [currentPuzzle?.stableId]);
+  // NOTE: showSolution is intentionally preserved across puzzle changes
+  // so users can cycle through puzzles comparing solutions.
 
   // Resolve a stableId to a puzzle (exact match or position-based fallback)
   const resolvePuzzle = useCallback((stableId) => {
@@ -253,7 +253,6 @@ export default function App() {
     if (mode === 'build' && buildSolvedPuzzle) {
       setCurrentPuzzle(buildSolvedPuzzle);
       dispatch({ type: 'LOAD_PUZZLE', puzzle: buildSolvedPuzzle });
-      setShowSolution(false);
     }
   }, [mode, buildSolvedPuzzle, dispatch]);
 
@@ -262,12 +261,10 @@ export default function App() {
     if (buildPreview) {
       setCurrentPuzzle(buildPreview);
       dispatch({ type: 'LOAD_PUZZLE', puzzle: buildPreview });
-      setShowSolution(false);
     } else if (mode === 'build' && buildSolvedPuzzle) {
       // Return from preview — reload the build puzzle
       setCurrentPuzzle(buildSolvedPuzzle);
       dispatch({ type: 'LOAD_PUZZLE', puzzle: buildSolvedPuzzle });
-      setShowSolution(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [buildPreview]);
