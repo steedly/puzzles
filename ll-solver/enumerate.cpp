@@ -3,7 +3,7 @@
 
 // enumerate.cpp — Lunar Lockout puzzle enumerator
 //
-// Finds every canonically unique, solvable starting position on a 7×7 board
+// Finds every canonically unique, solvable starting position on a board
 // with E = 1..max_exits exit robots and H = 0..max_helpers helper robots,
 // deduplicates by collision signature, and writes them as a compact .llp file.
 //
@@ -100,18 +100,40 @@
 #  include <omp.h>
 #endif
 
-// ── Board constants ───────────────────────────────────────────────────────────
-static constexpr int N      = 7;
-static constexpr int NC     = N * N;    // 49
-static constexpr int CTR    = 3*N + 3; // center cell = 24
+// ── Board type ───────────────────────────────────────────────────────────────
+enum BoardType { BOARD_SQUARE, BOARD_HEX };
+static BoardType BOARD_TYPE = BOARD_SQUARE;
+
+// ── Board constants (set once in main() before any BFS runs) ─────────────────
+// Square boards: N=7, 4 directions (up/down/left/right), D4 symmetry (8).
+// Hex boards:    N=5 or 7, 6 directions (+2 diagonals), Klein symmetry (4).
+static int N      = 7;
+static int NC     = 49;    // N * N
+static int CTR    = 24;    // center cell = (N/2)*N + N/2
 static constexpr int EXITED = 63;      // exit-robot "off board" sentinel
 
-static constexpr int DR[4] = {-1, 1, 0, 0}; // up, down, left, right
-static constexpr int DC[4] = { 0, 0,-1, 1};
+static int NUM_DIRS = 4;   // 4 for square, 6 for hex
+static int NUM_SYMS = 8;   // 8 for square (D4), 4 for hex (Klein four-group)
+
+// Directions: first 4 are up/down/left/right (shared by square and hex).
+// Hex adds indices 4 and 5: "north" diagonal (-1,+1) and "south" diagonal (+1,-1).
+static int DR[6] = {-1, 1, 0, 0, -1,  1};
+static int DC[6] = { 0, 0,-1, 1,  1, -1};
+
+// Symmetry transform indices (into the D4 sym() function).
+// Square: all 8 D4 transforms.
+// Hex: Klein four-group = {identity(0), 180°(2), H-flip(4), V-flip(5)}.
+static int SYM_INDICES[8] = {0,1,2,3,4,5,6,7};
+
+// Direction permutation tables under symmetry transforms.
+// Square: DIR_TRANSFORM[8][4] — how each of 8 D4 transforms permutes 4 dirs.
+// Hex: HEX_DIR_TRANSFORM[4][6] — how each of 4 Klein transforms permutes 6 dirs.
+// Directions: 0=up 1=down 2=left 3=right (square) or
+//             0=NW 1=SE 2=SW 3=NE 4=N-diag 5=S-diag (hex, same DR/DC indices)
 
 // ── Board variant (blocked cells) ────────────────────────────────────────────
 // Bitmask of cells that are walls — robots cannot occupy or slide through them.
-// Set once in main() before any BFS runs; 0 = standard 7x7.
+// Set once in main() before any BFS runs; 0 = standard 7x7 or any hex.
 static uint64_t BLOCKED = 0;
 
 static uint64_t make_blocked_solitaire() {
@@ -144,9 +166,10 @@ static uint64_t make_blocked_french() {
     return b;
 }
 
-// ── D4 symmetry group ─────────────────────────────────────────────────────────
+// ── Symmetry group ───────────────────────────────────────────────────────────
 // The dihedral group D4 has 8 elements: 4 rotations × {identity, reflection}.
 // sym(cell, transform) returns the cell after applying one transform.
+// For hex boards, only transforms {0,2,4,5} are valid (Klein four-group).
 static inline int sym(int p, int t) {
     const int r = p/N, c = p%N, m = N-1;
     switch (t) {
@@ -175,18 +198,19 @@ static inline void decode(State s, int n, int* r) {
     for (int i = 0; i < n; i++) r[i] = (int)((s >> (6*i)) & 63);
 }
 
-// Canonical form: lex-min encoding over all 8 D4 transforms.
+// Canonical form: lex-min encoding over all symmetry transforms.
 // Both exits and helpers are sorted after each transform so that:
-//   - D4 spatial symmetries are removed (as before), AND
+//   - spatial symmetries are removed, AND
 //   - permutations of exit pieces map to the same canonical form.
 // EXITED (63) is larger than any valid cell (0-48), so exited robots
 // naturally sort last.
-// Used in the emit phase to filter self-canonical states (S == canonical(S)).
+// Square: 8 D4 transforms.  Hex: 4 Klein four-group transforms.
 static State canonical(State s, int n, int num_exits) {
     int r[10];
     decode(s, n, r);
     State best = ~(State)0;
-    for (int t = 0; t < 8; t++) {
+    for (int ti = 0; ti < NUM_SYMS; ti++) {
+        const int t = SYM_INDICES[ti];
         int tr[10];
         for (int e = 0; e < num_exits; e++)
             tr[e] = (r[e] == EXITED) ? EXITED : sym(r[e], t);
@@ -355,7 +379,7 @@ static void reverse_moves_normal(const int* r, int n, int num_exits, int ridx,
 
     const int pr = pos/N, pc = pos%N;
 
-    for (int d = 0; d < 4; d++) {
+    for (int d = 0; d < NUM_DIRS; d++) {
         // ridx was slid in direction d to reach pos.
         // There must be a blocker one step past pos in direction d.
         const int br = pr + DR[d], bc = pc + DC[d];
@@ -409,19 +433,20 @@ static void reverse_moves_unexit(const int* r, int n, int num_exits, int ridx,
     // Center must be unoccupied by other pieces (exit ridx will be placed there).
     if (occ & ((uint64_t)1 << CTR)) return;
 
-    for (int d = 0; d < 4; d++) {
+    const int ctr_r = CTR / N, ctr_c = CTR % N;
+    for (int d = 0; d < NUM_DIRS; d++) {
         // ridx slid in direction d to reach center.
         // A blocker must exist one step past center in direction d.
-        const int blr = 3 + DR[d], blc = 3 + DC[d];
+        const int blr = ctr_r + DR[d], blc = ctr_c + DC[d];
         if (blr < 0 || blr >= N || blc < 0 || blc >= N) continue;
         const int blocker_cell = blr*N+blc;
         if (BLOCKED & ((uint64_t)1 << blocker_cell)) continue; // blocker can't be on a wall
         if (!(occ & ((uint64_t)1 << blocker_cell))) continue;
 
         // Walk AWAY from center (opposite of d) to find valid starting positions.
-        // ridx was at (3 - k*DR[d], 3 - k*DC[d]) for k = 1, 2, ...
+        // ridx was at (ctr_r - k*DR[d], ctr_c - k*DC[d]) for k = 1, 2, ...
         for (int k = 1; ; k++) {
-            const int wr = 3 - k*DR[d], wc = 3 - k*DC[d];
+            const int wr = ctr_r - k*DR[d], wc = ctr_c - k*DC[d];
             if (wr < 0 || wr >= N || wc < 0 || wc >= N) break;
             const int wp = wr*N+wc;
             if (BLOCKED & ((uint64_t)1 << wp)) break; // wall stops walk
@@ -717,7 +742,7 @@ static TraceResult trace_solution(State start, int n, int num_exits,
             decode(node.s, n, pos);
 
             for (int ridx = 0; ridx < n; ridx++) {
-                for (int d = 0; d < 4; d++) {
+                for (int d = 0; d < NUM_DIRS; d++) {
                     int new_cell, blocker_idx;
                     State new_state;
                     if (!forward_move(pos, n, num_exits, ridx, d,
@@ -789,7 +814,7 @@ static int forward_bfs_count(State start, int n, int num_exits) {
         int pos[10];
         decode(s, n, pos);
         for (int ridx = 0; ridx < n; ridx++) {
-            for (int d = 0; d < 4; d++) {
+            for (int d = 0; d < NUM_DIRS; d++) {
                 int nc, bi;
                 State ns;
                 if (!forward_move(pos, n, num_exits, ridx, d, nc, bi, ns))
@@ -814,7 +839,7 @@ static std::vector<State> forward_bfs_states(State start, int n, int num_exits) 
         int pos[10];
         decode(s, n, pos);
         for (int ridx = 0; ridx < n; ridx++) {
-            for (int d = 0; d < 4; d++) {
+            for (int d = 0; d < NUM_DIRS; d++) {
                 int nc, bi;
                 State ns;
                 if (!forward_move(pos, n, num_exits, ridx, d, nc, bi, ns))
@@ -902,7 +927,7 @@ static TraceResult solve_min_grouped(State start, int n, int num_exits) {
         decode(s, n, pos);
 
         for (int ridx = 0; ridx < n; ridx++) {
-            for (int d = 0; d < 4; d++) {
+            for (int d = 0; d < NUM_DIRS; d++) {
                 int nc, bi;
                 State ns;
                 if (!forward_move(pos, n, num_exits, ridx, d, nc, bi, ns))
@@ -976,7 +1001,7 @@ static std::vector<Move> trace_solution_greedy(State start, int n, int num_exits
         decode(cur, n, pos);
         bool found = false;
         for (int ridx = 0; ridx < n && !found; ridx++) {
-            for (int d = 0; d < 4 && !found; d++) {
+            for (int d = 0; d < NUM_DIRS && !found; d++) {
                 int new_cell, blocker_idx;
                 State new_state;
                 if (!forward_move(pos, n, num_exits, ridx, d,
@@ -1075,14 +1100,11 @@ static uint64_t hash_dedup_key(const std::string& key) {
 // Normalises exit and helper labels separately by order of first appearance.
 //   Exit  0 (first seen) → 'A',  exit  1 → 'B',  exit  2 → 'C', ...
 //   Helper 0 (first seen)→ '1', helper 1 → '2', ...
-// To catch D4-equivalent puzzles whose collision sequences differ only by
+// To catch symmetry-equivalent puzzles whose collision sequences differ only by
 // a rotation/reflection of directions, we compute the signature under all
-// 8 D4 direction transforms and return the lexicographically smallest one.
-// Each D4 spatial transform permutes {U,D,L,R} in a specific way:
-//   identity:      U D L R        90 CW:     L R U D
-//   180:           D U R L        270 CW:    R L D U
-//   reflect-H:     U D R L        reflect-V: D U L R
-//   reflect-diag:  L R D U        reflect-anti: R L U D
+// symmetry direction transforms and return the lexicographically smallest one.
+
+// Square (D4): 8 transforms permuting {U,D,L,R} (dirs 0-3).
 static const int DIR_TRANSFORM[8][4] = {
     {0, 1, 2, 3},  // identity
     {2, 3, 1, 0},  // 90 CW:  U->L, D->R, L->D, R->U
@@ -1092,6 +1114,19 @@ static const int DIR_TRANSFORM[8][4] = {
     {1, 0, 2, 3},  // reflect-V: U->D, D->U, L->L, R->R
     {2, 3, 0, 1},  // reflect main diag: U->L, D->R, L->U, R->D
     {3, 2, 1, 0},  // reflect anti-diag: U->R, D->L, L->D, R->U
+};
+
+// Hex (Klein four-group): 4 transforms permuting 6 dirs.
+// Dirs: 0=NW(-1,0) 1=SE(+1,0) 2=SW(0,-1) 3=NE(0,+1) 4=N-diag(-1,+1) 5=S-diag(+1,-1)
+// Identity:  NW SE SW NE N  S   → same
+// 180°:      NW SE SW NE N  S   → SE NW NE SW S  N  (swap all opposite pairs)
+// H-flip:    NW SE SW NE N  S   → NW SE NE SW S  N  (swap left↔right: SW↔NE, N↔S)
+// V-flip:    NW SE SW NE N  S   → SE NW SW NE S  N  (swap up↔down: NW↔SE, N↔S)
+static const int HEX_DIR_TRANSFORM[4][6] = {
+    {0, 1, 2, 3, 4, 5},  // identity
+    {1, 0, 3, 2, 5, 4},  // 180°
+    {0, 1, 3, 2, 5, 4},  // H-flip (reflect horizontally)
+    {1, 0, 2, 3, 5, 4},  // V-flip (reflect vertically)
 };
 
 static std::string collision_signature_for_transform(
@@ -1128,29 +1163,40 @@ static std::string collision_signature_for_transform(
         if (m.blocker < num_exits) bc = exit_char(exit_label[(int)m.blocker]);
         else                       bc = helper_char(helper_label[(int)m.blocker - num_exits]);
 
-        char dc = "UDLR"[dir_map[(int)m.dir]];
+        int mapped_dir = dir_map[(int)m.dir];
         if (!sig.empty()) sig += ' ';
-        sig += mc; sig += dc; sig += bc;
+        sig += mc;
+        if (BOARD_TYPE == BOARD_HEX) {
+            static const char* HEX_DIR_CHARS[6] = {"Nw","Se","Sw","Ne","No","So"};
+            sig += HEX_DIR_CHARS[mapped_dir];
+        } else {
+            sig += "UDLR"[mapped_dir];
+        }
+        sig += bc;
     }
     return sig;
 }
 
 static std::string collision_signature(const std::vector<Move>& sol, int num_exits) {
     std::string best;
-    for (int t = 0; t < 8; t++) {
-        std::string sig = collision_signature_for_transform(sol, num_exits, DIR_TRANSFORM[t]);
+    for (int ti = 0; ti < NUM_SYMS; ti++) {
+        const int* dir_map = (BOARD_TYPE == BOARD_HEX)
+            ? HEX_DIR_TRANSFORM[ti]
+            : DIR_TRANSFORM[SYM_INDICES[ti]];
+        std::string sig = collision_signature_for_transform(sol, num_exits, dir_map);
         if (best.empty() || sig < best) best = std::move(sig);
     }
     return best;
 }
 
-// Minimum odd board size (1, 3, 5, or 7) with center at (3,3) that fits all
+// Minimum odd board size (1, 3, 5, or 7) with center that fits all
 // used robots.  Uses Chebyshev distance from center.
 static int compute_board_size(const int* pos, const bool* used, int n) {
+    const int cr = CTR / N, cc = CTR % N;
     int max_cheb = 0;
     for (int i = 0; i < n; i++) {
         if (!used[i]) continue;
-        int cheb = std::max(std::abs(pos[i]/N - 3), std::abs(pos[i]%N - 3));
+        int cheb = std::max(std::abs(pos[i]/N - cr), std::abs(pos[i]%N - cc));
         if (cheb > max_cheb) max_cheb = cheb;
     }
     return 2 * max_cheb + 1;
@@ -1222,7 +1268,7 @@ static bool validate_collision_seq(const int* init_pos,
 
 // ── Bounding area metric (used for picking most compact representative) ──────
 static int compute_bounding_area(const int* pos, int n) {
-    int minR=6, maxR=0, minC=6, maxC=0;
+    int minR=N-1, maxR=0, minC=N-1, maxC=0;
     for (int i = 0; i < n; i++) {
         if (pos[i] == EXITED) continue;
         int r = pos[i]/N, c = pos[i]%N;
@@ -1235,10 +1281,11 @@ static int compute_bounding_area(const int* pos, int n) {
 }
 
 static int sum_manhattan(const int* pos, int n) {
+    const int cr = CTR / N, cc = CTR % N;
     int sum = 0;
     for (int i = 0; i < n; i++) {
         if (pos[i] == EXITED) continue;
-        sum += std::abs(pos[i]/N - 3) + std::abs(pos[i]%N - 3);
+        sum += std::abs(pos[i]/N - cr) + std::abs(pos[i]%N - cc);
     }
     return sum;
 }
@@ -1501,7 +1548,12 @@ static void emit(const FlatMap& dist, int n, int num_exits,
             const auto& m = pruned[k];
             line += (m.mover < num_exits) ? (char)('A' + m.mover)
                                           : (char)('0' + m.mover - num_exits + 1);
-            line += "UDLR"[(int)m.dir];
+            if (BOARD_TYPE == BOARD_HEX) {
+                static const char* HEX_DIR_NAMES[6] = {"Nw","Se","Sw","Ne","No","So"};
+                line += HEX_DIR_NAMES[(int)m.dir];
+            } else {
+                line += "UDLR"[(int)m.dir];
+            }
             line += (m.blocker < num_exits) ? (char)('A' + m.blocker)
                                             : (char)('0' + m.blocker - num_exits + 1);
         }
@@ -1626,16 +1678,25 @@ int main(int argc, char* argv[]) {
     const int min_moves   = argc > 3 ? std::atoi(argv[3]) : 1;
     const int max_moves   = argc > 4 ? std::atoi(argv[4]) : 99;
 
-    // Board variant: standard (default), solitaire (2x2 corners blocked),
-    // ufo (5x5 center), french (3 cells per corner blocked)
+    // Board variant: standard (default), solitaire, ufo, french, hex, beehive
     std::string variant = "standard";
     if (argc > 5) variant = argv[5];
     if (variant == "solitaire")     BLOCKED = make_blocked_solitaire();
     else if (variant == "ufo")      BLOCKED = make_blocked_ufo();
     else if (variant == "french")   BLOCKED = make_blocked_french();
+    else if (variant == "hex") {
+        BOARD_TYPE = BOARD_HEX;
+        N = 5; NC = 25; CTR = 12; NUM_DIRS = 6; NUM_SYMS = 4;
+        SYM_INDICES[0] = 0; SYM_INDICES[1] = 2; SYM_INDICES[2] = 4; SYM_INDICES[3] = 5;
+    }
+    else if (variant == "beehive") {
+        BOARD_TYPE = BOARD_HEX;
+        N = 7; NC = 49; CTR = 24; NUM_DIRS = 6; NUM_SYMS = 4;
+        SYM_INDICES[0] = 0; SYM_INDICES[1] = 2; SYM_INDICES[2] = 4; SYM_INDICES[3] = 5;
+    }
     else if (variant != "standard") {
         std::cerr << "Unknown variant: " << variant
-                  << " (use standard, solitaire, ufo, or french)\n";
+                  << " (use standard, solitaire, ufo, french, hex, or beehive)\n";
         return 1;
     }
 
@@ -1646,11 +1707,19 @@ int main(int argc, char* argv[]) {
 #endif
     if (BLOCKED) std::cerr << "Variant: " << variant << " (blocked mask: 0x"
                            << std::hex << BLOCKED << std::dec << ")\n";
+    if (BOARD_TYPE == BOARD_HEX) std::cerr << "Variant: " << variant
+        << " (N=" << N << ", " << NUM_DIRS << " dirs, " << NUM_SYMS << " syms)\n";
 
+    const int cr = CTR / N, cc = CTR % N;
     std::cout <<
         "# Lunar Lockout Puzzles\n"
         "# Generated by ll-solver/enumerate\n"
-        "# Board: 7x7 (rows and cols 0-6), goal: all exits to center (3,3)\n"
+        "# Board: " << N << "x" << N;
+    if (BOARD_TYPE == BOARD_HEX)
+        std::cout << " hex diamond (rotated square grid)";
+    else
+        std::cout << " (rows and cols 0-" << (N-1) << ")";
+    std::cout << ", goal: all exits to center (" << cr << "," << cc << ")\n"
         "# Variant: " << variant << "\n"
         "# Exit robots disappear when they reach center; helpers are blockers only.\n"
         "# Deduplicated by collision signature.\n"
@@ -1659,9 +1728,14 @@ int main(int argc, char* argv[]) {
         "# positions: exit0_r,c [exit1...] [helper...]\n"
         "# solution: space-separated moves, each = moverDIRblocker\n"
         "#   A,B,C = exit robots (by ascending initial position)\n"
-        "#   1-9   = helper robots (by ascending initial position)\n"
-        "#   DIR: U=up  D=down  L=left  R=right\n"
-        "#\n";
+        "#   1-9   = helper robots (by ascending initial position)\n";
+    if (BOARD_TYPE == BOARD_HEX)
+        std::cout <<
+        "#   DIR: Nw=(-1,0) Se=(+1,0) Sw=(0,-1) Ne=(0,+1) No=(-1,+1) So=(+1,-1)\n";
+    else
+        std::cout <<
+        "#   DIR: U=up  D=down  L=left  R=right\n";
+    std::cout << "#\n";
 
     std::unordered_set<uint64_t> seen_sigs;
     std::unordered_set<uint64_t> seen_pruned_canons;

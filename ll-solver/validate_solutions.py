@@ -6,9 +6,9 @@
 
 Checks performed:
   1. Solution validity    — forward simulation reaches goal state
-  2. Position validity    — all positions on 7x7 board, no overlaps, no exit at center
+  2. Position validity    — all positions on board, no overlaps, no exit at center
   3. Sequential IDs       — IDs are 1, 2, 3, ... with no gaps or duplicates
-  4. D4 position dedup    — no two puzzles share D4-equivalent positions
+  4. D4 position dedup    — no two puzzles share symmetry-equivalent positions
   5. Collision-sig dedup  — no two puzzles (same exits+helpers) share collision signature
 
 After the stabilise_indices fix, solution labels refer to initial robot
@@ -24,9 +24,20 @@ N = 7
 CTR = 3 * N + 3  # 24
 EXITED = -1
 
-DR = [-1, 1, 0, 0]  # U, D, L, R
-DC = [0, 0, -1, 1]
-DIR_MAP = {'U': 0, 'D': 1, 'L': 2, 'R': 3}
+# Directions: indices 0-3 shared by square (U,D,L,R) and hex (NW,SE,SW,NE).
+# Hex adds indices 4-5: N-diag and S-diag.
+DR = [-1, 1, 0, 0, -1,  1]
+DC = [ 0, 0,-1, 1,  1, -1]
+NUM_DIRS = 4
+NUM_SYMS = 8
+
+# Square direction map (1-char codes)
+SQUARE_DIR_MAP = {'U': 0, 'D': 1, 'L': 2, 'R': 3}
+
+# Hex direction map (2-char codes)
+HEX_DIR_MAP = {'Nw': 0, 'Se': 1, 'Sw': 2, 'Ne': 3, 'No': 4, 'So': 5}
+
+IS_HEX = False
 
 # Blocked cells for board variants (set of cell indices)
 BLOCKED = set()
@@ -116,13 +127,18 @@ def validate_puzzle(p):
     current_cell = list(positions)
 
     for step_num, move_str in enumerate(moves):
-        if len(move_str) != 3:
-            return False, f"step {step_num+1}: invalid move format '{move_str}'"
-
-        mover_ch, dir_ch, blocker_ch = move_str[0], move_str[1], move_str[2]
-
-        if dir_ch not in DIR_MAP:
-            return False, f"step {step_num+1}: invalid direction '{dir_ch}'"
+        if IS_HEX:
+            if len(move_str) != 4:
+                return False, f"step {step_num+1}: invalid move format '{move_str}'"
+            mover_ch, dir_str, blocker_ch = move_str[0], move_str[1:3], move_str[3]
+            if dir_str not in HEX_DIR_MAP:
+                return False, f"step {step_num+1}: invalid direction '{dir_str}'"
+        else:
+            if len(move_str) != 3:
+                return False, f"step {step_num+1}: invalid move format '{move_str}'"
+            mover_ch, dir_str, blocker_ch = move_str[0], move_str[1], move_str[2]
+            if dir_str not in SQUARE_DIR_MAP:
+                return False, f"step {step_num+1}: invalid direction '{dir_str}'"
 
         # Labels map to initial indices: 'A'=0, 'B'=1, '1'=num_exits, '2'=num_exits+1
         def resolve_label(ch):
@@ -152,7 +168,7 @@ def validate_puzzle(p):
 
         cur = current_cell[mover_idx]
         pr, pc = cur // N, cur % N
-        direction = DIR_MAP[dir_ch]
+        direction = HEX_DIR_MAP[dir_str] if IS_HEX else SQUARE_DIR_MAP[dir_str]
 
         # Build occupancy set (all robots except mover)
         occ = {}  # cell -> initial_index
@@ -248,7 +264,10 @@ def collision_signature(p):
     triples = []
 
     for move_str in moves:
-        mover_ch, dir_ch, blocker_ch = move_str[0], move_str[1], move_str[2]
+        if IS_HEX:
+            mover_ch, dir_str, blocker_ch = move_str[0], move_str[1:3], move_str[3]
+        else:
+            mover_ch, dir_str, blocker_ch = move_str[0], move_str[1], move_str[2]
 
         def resolve(ch):
             if ch.isalpha() and ch.isupper():
@@ -257,7 +276,7 @@ def collision_signature(p):
 
         mover_idx = resolve(mover_ch)
         blocker_idx = resolve(blocker_ch)
-        direction = DIR_MAP[dir_ch]
+        direction = HEX_DIR_MAP[dir_str] if IS_HEX else SQUARE_DIR_MAP[dir_str]
 
         triples.append((mover_idx, direction, blocker_idx))
 
@@ -283,17 +302,27 @@ def collision_signature(p):
         else:
             current_cell[mover_idx] = new_cell
 
-    # D4 direction transforms: each maps {U=0, D=1, L=2, R=3} to new directions
-    DIR_TRANSFORMS = [
-        [0, 1, 2, 3],  # identity
-        [2, 3, 1, 0],  # 90 CW
-        [1, 0, 3, 2],  # 180
-        [3, 2, 0, 1],  # 270 CW
-        [0, 1, 3, 2],  # reflect-H
-        [1, 0, 2, 3],  # reflect-V
-        [2, 3, 0, 1],  # reflect main diagonal
-        [3, 2, 1, 0],  # reflect anti-diagonal
-    ]
+    # Direction transforms for collision signature normalization.
+    if IS_HEX:
+        # Klein four-group: 4 transforms permuting 6 hex directions.
+        DIR_TRANSFORMS = [
+            [0, 1, 2, 3, 4, 5],  # identity
+            [1, 0, 3, 2, 5, 4],  # 180°
+            [0, 1, 3, 2, 5, 4],  # H-flip
+            [1, 0, 2, 3, 5, 4],  # V-flip
+        ]
+    else:
+        # D4: 8 transforms permuting 4 square directions {U=0,D=1,L=2,R=3}.
+        DIR_TRANSFORMS = [
+            [0, 1, 2, 3],  # identity
+            [2, 3, 1, 0],  # 90 CW
+            [1, 0, 3, 2],  # 180
+            [3, 2, 0, 1],  # 270 CW
+            [0, 1, 3, 2],  # reflect-H
+            [1, 0, 2, 3],  # reflect-V
+            [2, 3, 0, 1],  # reflect main diagonal
+            [3, 2, 1, 0],  # reflect anti-diagonal
+        ]
 
     best_sig = None
     for dir_map in DIR_TRANSFORMS:
@@ -325,7 +354,11 @@ def collision_signature(p):
             else:
                 bc = str(helper_label[blocker_idx - num_exits])
 
-            dc = "UDLR"[dir_map[direction]]
+            mapped = dir_map[direction]
+            if IS_HEX:
+                dc = ["Nw","Se","Sw","Ne","No","So"][mapped]
+            else:
+                dc = "UDLR"[mapped]
             sig_parts.append(f"{mc}{dc}{bc}")
 
         sig = ' '.join(sig_parts)
@@ -336,18 +369,23 @@ def collision_signature(p):
 
 
 def d4_canonical(positions, num_exits):
-    """Compute D4-canonical positions (exits and helpers sorted separately)."""
+    """Compute symmetry-canonical positions (exits and helpers sorted separately).
+    Uses D4 (8 transforms) for square boards, Klein four-group (4) for hex."""
     m = N - 1
-    transforms = [
-        lambda r, c: (r, c),
-        lambda r, c: (c, m - r),
-        lambda r, c: (m - r, m - c),
-        lambda r, c: (m - c, r),
-        lambda r, c: (r, m - c),
-        lambda r, c: (m - r, c),
-        lambda r, c: (c, r),
-        lambda r, c: (m - c, m - r),
+    all_transforms = [
+        lambda r, c: (r, c),           # 0: identity
+        lambda r, c: (c, m - r),       # 1: 90° CW
+        lambda r, c: (m - r, m - c),   # 2: 180°
+        lambda r, c: (m - c, r),       # 3: 270° CW
+        lambda r, c: (r, m - c),       # 4: H-flip
+        lambda r, c: (m - r, c),       # 5: V-flip
+        lambda r, c: (c, r),           # 6: diag reflect
+        lambda r, c: (m - c, m - r),   # 7: anti-diag reflect
     ]
+    if IS_HEX:
+        transforms = [all_transforms[i] for i in [0, 2, 4, 5]]
+    else:
+        transforms = all_transforms
 
     best = None
     for t in transforms:
@@ -366,7 +404,7 @@ def d4_canonical(positions, num_exits):
 
 
 def main():
-    global BLOCKED
+    global BLOCKED, N, CTR, NUM_DIRS, NUM_SYMS, IS_HEX
     filename = sys.argv[1] if len(sys.argv) > 1 else '-'
     f = sys.stdin if filename == '-' else open(filename)
 
@@ -381,6 +419,12 @@ def main():
                 BLOCKED = make_blocked_ufo()
             elif variant == 'french':
                 BLOCKED = make_blocked_french()
+            elif variant == 'hex':
+                IS_HEX = True
+                N = 5; CTR = 12; NUM_DIRS = 6; NUM_SYMS = 4
+            elif variant == 'beehive':
+                IS_HEX = True
+                N = 7; CTR = 24; NUM_DIRS = 6; NUM_SYMS = 4
         p = parse_puzzle(line)
         if p is not None:
             puzzles.append(p)

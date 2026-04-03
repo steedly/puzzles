@@ -1542,6 +1542,216 @@ TEST(no_cross_exit_dedup_in_output) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// Hex board tests
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Helper to configure hex5 board state and restore square afterwards.
+struct HexScope {
+    int saved_N, saved_NC, saved_CTR, saved_NUM_DIRS, saved_NUM_SYMS;
+    int saved_SYM[8];
+    BoardType saved_BT;
+    HexScope(int side) {
+        saved_N = N; saved_NC = NC; saved_CTR = CTR;
+        saved_NUM_DIRS = NUM_DIRS; saved_NUM_SYMS = NUM_SYMS;
+        std::memcpy(saved_SYM, SYM_INDICES, sizeof(saved_SYM));
+        saved_BT = BOARD_TYPE;
+        BOARD_TYPE = BOARD_HEX;
+        N = side; NC = side * side; CTR = (side/2) * side + side/2;
+        NUM_DIRS = 6; NUM_SYMS = 4;
+        SYM_INDICES[0] = 0; SYM_INDICES[1] = 2; SYM_INDICES[2] = 4; SYM_INDICES[3] = 5;
+    }
+    ~HexScope() {
+        N = saved_N; NC = saved_NC; CTR = saved_CTR;
+        NUM_DIRS = saved_NUM_DIRS; NUM_SYMS = saved_NUM_SYMS;
+        std::memcpy(SYM_INDICES, saved_SYM, sizeof(saved_SYM));
+        BOARD_TYPE = saved_BT;
+    }
+};
+
+TEST(hex_board_constants) {
+    HexScope h(5);
+    ASSERT_EQ(N, 5);
+    ASSERT_EQ(NC, 25);
+    ASSERT_EQ(CTR, 12);  // (2,2) in 5x5
+    ASSERT_EQ(NUM_DIRS, 6);
+    ASSERT_EQ(NUM_SYMS, 4);
+}
+
+TEST(hex_directions_from_center) {
+    // From center (2,2) = cell 12, all 6 directions should reach valid cells.
+    HexScope h(5);
+    int neighbors[6];
+    for (int d = 0; d < 6; d++) {
+        int nr = 2 + DR[d], nc = 2 + DC[d];
+        ASSERT(nr >= 0 && nr < 5 && nc >= 0 && nc < 5);
+        neighbors[d] = nr * 5 + nc;
+    }
+    // NW(-1,0)=cell 7, SE(+1,0)=cell 17, SW(0,-1)=cell 11, NE(0,+1)=cell 13
+    // N-diag(-1,+1)=cell 8, S-diag(+1,-1)=cell 16
+    ASSERT_EQ(neighbors[0], 7);   // NW
+    ASSERT_EQ(neighbors[1], 17);  // SE
+    ASSERT_EQ(neighbors[2], 11);  // SW
+    ASSERT_EQ(neighbors[3], 13);  // NE
+    ASSERT_EQ(neighbors[4], 8);   // N-diag
+    ASSERT_EQ(neighbors[5], 16);  // S-diag
+}
+
+TEST(hex_corner_limited_directions) {
+    // Corner cell (0,0) = cell 0: only SE(+1,0) and NE(0,+1) stay on board.
+    HexScope h(5);
+    int valid = 0;
+    for (int d = 0; d < 6; d++) {
+        int nr = 0 + DR[d], nc = 0 + DC[d];
+        if (nr >= 0 && nr < 5 && nc >= 0 && nc < 5) valid++;
+    }
+    ASSERT_EQ(valid, 2);  // SE and NE only
+}
+
+TEST(hex_diagonal_slide) {
+    // Piece at (0,4) sliding S-diag (+1,-1) should go (1,3)->(2,2)->(3,1)->(4,0).
+    // If blocker at (4,0), piece lands at (3,1).
+    HexScope h(5);
+    int pos[2] = {4, 20};  // exit at cell 4 = (0,4), helper at cell 20 = (4,0)
+    int new_cell, blocker_idx;
+    State ns;
+    bool ok = forward_move(pos, 2, 1, 0, 5, new_cell, blocker_idx, ns);  // dir 5 = S-diag
+    ASSERT(ok);
+    ASSERT_EQ(new_cell, 16);  // (3,1) = cell 16
+    ASSERT_EQ(blocker_idx, 1);
+}
+
+TEST(hex_forward_move_wall_stop) {
+    // Piece at (0,4) sliding NE (0,+1) should go off-board — illegal (wall stop).
+    HexScope h(5);
+    int pos[2] = {4, 20};  // exit at (0,4), helper at (4,0)
+    int new_cell, blocker_idx;
+    State ns;
+    bool ok = forward_move(pos, 2, 1, 0, 3, new_cell, blocker_idx, ns);  // dir 3 = NE
+    ASSERT(!ok);
+}
+
+TEST(hex_symmetry_center_invariant) {
+    HexScope h(5);
+    for (int ti = 0; ti < NUM_SYMS; ti++) {
+        ASSERT_EQ(sym(CTR, SYM_INDICES[ti]), CTR);
+    }
+}
+
+TEST(hex_symmetry_klein_group) {
+    // All 4 Klein transforms are involutions (self-inverse).
+    HexScope h(5);
+    for (int ti = 0; ti < NUM_SYMS; ti++) {
+        int t = SYM_INDICES[ti];
+        for (int p = 0; p < NC; p++) {
+            ASSERT_EQ(sym(sym(p, t), t), p);
+        }
+    }
+}
+
+TEST(hex_symmetry_lr_flip) {
+    // H-flip (transform 4): (r,c) -> (r, N-1-c). Check corners.
+    HexScope h(5);
+    ASSERT_EQ(sym(0, 4), 4);     // (0,0) -> (0,4)
+    ASSERT_EQ(sym(4, 4), 0);     // (0,4) -> (0,0)
+    ASSERT_EQ(sym(20, 4), 24);   // (4,0) -> (4,4)
+    ASSERT_EQ(sym(24, 4), 20);   // (4,4) -> (4,0)
+}
+
+TEST(hex_canonical_klein_equivalents) {
+    // Two positions related by Klein symmetry should have the same canonical form.
+    HexScope h(5);
+    int pos1[2] = {0, 12};  // exit at (0,0), helper at center (2,2) — but helper can't be at center
+    // Use: exit at (0,0)=0, helper at (1,1)=6
+    pos1[0] = 0; pos1[1] = 6;
+    std::sort(pos1 + 1, pos1 + 2);
+    State s1 = encode(pos1, 2);
+
+    // H-flip: (0,0)->(0,4)=4, (1,1)->(1,3)=8
+    int pos2[2] = {4, 8};
+    std::sort(pos2 + 1, pos2 + 2);
+    State s2 = encode(pos2, 2);
+
+    ASSERT_EQ(canonical(s1, 2, 1), canonical(s2, 2, 1));
+}
+
+TEST(hex_canonical_not_d4_equivalent) {
+    // 90° rotation is NOT a hex symmetry. Two positions related only by 90°
+    // should have different canonical forms (unless they happen to coincide
+    // with a Klein transform).
+    HexScope h(5);
+    // (0,0)=cell 0 under 90° CW becomes (0,4)=cell 4, which IS the H-flip.
+    // Try (0,1)=cell 1 under 90° CW: c*N+(m-r) = 1*5+(4-0) = 9 = (1,4).
+    // Under Klein transforms: identity=1, 180°=(4,3)=23, H-flip=(0,3)=3, V-flip=(4,1)=21
+    // Cell 9 = (1,4) is NOT in that set, so these should differ.
+    int pos1[2] = {1, 12}; // exit at (0,1), helper at center — invalid.
+    // Use non-center: exit at (0,1)=1, helper at (3,3)=18
+    pos1[0] = 1; pos1[1] = 18;
+    std::sort(pos1 + 1, pos1 + 2);
+    State s1 = encode(pos1, 2);
+
+    // 90° CW of (0,1)=9=(1,4), 90° CW of (3,3)=3*5+(4-3)=18... that's same.
+    // Try different: exit at (1,0)=5, helper at (3,3)=18
+    pos1[0] = 5; pos1[1] = 18;
+    std::sort(pos1 + 1, pos1 + 2);
+    s1 = encode(pos1, 2);
+
+    // 90° CW: (1,0) -> (0,3)=3; (3,3) -> (3,1)=16
+    int pos2[2] = {3, 16};
+    std::sort(pos2 + 1, pos2 + 2);
+    State s2 = encode(pos2, 2);
+
+    // These should NOT be Klein-equivalent (only D4-equivalent via 90°)
+    ASSERT(canonical(s1, 2, 1) != canonical(s2, 2, 1));
+}
+
+TEST(hex_retrograde_1exit_1helper) {
+    HexScope h(5);
+    auto dist = retrograde(1, 1);
+    // With 6 directions on a 5x5 board, should find more states than
+    // the 12 we get on a 7x7 square with 4 directions (24 non-center cells,
+    // 6 helper positions that have at least one direction blocked).
+    ASSERT(dist.size() > 0);
+    // Verify all states are self-canonical.
+    int count = 0;
+    for (auto it = dist.begin(); it != dist.end(); ++it) {
+        auto [s, depth] = *it;
+        ASSERT_EQ(canonical(s, 2, 1), s);
+        count++;
+    }
+    ASSERT_EQ(count, (int)dist.size());
+}
+
+TEST(hex_forward_move_exit_at_center) {
+    // Exit at (1,2)=7 with helper at (3,2)=17. Slide exit SE (+1,0).
+    // Path: (1,2)->(2,2)=center. Should exit.
+    HexScope h(5);
+    int pos[2] = {7, 17};  // exit at (1,2), helper at (3,2)
+    int new_cell, blocker_idx;
+    State ns;
+    bool ok = forward_move(pos, 2, 1, 0, 1, new_cell, blocker_idx, ns);  // dir 1 = SE
+    // The exit should land on center and become EXITED.
+    // Wait — center is (2,2)=12, and there's no robot there to block.
+    // So it slides (2,2) then (3,2) is blocked. Lands at (2,2)=center=12.
+    ASSERT(ok);
+    ASSERT_EQ(new_cell, 12);  // center
+    int npos[2];
+    decode(ns, 2, npos);
+    ASSERT_EQ(npos[0], EXITED);  // exit robot has exited
+}
+
+TEST(hex_solve_min_grouped_basic) {
+    // Simple 1-exit 1-helper puzzle on hex5: exit at (1,2)=7, helper at (3,2)=17.
+    // Solution: exit slides SE to center (1 move, 1 step).
+    HexScope h(5);
+    int pos[2] = {7, 17};
+    std::sort(pos + 1, pos + 2);
+    State start = encode(pos, 2);
+    auto result = solve_min_grouped(start, 2, 1);
+    ASSERT_EQ(result.grouped_moves, 1);
+    ASSERT_EQ((int)result.moves.size(), 1);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // Main test runner
 // ═══════════════════════════════════════════════════════════════════════════════
 

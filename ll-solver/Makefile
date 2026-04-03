@@ -100,6 +100,22 @@ test: enumerate test_enumerate test_canonical
 	python3 validate_solutions.py /tmp/puzzles_french_test.llp
 	./test_canonical < /tmp/puzzles_french_test.llp
 	@echo ""
+	@echo "=== Generating hex puzzles ==="
+	./enumerate 1 4 1 20 hex > /tmp/puzzles_hex_test.llp 2>/tmp/hex_test.log
+	@cat /tmp/hex_test.log >&2
+	@echo ""
+	@echo "=== Validating hex ==="
+	python3 validate_solutions.py /tmp/puzzles_hex_test.llp
+	./test_canonical < /tmp/puzzles_hex_test.llp
+	@echo ""
+	@echo "=== Generating beehive puzzles ==="
+	./enumerate 1 4 1 20 beehive > /tmp/puzzles_beehive_test.llp 2>/tmp/beehive_test.log
+	@cat /tmp/beehive_test.log >&2
+	@echo ""
+	@echo "=== Validating beehive ==="
+	python3 validate_solutions.py /tmp/puzzles_beehive_test.llp
+	./test_canonical < /tmp/puzzles_beehive_test.llp
+	@echo ""
 	@echo "=== All tests passed ==="
 
 # Quick smoke-test: only 1–2 helpers, moves 1–3

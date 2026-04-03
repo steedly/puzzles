@@ -22,7 +22,9 @@
 #include <string>
 #include <vector>
 
-static constexpr int N = 7;
+static int N = 7;
+static int NUM_SYMS = 8;
+static int SYM_INDICES[8] = {0,1,2,3,4,5,6,7};
 
 static inline int sym(int p, int t) {
     const int r = p / N, c = p % N, m = N - 1;
@@ -53,7 +55,8 @@ struct Puzzle {
 // under D4 transforms (an exit stays an exit, a helper stays a helper).
 static std::vector<int> canonical_positions(const std::vector<int>& cells, int num_exits) {
     std::vector<int> best;
-    for (int t = 0; t < 8; t++) {
+    for (int ti = 0; ti < NUM_SYMS; ti++) {
+        int t = SYM_INDICES[ti];
         std::vector<int> tr(cells.size());
         for (size_t i = 0; i < cells.size(); i++)
             tr[i] = sym(cells[i], t);
@@ -135,6 +138,14 @@ int main() {
     std::vector<Puzzle> puzzles;
     std::string line;
     while (std::getline(std::cin, line)) {
+        // Detect hex variants from header
+        if (line.find("# Variant: hex") != std::string::npos) {
+            N = 5; NUM_SYMS = 4;
+            SYM_INDICES[0]=0; SYM_INDICES[1]=2; SYM_INDICES[2]=4; SYM_INDICES[3]=5;
+        } else if (line.find("# Variant: beehive") != std::string::npos) {
+            N = 7; NUM_SYMS = 4;
+            SYM_INDICES[0]=0; SYM_INDICES[1]=2; SYM_INDICES[2]=4; SYM_INDICES[3]=5;
+        }
         Puzzle p;
         if (parse_puzzle(line, p)) puzzles.push_back(std::move(p));
     }
