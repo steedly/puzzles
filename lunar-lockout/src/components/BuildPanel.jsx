@@ -107,7 +107,7 @@ export default function BuildPanel({ variant, onVariantChange, buildState, build
           Optimal solution: {solvedPuzzle.minMoves} move{solvedPuzzle.minMoves !== 1 ? 's' : ''} ({solvedPuzzle.rawSlides} slide{solvedPuzzle.rawSlides !== 1 ? 's' : ''})
         </div>
       )}
-      {phase === 'error' && errorMsg && (
+      {errorMsg && (
         <div className="build-panel__error">{errorMsg}</div>
       )}
 

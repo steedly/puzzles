@@ -13,9 +13,9 @@ const MAX_HELPERS = 9;
 const INITIAL_STATE = {
   pieces: [],            // [{ id, row, col, isExit }]
   placingType: 'exit',   // 'exit' | 'helper'
-  phase: 'placing',      // 'placing' | 'solved' | 'error'
+  phase: 'placing',      // 'placing' | 'solved'
   solvedPuzzle: null,
-  errorMsg: null,
+  errorMsg: null,        // shown during 'placing' phase, cleared on next piece change
 };
 
 function nextExitId(pieces) {
@@ -40,14 +40,14 @@ function reducer(state, action) {
   switch (action.type) {
     case 'CLICK_CELL': {
       const { row, col, blockedCells } = action;
-      if (state.phase !== 'placing') return state;
+      if (state.phase === 'solved') return state;
       const key = `${row},${col}`;
       if (blockedCells && blockedCells.has(key)) return state;
       if (row === 3 && col === 3) return state; // can't place on center
 
       const existing = state.pieces.find(p => p.row === row && p.col === col);
       if (existing) {
-        return { ...state, pieces: state.pieces.filter(p => p !== existing) };
+        return { ...state, phase: 'placing', errorMsg: null, pieces: state.pieces.filter(p => p !== existing) };
       }
 
       if (state.placingType === 'exit') {
@@ -56,7 +56,7 @@ function reducer(state, action) {
         const id = nextExitId(state.pieces);
         if (!id) return state;
         return {
-          ...state,
+          ...state, phase: 'placing', errorMsg: null,
           pieces: [...state.pieces, { id, row, col, isExit: true }],
         };
       } else {
@@ -65,7 +65,7 @@ function reducer(state, action) {
         const id = nextHelperId(state.pieces);
         if (!id) return state;
         return {
-          ...state,
+          ...state, phase: 'placing', errorMsg: null,
           pieces: [...state.pieces, { id, row, col, isExit: false }],
         };
       }
@@ -87,7 +87,7 @@ function reducer(state, action) {
       return { ...state, phase: 'solved', solvedPuzzle: action.puzzle, errorMsg: null };
 
     case 'SOLVE_ERROR':
-      return { ...state, phase: 'error', errorMsg: action.msg };
+      return { ...state, phase: 'placing', errorMsg: action.msg };
 
     case 'LOAD_POSITIONS': {
       const { numExits, positions } = action;
