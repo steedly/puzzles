@@ -151,87 +151,40 @@ function canonicalPositionKey(robots, usedIds) {
 }
 
 /**
- * Compute canonical position keys for a set of robots with various
- * helper subsets removed. Returns a Set of canonical keys.
+ * Find library puzzles whose robot positions (under D4 transforms)
+ * match the custom puzzle's active robot positions (exits + used helpers).
  *
- * Generates keys for:
- * - All robots (no removals)
- * - Each single helper removed
- * - Each pair of helpers removed (if maxDrop >= 2)
+ * The custom puzzle may have unused helpers that the solver didn't need.
+ * Library puzzles have already been pruned by the C++ pipeline, so we
+ * compare the custom puzzle's active robots against the library puzzle's
+ * full robot set.
  *
- * This brute-force approach catches matches regardless of which solution
- * path determined "used" vs "unused" helpers (C++ greedy vs JS DP).
- */
-function canonicalKeysAllDrops(robots, maxDrop) {
-  const helpers = robots.filter(r => !r.isExit);
-  const allIds = new Set(robots.map(r => r.id));
-  const keys = new Set();
-
-  // 0 removals
-  keys.add(canonicalPositionKey(robots, allIds));
-
-  const n = helpers.length;
-  // Single removals
-  if (maxDrop >= 1) {
-    for (let i = 0; i < n; i++) {
-      const subset = new Set(allIds);
-      subset.delete(helpers[i].id);
-      keys.add(canonicalPositionKey(robots, subset));
-    }
-  }
-  // Pair removals
-  if (maxDrop >= 2) {
-    for (let i = 0; i < n; i++) {
-      for (let j = i + 1; j < n; j++) {
-        const subset = new Set(allIds);
-        subset.delete(helpers[i].id);
-        subset.delete(helpers[j].id);
-        keys.add(canonicalPositionKey(robots, subset));
-      }
-    }
-  }
-  return keys;
-}
-
-/**
- * Find library puzzles whose robot positions (under D4 transforms, with
- * up to 2 helpers removed) match the custom puzzle's positions (also
- * with up to 2 helpers removed).
- *
- * This catches dedup equivalents that collision signature matching misses,
- * because the C++ pipeline prunes unused helpers before D4-canonical dedup,
- * and may use a different solution path (greedy vs DP) to determine which
- * helpers are "unused".
- *
- * @param {Array} solution - the custom puzzle's solution (unused here, kept for API compat)
+ * @param {Array} solution - the custom puzzle's solution
  * @param {Array} robots - the custom puzzle's robots
  * @param {Array} puzzles - library puzzles
  * @returns {Array} matching puzzles
  */
 export function findD4PositionMatches(solution, robots, puzzles) {
-  if (!robots?.length || !puzzles?.length) return [];
+  if (!solution?.length || !robots?.length || !puzzles?.length) return [];
 
-  const customKeys = canonicalKeysAllDrops(robots, 2);
+  // Prune unused helpers from the custom puzzle using its solution
+  const used = usedRobotIds(solution);
+  const customKey = canonicalPositionKey(robots, used);
   const numExits = robots.filter(r => r.isExit).length;
-
-  const customHelpers = robots.filter(r => !r.isExit).length;
+  const numUsedHelpers = robots.filter(r => !r.isExit && used.has(r.id)).length;
 
   const matches = [];
   for (const p of puzzles) {
     if (!p.robots) continue;
     if (p.robots.filter(r => r.isExit).length !== numExits) continue;
-    // Helper count must be within ±2 to possibly match after drops
+    // Library puzzles are pre-pruned; helper count must match our active count
     const pH = p.robots.filter(r => !r.isExit).length;
-    if (Math.abs(pH - customHelpers) > 2) continue;
+    if (pH !== numUsedHelpers) continue;
 
-    const pKeys = canonicalKeysAllDrops(p.robots, 2);
-
-    // Check for any key overlap
-    let found = false;
-    for (const k of customKeys) {
-      if (pKeys.has(k)) { found = true; break; }
-    }
-    if (found) matches.push(p);
+    // Library puzzles use all their robots (already pruned by C++ pipeline)
+    const allIds = new Set(p.robots.map(r => r.id));
+    const pKey = canonicalPositionKey(p.robots, allIds);
+    if (pKey === customKey) matches.push(p);
   }
   return matches;
 }
