@@ -367,7 +367,7 @@ export default function App() {
                 <Board
                   buildMode
                   buildPieces={buildState.pieces}
-                  onBuildClick={(row, col) => buildDispatch({ type: 'CLICK_CELL', row, col, blockedCells: variantBlocks })}
+                  onBuildClick={(row, col) => buildDispatch({ type: 'CLICK_CELL', row, col, blockedCells: variantBlocks, board })}
                   variantBlocks={variantBlocks}
                   board={board}
                 />

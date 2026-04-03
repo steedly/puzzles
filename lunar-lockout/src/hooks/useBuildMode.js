@@ -39,11 +39,13 @@ function countGroupedMoves(solution) {
 function reducer(state, action) {
   switch (action.type) {
     case 'CLICK_CELL': {
-      const { row, col, blockedCells } = action;
+      const { row, col, blockedCells, board } = action;
       if (state.phase === 'solved') return state;
       const key = `${row},${col}`;
       if (blockedCells && blockedCells.has(key)) return state;
-      if (row === 3 && col === 3) return state; // can't place on center
+      const ctrR = board ? board.centerRow : 3;
+      const ctrC = board ? board.centerCol : 3;
+      if (row === ctrR && col === ctrC) return state; // can't place on center
 
       const existing = state.pieces.find(p => p.row === row && p.col === col);
       if (existing) {
