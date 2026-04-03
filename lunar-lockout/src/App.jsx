@@ -102,7 +102,7 @@ export default function App() {
         const decoded = decodeStableId(pending.stableId);
         if (decoded && decoded.positions.length >= 2) {
           setMode('build');
-          buildDispatch({ type: 'LOAD_POSITIONS', positions: decoded.positions });
+          buildDispatch({ type: 'LOAD_POSITIONS', numExits: decoded.numExits, positions: decoded.positions });
           // Auto-solve will be triggered by a separate effect
           pendingBuildSolveRef.current = true;
         }

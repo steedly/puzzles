@@ -5,15 +5,23 @@ import { useReducer, useCallback } from 'react';
 import { solvePuzzle } from '../logic/solver';
 import { computeStableId } from './usePuzzleLibrary';
 
-const HELPER_IDS = ['r1', 'r2', 'r3', 'r4', 'r5'];
-const MAX_HELPERS = 5;
+const EXIT_IDS = ['target', 'exit1', 'exit2', 'exit3'];
+const HELPER_IDS = ['r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'r8', 'r9'];
+const MAX_EXITS = 4;
+const MAX_HELPERS = 9;
 
 const INITIAL_STATE = {
   pieces: [],            // [{ id, row, col, isExit }]
+  placingType: 'exit',   // 'exit' | 'helper'
   phase: 'placing',      // 'placing' | 'solved' | 'error'
   solvedPuzzle: null,
   errorMsg: null,
 };
+
+function nextExitId(pieces) {
+  const used = new Set(pieces.filter(p => p.isExit).map(p => p.id));
+  return EXIT_IDS.find(id => !used.has(id)) || null;
+}
 
 function nextHelperId(pieces) {
   const used = new Set(pieces.filter(p => !p.isExit).map(p => p.id));
@@ -39,35 +47,41 @@ function reducer(state, action) {
 
       const existing = state.pieces.find(p => p.row === row && p.col === col);
       if (existing) {
-        // Remove the piece
         return { ...state, pieces: state.pieces.filter(p => p !== existing) };
       }
 
-      const hasExit = state.pieces.some(p => p.isExit);
-      if (!hasExit) {
-        // Place the exit piece
+      if (state.placingType === 'exit') {
+        const exitCount = state.pieces.filter(p => p.isExit).length;
+        if (exitCount >= MAX_EXITS) return state;
+        const id = nextExitId(state.pieces);
+        if (!id) return state;
         return {
           ...state,
-          pieces: [...state.pieces, { id: 'target', row, col, isExit: true }],
+          pieces: [...state.pieces, { id, row, col, isExit: true }],
+        };
+      } else {
+        const helperCount = state.pieces.filter(p => !p.isExit).length;
+        if (helperCount >= MAX_HELPERS) return state;
+        const id = nextHelperId(state.pieces);
+        if (!id) return state;
+        return {
+          ...state,
+          pieces: [...state.pieces, { id, row, col, isExit: false }],
         };
       }
-
-      // Place a helper
-      const helperCount = state.pieces.filter(p => !p.isExit).length;
-      if (helperCount >= MAX_HELPERS) return state;
-      const id = nextHelperId(state.pieces);
-      if (!id) return state;
-      return {
-        ...state,
-        pieces: [...state.pieces, { id, row, col, isExit: false }],
-      };
     }
+
+    case 'SET_PLACING_TYPE':
+      return { ...state, placingType: action.placingType };
 
     case 'CLEAR':
       return { ...INITIAL_STATE };
 
     case 'EDIT':
-      return { ...INITIAL_STATE, pieces: state.solvedPuzzle?.robots ?? state.pieces };
+      return {
+        ...INITIAL_STATE,
+        pieces: state.solvedPuzzle?.robots ?? state.pieces,
+      };
 
     case 'SOLVE_COMPLETE':
       return { ...state, phase: 'solved', solvedPuzzle: action.puzzle, errorMsg: null };
@@ -76,15 +90,16 @@ function reducer(state, action) {
       return { ...state, phase: 'error', errorMsg: action.msg };
 
     case 'LOAD_POSITIONS': {
-      // Load pieces from decoded stableId positions: [[row,col], ...]
-      // First position is exit, rest are helpers.
-      const { positions } = action;
-      const pieces = positions.map((pos, i) => ({
-        id: i === 0 ? 'target' : HELPER_IDS[i - 1],
-        row: pos[0],
-        col: pos[1],
-        isExit: i === 0,
-      }));
+      const { numExits, positions } = action;
+      const pieces = positions.map((pos, i) => {
+        const isExit = i < numExits;
+        return {
+          id: isExit ? EXIT_IDS[i] : HELPER_IDS[i - numExits],
+          row: pos[0],
+          col: pos[1],
+          isExit,
+        };
+      });
       return { ...INITIAL_STATE, pieces };
     }
 
@@ -98,12 +113,12 @@ export function useBuildMode() {
 
   const solve = useCallback((blockedCells) => {
     const { pieces } = buildState;
-    const exit = pieces.find(p => p.isExit);
-    if (!exit) {
-      buildDispatch({ type: 'SOLVE_ERROR', msg: 'Place the exit piece (A) first.' });
+    const exits = pieces.filter(p => p.isExit);
+    const helpers = pieces.filter(p => !p.isExit);
+    if (exits.length === 0) {
+      buildDispatch({ type: 'SOLVE_ERROR', msg: 'Place at least one exit piece.' });
       return;
     }
-    const helpers = pieces.filter(p => !p.isExit);
     if (helpers.length === 0) {
       buildDispatch({ type: 'SOLVE_ERROR', msg: 'Place at least one helper piece.' });
       return;
@@ -115,7 +130,7 @@ export function useBuildMode() {
     const syntheticPuzzle = {
       id: 'custom',
       stableId: 'custom',
-      exits: 1,
+      exits: exits.length,
       helpers: helpers.length,
       minMoves: 0,
       solution: [],
@@ -130,7 +145,7 @@ export function useBuildMode() {
 
     const grouped = countGroupedMoves(solution);
     const posStr = robots.map(r => `${r.row},${r.col}`).join(' ');
-    const stableId = computeStableId(1, posStr);
+    const stableId = computeStableId(exits.length, posStr);
     const solvedPuzzle = {
       ...syntheticPuzzle,
       stableId,

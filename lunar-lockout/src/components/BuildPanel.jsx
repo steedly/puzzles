@@ -4,10 +4,10 @@
 const VARIANTS = ['standard', 'solitaire', 'ufo', 'french'];
 
 export default function BuildPanel({ variant, onVariantChange, buildState, buildDispatch, onSolve, onBackToLibrary }) {
-  const { pieces, phase, errorMsg, solvedPuzzle } = buildState;
-  const hasExit = pieces.some(p => p.isExit);
+  const { pieces, placingType, phase, errorMsg, solvedPuzzle } = buildState;
+  const exitCount = pieces.filter(p => p.isExit).length;
   const helperCount = pieces.filter(p => !p.isExit).length;
-  const canSolve = hasExit && helperCount > 0 && phase === 'placing';
+  const canSolve = exitCount > 0 && helperCount > 0 && phase === 'placing';
 
   return (
     <div className="pnav build-panel">
@@ -27,25 +27,48 @@ export default function BuildPanel({ variant, onVariantChange, buildState, build
         </select>
       </div>
 
+      {/* Piece type selector */}
+      {phase === 'placing' && (
+        <div className="pnav__filter-row">
+          <span className="pnav__label">Place</span>
+          <button
+            className={`pnav__chip${placingType === 'exit' ? ' pnav__chip--on' : ''}`}
+            onClick={() => buildDispatch({ type: 'SET_PLACING_TYPE', placingType: 'exit' })}
+          >
+            Exit ({exitCount}/4)
+          </button>
+          <button
+            className={`pnav__chip${placingType === 'helper' ? ' pnav__chip--on' : ''}`}
+            onClick={() => buildDispatch({ type: 'SET_PLACING_TYPE', placingType: 'helper' })}
+          >
+            Helper ({helperCount}/9)
+          </button>
+        </div>
+      )}
+
       {/* Instructions */}
       {phase === 'placing' && (
         <div className="build-panel__instructions">
-          {!hasExit
-            ? 'Click a cell to place the exit piece (A).'
-            : helperCount < 5
-              ? `Click cells to add helpers (${helperCount}/5). Click a piece to remove it.`
-              : 'Max 5 helpers placed. Click a piece to remove it.'}
+          {placingType === 'exit'
+            ? exitCount < 4
+              ? 'Click a cell to place an exit piece. Click a piece to remove it.'
+              : 'Max 4 exits placed. Switch to Helper or click a piece to remove it.'
+            : helperCount < 9
+              ? 'Click a cell to place a helper. Click a piece to remove it.'
+              : 'Max 9 helpers placed. Click a piece to remove it.'}
         </div>
       )}
 
       {/* Piece status */}
       <div className="build-panel__status-row">
-        <span className="pnav__label">Exit:</span>
-        <span className={hasExit ? 'build-panel__placed' : 'build-panel__empty'}>
-          {hasExit ? 'A' : '--'}
+        <span className="pnav__label">Exits:</span>
+        <span className={exitCount > 0 ? 'build-panel__placed' : 'build-panel__empty'}>
+          {exitCount || '--'}
         </span>
         <span className="pnav__label" style={{ marginLeft: 12 }}>Helpers:</span>
-        <span className="build-panel__placed">{helperCount}</span>
+        <span className={helperCount > 0 ? 'build-panel__placed' : 'build-panel__empty'}>
+          {helperCount || '--'}
+        </span>
       </div>
 
       {/* Action buttons */}
