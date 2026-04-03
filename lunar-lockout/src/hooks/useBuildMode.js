@@ -103,6 +103,14 @@ function reducer(state, action) {
       return { ...INITIAL_STATE, pieces };
     }
 
+    case 'LOAD_ROBOTS': {
+      // Load pieces from a puzzle's robots array [{id, row, col, isExit}, ...]
+      const pieces = action.robots.map(r => ({
+        id: r.id, row: r.row, col: r.col, isExit: r.isExit,
+      }));
+      return { ...INITIAL_STATE, pieces };
+    }
+
     default:
       return state;
   }

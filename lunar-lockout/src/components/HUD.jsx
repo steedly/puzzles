@@ -10,7 +10,7 @@ function robotLabel(id) {
   return id.replace('r', '');
 }
 
-export default function HUD({ state, dispatch, currentPuzzle, showSolution, onToggleSolution, scoreMode, onScoreModeChange, hideOptimal, onHideOptimalChange }) {
+export default function HUD({ state, dispatch, currentPuzzle, showSolution, onToggleSolution, scoreMode, onScoreModeChange, hideOptimal, onHideOptimalChange, onEditInBuild }) {
   const solution = currentPuzzle?.solution ?? [];
   const canSolve = currentPuzzle?.minMoves > 0;
 
@@ -71,6 +71,13 @@ export default function HUD({ state, dispatch, currentPuzzle, showSolution, onTo
           onClick={() => onHideOptimalChange(!hideOptimal)}
           title={hideOptimal ? 'Minimum hidden' : 'Minimum shown'}
         >{hideOptimal ? 'Min: Hidden' : 'Min: Shown'}</button>
+        {onEditInBuild && (
+          <button
+            className="hud__tool-btn"
+            onClick={onEditInBuild}
+            title="Open this puzzle in Build mode to modify pieces and find similar puzzles"
+          >Edit in Build</button>
+        )}
       </div>
 
       {showSolution && solution.length > 0 && (

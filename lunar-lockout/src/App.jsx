@@ -288,6 +288,14 @@ export default function App() {
     setBuildPreview(null);
   }, []);
 
+  // Load a library puzzle into Build mode for editing
+  const handleEditInBuild = useCallback(() => {
+    if (!currentPuzzle?.robots) return;
+    buildDispatch({ type: 'LOAD_ROBOTS', robots: currentPuzzle.robots });
+    setBuildPreview(null);
+    setMode('build');
+  }, [currentPuzzle, buildDispatch]);
+
   return (
     <div className="app">
       <header className="app__header">
@@ -380,6 +388,7 @@ export default function App() {
                   onScoreModeChange={setScoreMode}
                   hideOptimal={hideOptimal}
                   onHideOptimalChange={setHideOptimal}
+                  onEditInBuild={currentPuzzle?.robots ? handleEditInBuild : undefined}
                 />
               </div>
             ) : null}
