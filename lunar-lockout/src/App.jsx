@@ -220,7 +220,7 @@ export default function App() {
   return (
     <div className="app">
       <header className="app__header">
-        <h1 className="app__title">Lunar Lockout</h1>
+        <h1 className="app__title">Spaceport Solitaire</h1>
         {currentPuzzle && (
           <div className="app__puzzle-info">
             <span className="pinfo-badge">{currentPuzzle.stableId}</span>
