@@ -11,6 +11,7 @@ import PuzzleNav from './components/PuzzleNav';
 import BuildPanel from './components/BuildPanel';
 import WinModal from './components/WinModal';
 import { useBuildMode } from './hooks/useBuildMode';
+import { boardForVariant } from './logic/boardGeometry';
 
 // Placeholder so useGameState never receives null.
 const DUMMY_PUZZLE = {
@@ -39,6 +40,8 @@ const VARIANT_BLOCKS = {
      [5,0],[6,0],[6,1],[5,6],[6,5],[6,6]]
       .map(([r, c]) => `${r},${c}`)
   ),
+  hex: new Set(),
+  beehive: new Set(),
 };
 
 export default function App() {
@@ -68,6 +71,7 @@ export default function App() {
   });
 
   const variantBlocks = VARIANT_BLOCKS[variant] || VARIANT_BLOCKS.standard;
+  const board = boardForVariant(variant);
 
   const { state, dispatch } = useGameState(currentPuzzle ?? DUMMY_PUZZLE, variantBlocks);
 
@@ -368,6 +372,7 @@ export default function App() {
                   buildPieces={buildState.pieces}
                   onBuildClick={(row, col) => buildDispatch({ type: 'CLICK_CELL', row, col, blockedCells: variantBlocks })}
                   variantBlocks={variantBlocks}
+                  board={board}
                 />
               </div>
             ) : currentPuzzle ? (
@@ -377,6 +382,7 @@ export default function App() {
                   state={state} dispatch={dispatch} puzzle={currentPuzzle}
                   showPaths={showSolution}
                   variantBlocks={variantBlocks}
+                  board={board}
                 />
                 <HUD
                   state={state}

@@ -3,7 +3,7 @@
 
 import { useRef, useCallback, useEffect, useState } from 'react';
 
-const VALID_VARIANTS = new Set(['standard', 'solitaire', 'ufo', 'french']);
+const VALID_VARIANTS = new Set(['standard', 'solitaire', 'ufo', 'french', 'hex', 'beehive']);
 const VALID_SORTS = new Set(['id', 'moves', 'slides', 'minSlides', 'states']);
 
 // Parse hash: #variant/stableId?h=3,4&e=1&d=easy,hard&mv=3-8&s=moves.d

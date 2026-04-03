@@ -3,41 +3,49 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-const DIR_MAP = { U: 'up', D: 'down', L: 'left', R: 'right' };
+const SQUARE_DIR_MAP = { U: 'up', D: 'down', L: 'left', R: 'right' };
+const HEX_DIR_MAP = { Nw: 'nw', Se: 'se', Sw: 'sw', Ne: 'ne', No: 'no', So: 'so' };
 
 // Compute a stable, position-based puzzle ID.
-// Encodes cell indices as digits in base-49, then converts to base-36.
+// Encodes cell indices as digits in base-NC, then converts to base-36.
 // Prefixed with exit count and a dash: e.g. "1-174o0"
-export function computeStableId(numExits, positionsStr) {
+// For hex5 (N=5), uses base-25; for all others (N=7), uses base-49.
+export function computeStableId(numExits, positionsStr, boardN = 7) {
+  const nc = boardN * boardN;
   const cells = positionsStr.trim().split(' ').map(p => {
     const [r, c] = p.split(',').map(Number);
-    return r * 7 + c;
+    return r * boardN + c;
   });
   let value = 0;
   for (const cell of cells) {
-    value = value * 49 + cell;
+    value = value * nc + cell;
   }
-  return `${numExits}-${value.toString(36)}`;
+  // Prefix with 'h' for hex5 to avoid collisions with 7x7 IDs
+  const prefix = boardN === 5 ? `h${numExits}` : `${numExits}`;
+  return `${prefix}-${value.toString(36)}`;
 }
 
-// Reverse of computeStableId: decode a stableId back to board positions.
-// Returns { numExits, positions: [[row,col], ...] } or null if invalid.
-// This enables forward-compatible permalinks — if a stableId becomes stale
-// after puzzle regeneration, we can decode it to positions and find the
-// current puzzle at those positions.
+// Reverse of computeStableId.
 export function decodeStableId(stableId) {
-  const dash = stableId.indexOf('-');
+  let boardN = 7;
+  let rest = stableId;
+  if (rest.startsWith('h')) {
+    boardN = 5;
+    rest = rest.slice(1);
+  }
+  const dash = rest.indexOf('-');
   if (dash < 0) return null;
-  const numExits = parseInt(stableId.slice(0, dash), 10);
+  const numExits = parseInt(rest.slice(0, dash), 10);
   if (isNaN(numExits) || numExits < 1) return null;
-  let value = parseInt(stableId.slice(dash + 1), 36);
+  let value = parseInt(rest.slice(dash + 1), 36);
   if (isNaN(value) || value < 0) return null;
+  const nc = boardN * boardN;
   const cells = [];
   while (value > 0) {
-    cells.unshift(value % 49);
-    value = Math.floor(value / 49);
+    cells.unshift(value % nc);
+    value = Math.floor(value / nc);
   }
-  return { numExits, positions: cells.map(c => [Math.floor(c / 7), c % 7]) };
+  return { numExits, positions: cells.map(c => [Math.floor(c / boardN), c % boardN]), boardN };
 }
 
 // Map solution move characters to robot IDs.
@@ -60,7 +68,7 @@ function groupedMoveCount(solution) {
   return count;
 }
 
-function parseLine(line) {
+function parseLine(line, boardN = 7) {
   const parts = line.split('|');
 
   let idStr, exitsStr, helpersStr, posStr, solStr;
@@ -136,11 +144,22 @@ function parseLine(line) {
     helpers === 4 ? 'hard'   : 'expert';
 
   const solTokens = solStr ? solStr.trim().split(' ').filter(Boolean) : [];
-  const solution = solTokens.map(mv => ({
-    mover:   robotLabel(mv[0]),
-    dir:     DIR_MAP[mv[1]],
-    blocker: robotLabel(mv[2]),
-  }));
+  const solution = solTokens.map(mv => {
+    if (mv.length === 4) {
+      // Hex format: mover(1) + dir(2) + blocker(1), e.g. "ANeB"
+      return {
+        mover:   robotLabel(mv[0]),
+        dir:     HEX_DIR_MAP[mv.slice(1, 3)] || mv.slice(1, 3),
+        blocker: robotLabel(mv[3]),
+      };
+    }
+    // Square format: mover(1) + dir(1) + blocker(1), e.g. "AUB"
+    return {
+      mover:   robotLabel(mv[0]),
+      dir:     SQUARE_DIR_MAP[mv[1]] || mv[1],
+      blocker: robotLabel(mv[2]),
+    };
+  });
 
   // Use stored minMoves if available (works even when solution is stripped);
   // fall back to computing from solution for backward compatibility.
@@ -149,7 +168,8 @@ function parseLine(line) {
     : groupedMoveCount(solution);
 
   // Precompute bounding box for blocked-cell filtering
-  let minR = 6, maxR = 0, minC = 6, maxC = 0;
+  const maxIdx = boardN - 1;
+  let minR = maxIdx, maxR = 0, minC = maxIdx, maxC = 0;
   for (const r of robots) {
     if (r.row < minR) minR = r.row;
     if (r.row > maxR) maxR = r.row;
@@ -158,7 +178,7 @@ function parseLine(line) {
   }
   const bbox = { minR, maxR, minC, maxC };
 
-  const stableId = computeStableId(numExits, posStr);
+  const stableId = computeStableId(numExits, posStr, boardN);
 
   const actualRawSlides = rawSlides ?? solution.length;
 
@@ -183,10 +203,17 @@ function parseLine(line) {
 }
 
 function parseText(text) {
-  return text
-    .split('\n')
+  const lines = text.split('\n');
+  // Detect board size from header
+  let boardN = 7;
+  for (const l of lines) {
+    if (l.startsWith('# Variant: hex')) { boardN = 5; break; }
+    if (l.startsWith('# Variant: beehive')) { boardN = 7; break; }
+    if (!l.startsWith('#')) break;
+  }
+  return lines
     .filter(l => l && !l.startsWith('#'))
-    .map(parseLine)
+    .map(l => parseLine(l, boardN))
     .filter(Boolean);
 }
 
@@ -206,6 +233,8 @@ const VARIANT_FILES = {
   solitaire: 'puzzles-solitaire.llp',
   ufo:       'puzzles-ufo.llp',
   french:    'puzzles-french.llp',
+  hex:       'puzzles-hex.llp',
+  beehive:   'puzzles-beehive.llp',
 };
 
 export function usePuzzleLibrary(initialVariant = 'standard') {

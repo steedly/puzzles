@@ -1,11 +1,19 @@
 // Copyright (c) 2025-2026 Drew Steedly. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+import { SQUARE_7x7 } from './boardGeometry.js';
+
 const DIRS = {
   up:    { dr: -1, dc:  0 },
   down:  { dr:  1, dc:  0 },
   left:  { dr:  0, dc: -1 },
   right: { dr:  0, dc:  1 },
+  nw:    { dr: -1, dc:  0 },
+  se:    { dr:  1, dc:  0 },
+  sw:    { dr:  0, dc: -1 },
+  ne:    { dr:  0, dc:  1 },
+  no:    { dr: -1, dc:  1 },
+  so:    { dr:  1, dc: -1 },
 };
 
 function occupiedCells(positions, excludeId = null) {
@@ -23,22 +31,24 @@ function occupiedCells(positions, excludeId = null) {
  * in Lunar Lockout. Returns null for illegal or no-op moves.
  *
  * exitIds: Set of robot IDs that are exit pieces. When an exit piece lands
- * on the center cell (3,3) it is REMOVED from positions (it exits the board).
+ * on the center cell it is REMOVED from positions (it exits the board).
+ * board: board geometry config (from boardGeometry.js). Defaults to SQUARE_7x7.
  */
-export function slideRobot(positions, robotId, direction, exitIds = null, blockedCells = null) {
+export function slideRobot(positions, robotId, direction, exitIds = null, blockedCells = null, board = SQUARE_7x7) {
   const start = positions[robotId];
   if (!start) return null; // robot not on board (already exited)
 
   const { dr, dc } = DIRS[direction];
   const occupied = occupiedCells(positions, robotId);
+  const maxIdx = board.N - 1;
   let { row, col } = start;
 
   let stoppedByRobot = false;
   while (true) {
     const nextRow = row + dr;
     const nextCol = col + dc;
-    if (nextRow < 0 || nextRow > 6 || nextCol < 0 || nextCol > 6) break; // wall — illegal stop
-    if (blockedCells && blockedCells.has(`${nextRow},${nextCol}`)) break;  // blocked cell — wall
+    if (nextRow < 0 || nextRow > maxIdx || nextCol < 0 || nextCol > maxIdx) break; // wall
+    if (blockedCells && blockedCells.has(`${nextRow},${nextCol}`)) break;
     if (occupied.has(`${nextRow},${nextCol}`)) {
       stoppedByRobot = true;
       break;
@@ -51,7 +61,7 @@ export function slideRobot(positions, robotId, direction, exitIds = null, blocke
   if (!stoppedByRobot || (row === start.row && col === start.col)) return null;
 
   // Exit piece reaching center: remove it from the board.
-  if (exitIds && exitIds.has(robotId) && row === 3 && col === 3) {
+  if (exitIds && exitIds.has(robotId) && row === board.centerRow && col === board.centerCol) {
     const newPositions = { ...positions };
     delete newPositions[robotId];
     return newPositions;

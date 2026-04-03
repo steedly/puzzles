@@ -31,7 +31,7 @@ function reducer(state, action) {
       if (!state.selectedRobotId) return state;
       const newPositions = slideRobot(
         state.positions, state.selectedRobotId, action.direction, state.exitIds,
-        action.blockedCells ?? null
+        action.blockedCells ?? null, action.board ?? undefined
       );
       if (!newPositions) return state;
       // Consecutive slides by the same robot count as one move (switching robots = new move).

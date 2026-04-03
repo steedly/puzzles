@@ -2,10 +2,14 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { slideRobot } from '../logic/gameEngine';
+import { SQUARE_7x7 } from '../logic/boardGeometry';
 import Cell from './Cell';
 import SolutionOverlay from './SolutionOverlay';
 
-export default function Board({ state, dispatch, puzzle, showPaths, variantBlocks, buildMode, buildPieces, onBuildClick }) {
+export default function Board({ state, dispatch, puzzle, showPaths, variantBlocks, buildMode, buildPieces, onBuildClick, board = SQUARE_7x7 }) {
+  const N = board.N;
+  const isHex = board.type === 'hex';
+
   // ── Build mode: simpler rendering with click-to-place ──
   if (buildMode) {
     const cellMap = {};
@@ -17,8 +21,8 @@ export default function Board({ state, dispatch, puzzle, showPaths, variantBlock
     }
 
     const cells = [];
-    for (let r = 0; r < 7; r++) {
-      for (let c = 0; c < 7; c++) {
+    for (let r = 0; r < N; r++) {
+      for (let c = 0; c < N; c++) {
         const key = `${r},${c}`;
         const robotId = cellMap[key] ?? null;
         cells.push(
@@ -26,13 +30,14 @@ export default function Board({ state, dispatch, puzzle, showPaths, variantBlock
             key={key}
             row={r}
             col={c}
-            isCenter={r === 3 && c === 3}
+            isCenter={r === board.centerRow && c === board.centerCol}
             robotId={robotId}
             robotMeta={robotId ? robotMeta[robotId] : null}
             selectedRobotId={null}
             isLandingCell={false}
             isVariantBlocked={variantBlocks && variantBlocks.has(key)}
             isBuildMode
+            isHex={isHex}
             onClick={(row, col) => onBuildClick(row, col)}
           />
         );
@@ -40,19 +45,20 @@ export default function Board({ state, dispatch, puzzle, showPaths, variantBlock
     }
     return (
       <div className="board-container">
-        <div className="board">{cells}</div>
+        <div className={`board ${isHex ? 'board--hex board--hex-' + N : ''}`}
+             style={isHex ? { '--hex-n': N } : undefined}>
+          {cells}
+        </div>
       </div>
     );
   }
 
   // ── Normal play mode ──
-  // Build reverse lookup: "row,col" → robotId
   const cellMap = {};
   for (const [id, pos] of Object.entries(state.positions)) {
     cellMap[`${pos.row},${pos.col}`] = id;
   }
 
-  // Build robotMeta lookup: id → { isExit, exitIndex }
   const robotMeta = {};
   let exitIdx = 0;
   for (const r of puzzle.robots) {
@@ -69,16 +75,16 @@ export default function Board({ state, dispatch, puzzle, showPaths, variantBlock
   // Compute the valid landing cell for each direction the selected robot can move.
   const landingCells = new Set();
   if (state.selectedRobotId && selectedRobotPos) {
-    for (const dir of ['up', 'down', 'left', 'right']) {
+    for (const dir of board.dirs) {
       const newPositions = slideRobot(
-        state.positions, state.selectedRobotId, dir, state.exitIds ?? null, variantBlocks ?? null
+        state.positions, state.selectedRobotId, dir.name, state.exitIds ?? null, variantBlocks ?? null, board
       );
       if (!newPositions) continue;
       const newPos = newPositions[state.selectedRobotId];
       if (newPos) {
         landingCells.add(`${newPos.row},${newPos.col}`);
       } else {
-        landingCells.add('3,3');
+        landingCells.add(`${board.centerRow},${board.centerCol}`);
       }
     }
   }
@@ -92,18 +98,28 @@ export default function Board({ state, dispatch, puzzle, showPaths, variantBlock
       dispatch({ type: 'DESELECT' });
       return;
     }
-    if (row === selectedRobotPos.row && col !== selectedRobotPos.col) {
-      dispatch({ type: 'SLIDE', direction: col > selectedRobotPos.col ? 'right' : 'left', blockedCells: variantBlocks });
-    } else if (col === selectedRobotPos.col && row !== selectedRobotPos.row) {
-      dispatch({ type: 'SLIDE', direction: row > selectedRobotPos.row ? 'down' : 'up', blockedCells: variantBlocks });
-    } else {
-      dispatch({ type: 'DESELECT' });
+
+    // Find which direction (if any) connects the selected robot to this cell.
+    // Try all directions and see if sliding lands on the clicked cell.
+    for (const dir of board.dirs) {
+      const newPositions = slideRobot(
+        state.positions, state.selectedRobotId, dir.name, state.exitIds ?? null, variantBlocks ?? null, board
+      );
+      if (!newPositions) continue;
+      const newPos = newPositions[state.selectedRobotId];
+      const landRow = newPos ? newPos.row : board.centerRow;
+      const landCol = newPos ? newPos.col : board.centerCol;
+      if (landRow === row && landCol === col) {
+        dispatch({ type: 'SLIDE', direction: dir.name, blockedCells: variantBlocks, board });
+        return;
+      }
     }
+    dispatch({ type: 'DESELECT' });
   }
 
   const cells = [];
-  for (let r = 0; r < 7; r++) {
-    for (let c = 0; c < 7; c++) {
+  for (let r = 0; r < N; r++) {
+    for (let c = 0; c < N; c++) {
       const key = `${r},${c}`;
       const robotId = cellMap[key] ?? null;
       cells.push(
@@ -111,12 +127,13 @@ export default function Board({ state, dispatch, puzzle, showPaths, variantBlock
           key={key}
           row={r}
           col={c}
-          isCenter={r === 3 && c === 3}
+          isCenter={r === board.centerRow && c === board.centerCol}
           robotId={robotId}
           robotMeta={robotId ? robotMeta[robotId] : null}
           selectedRobotId={state.selectedRobotId}
           isLandingCell={landingCells.has(key)}
           isVariantBlocked={variantBlocks && variantBlocks.has(key)}
+          isHex={isHex}
           onClick={handleCellClick}
         />
       );
@@ -125,9 +142,12 @@ export default function Board({ state, dispatch, puzzle, showPaths, variantBlock
 
   return (
     <div className="board-container">
-      <div className="board">{cells}</div>
+      <div className={`board ${isHex ? 'board--hex board--hex-' + N : ''}`}
+           style={isHex ? { '--hex-n': N } : undefined}>
+        {cells}
+      </div>
       {showPaths && (
-        <SolutionOverlay puzzle={puzzle} blockedCells={variantBlocks} />
+        <SolutionOverlay puzzle={puzzle} blockedCells={variantBlocks} board={board} />
       )}
     </div>
   );

@@ -24,6 +24,8 @@ const VARIANTS = [
   { key: 'french',    label: 'French Solitaire' },
   { key: 'solitaire', label: 'Solitaire' },
   { key: 'ufo',       label: 'UFO' },
+  { key: 'hex',       label: 'Hex' },
+  { key: 'beehive',   label: 'Bee Hive' },
 ];
 
 // Click = select only this value; Shift+click = toggle add/remove

@@ -4,8 +4,8 @@
 import { useMemo, useRef, useEffect, useState } from 'react';
 import { solvePuzzle } from '../logic/solver.js';
 
-const DR = { up: -1, down: 1, left: 0, right: 0 };
-const DC = { up: 0, down: 0, left: -1, right: 1 };
+const DR = { up: -1, down: 1, left: 0, right: 0, nw: -1, se: 1, sw: 0, ne: 0, no: -1, so: 1 };
+const DC = { up: 0, down: 0, left: -1, right: 1, nw: 0, se: 0, sw: -1, ne: 1, no: 1, so: -1 };
 
 // Robot color palette (matches CSS variables)
 const ROBOT_COLORS = {
@@ -48,7 +48,7 @@ function pathCrossesBlock(sr, sc, dir, endR, endC, blockedCells) {
 /**
  * Replay solution from initial positions, producing arrow segments.
  */
-function computeArrows(solution, puzzle, blockedCells) {
+function computeArrows(solution, puzzle, blockedCells, board) {
   if (!solution || solution.length === 0 || !puzzle) return [];
 
   // Build positions map from puzzle
@@ -70,7 +70,8 @@ function computeArrows(solution, puzzle, blockedCells) {
     // Slide until hitting another robot or wall
     while (true) {
       const nr = r + dr, nc = c + dc;
-      if (nr < 0 || nr > 6 || nc < 0 || nc > 6) break;
+      const maxIdx = (board ? board.N : 7) - 1;
+      if (nr < 0 || nr > maxIdx || nc < 0 || nc > maxIdx) break;
       let hit = false;
       for (const [id, p] of Object.entries(positions)) {
         if (id !== move.mover && p.row === nr && p.col === nc) { hit = true; break; }
@@ -91,7 +92,9 @@ function computeArrows(solution, puzzle, blockedCells) {
     });
 
     // Update positions
-    if (exitIds.has(move.mover) && r === 3 && c === 3) {
+    const ctrR = board ? board.centerRow : 3;
+    const ctrC = board ? board.centerCol : 3;
+    if (exitIds.has(move.mover) && r === ctrR && c === ctrC) {
       delete positions[move.mover];
     } else {
       positions[move.mover] = { row: r, col: c };
@@ -100,7 +103,7 @@ function computeArrows(solution, puzzle, blockedCells) {
   return arrows;
 }
 
-export default function SolutionOverlay({ puzzle, blockedCells }) {
+export default function SolutionOverlay({ puzzle, blockedCells, board }) {
   const boardRef = useRef(null);
   const [dims, setDims] = useState(null);
 
@@ -135,8 +138,8 @@ export default function SolutionOverlay({ puzzle, blockedCells }) {
   }, [puzzle, hasBlocks, blockKey]);
 
   const arrows = useMemo(
-    () => computeArrows(solution, puzzle, blockedCells),
-    [solution, puzzle, blockedCells]
+    () => computeArrows(solution, puzzle, blockedCells, board),
+    [solution, puzzle, blockedCells, board]
   );
 
   if (!dims || arrows.length === 0) return null;

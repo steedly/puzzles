@@ -1062,6 +1062,68 @@ button { cursor: pointer; font-family: inherit; }
 }
 
 /* ── Responsive ────────────────────────────────────────────────────────────── */
+/* ── Hex diamond board ─────────────────────────────────────────────────────── */
+/* The NxN grid is rotated 45° to display as a diamond. Each cell becomes a
+   hexagon via clip-path. The board container compensates for the rotation. */
+
+.board--hex {
+  transform: rotate(45deg);
+  /* After rotation, the diagonal of the NxN grid becomes the width/height.
+     Scale down slightly so it fits in the same space as the square board. */
+  transform-origin: center center;
+}
+
+.board--hex-5 {
+  grid-template-columns: repeat(5, var(--cell-size));
+  grid-template-rows: repeat(5, var(--cell-size));
+  /* Scale so the rotated 5x5 fits nicely */
+  --hex-scale: 0.82;
+  transform: rotate(45deg) scale(var(--hex-scale));
+  margin: 30px;
+}
+
+.board--hex-7 {
+  grid-template-columns: repeat(7, var(--cell-size));
+  grid-template-rows: repeat(7, var(--cell-size));
+  --hex-scale: 0.72;
+  transform: rotate(45deg) scale(var(--hex-scale));
+  margin: 10px;
+}
+
+/* Hex cells: hexagonal shape, counter-rotated so content is upright */
+.board--hex .cell {
+  clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+  border-radius: 0;
+  border: none;
+  background: var(--cell-bg);
+}
+
+.board--hex .cell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+  border: 2px solid var(--cell-border);
+  pointer-events: none;
+}
+
+.board--hex .cell--center {
+  background: var(--cell-center-bg);
+}
+
+.board--hex .cell--landing {
+  background: rgba(255, 215, 0, 0.12);
+}
+
+/* Counter-rotate cell contents so robots appear upright */
+.board--hex .cell > * {
+  transform: rotate(-45deg);
+}
+
+.board--hex .cell--center::after {
+  transform: rotate(-45deg);
+}
+
 @media (max-width: 640px) {
   .game-layout { flex-direction: column; }
   .pnav { width: 100%; max-width: 100%; }
