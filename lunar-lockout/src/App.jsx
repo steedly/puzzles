@@ -134,6 +134,7 @@ export default function App() {
         movesMin: f.movesMin ?? null,
         movesMax: f.movesMax ?? null,
         sortBy: f.sortBy ?? 'id',
+        sortBy2: f.sortBy2 ?? 'none',
         sortAsc: f.sortAsc ?? true,
       });
       pending.filters = null;
@@ -167,6 +168,7 @@ export default function App() {
         movesMin: f.movesMin ?? null,
         movesMax: f.movesMax ?? null,
         sortBy: f.sortBy ?? 'id',
+        sortBy2: f.sortBy2 ?? 'none',
         sortAsc: f.sortAsc ?? true,
       });
     }

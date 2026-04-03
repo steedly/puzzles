@@ -16,6 +16,7 @@ const SORT_OPTIONS = [
   { key: 'slides',    label: 'Slides',    fn: p => p.rawSlides ?? 0 },
   { key: 'minSlides', label: 'Min Slides', fn: p => p.minRawSlides ?? 0 },
   { key: 'states',    label: 'States',    fn: p => p.forwardStates ?? 0 },
+  { key: 'fits',      label: 'Fits',      fn: p => (p.fitsSolitaire?1:0) + (p.fitsUfo?1:0) + (p.fitsFrench?1:0) },
 ];
 
 const VARIANTS = [
@@ -68,6 +69,7 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
   const movesMin      = filterState?.movesMin ?? movesRange.min;
   const movesMax      = filterState?.movesMax ?? movesRange.max;
   const sortBy        = filterState?.sortBy  ?? 'id';
+  const sortBy2       = filterState?.sortBy2 ?? 'none';
   const sortAsc       = filterState?.sortAsc ?? true;
 
   const [page,          setPage]          = useState(0);
@@ -84,6 +86,7 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
       movesMin,
       movesMax,
       sortBy,
+      sortBy2,
       sortAsc,
       ...patch,
     });
@@ -96,11 +99,27 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
   function setMovesMin(v)      { updateFilter({ movesMin: typeof v === 'function' ? v(movesMin) : v }); }
   function setMovesMax(v)      { updateFilter({ movesMax: typeof v === 'function' ? v(movesMax) : v }); }
   function setSortBy(v)        { updateFilter({ sortBy: typeof v === 'function' ? v(sortBy) : v }); }
+  function setSortBy2(v)       { updateFilter({ sortBy2: typeof v === 'function' ? v(sortBy2) : v }); }
   function setSortAsc(v)       { updateFilter({ sortAsc: typeof v === 'function' ? v(sortAsc) : v }); }
 
-  // Reset filters when puzzle library changes (variant switch)
+  // Preserve compatible filters across variant switches.
+  // Only reset values that are no longer valid for the new puzzle set.
   useEffect(() => {
-    onFilterChange(null); // signal reset to defaults
+    if (!filterState) { setPage(0); return; } // already defaults
+    const helpersSet = new Set(availableHelpers);
+    const exitsSet = new Set(availableExits);
+    const keptHelpers = new Set([...filterState.helpers ?? []].filter(h => helpersSet.has(h)));
+    const keptExits = new Set([...filterState.exits ?? []].filter(e => exitsSet.has(e)));
+    onFilterChange({
+      helpers: keptHelpers.size > 0 ? keptHelpers : null,
+      exits: keptExits.size > 0 ? keptExits : null,
+      diffs: filterState.diffs,
+      movesMin: filterState.movesMin != null ? Math.max(filterState.movesMin, movesRange.min) : null,
+      movesMax: filterState.movesMax != null ? Math.min(filterState.movesMax, movesRange.max) : null,
+      sortBy: filterState.sortBy,
+      sortBy2: filterState.sortBy2,
+      sortAsc: filterState.sortAsc,
+    });
     setPage(0);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [availableHelpers, availableExits, movesRange]);
@@ -125,15 +144,21 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
   const filtered = useMemo(() => {
     const sortOpt = SORT_OPTIONS.find(o => o.key === sortBy);
     if (!sortOpt) return filteredUnsorted;
+    const fn1 = sortOpt.fn;
+    const sortOpt2 = sortBy2 !== 'none' ? SORT_OPTIONS.find(o => o.key === sortBy2) : null;
+    const fn2 = sortOpt2?.fn;
     const arr = [...filteredUnsorted];
-    const fn = sortOpt.fn;
     arr.sort((a, b) => {
-      const va = fn(a), vb = fn(b);
-      return sortAsc ? (va < vb ? -1 : va > vb ? 1 : 0)
-                     : (va > vb ? -1 : va < vb ? 1 : 0);
+      const va = fn1(a), vb = fn1(b);
+      let cmp = va < vb ? -1 : va > vb ? 1 : 0;
+      if (cmp === 0 && fn2) {
+        const va2 = fn2(a), vb2 = fn2(b);
+        cmp = va2 < vb2 ? -1 : va2 > vb2 ? 1 : 0;
+      }
+      return sortAsc ? cmp : -cmp;
     });
     return arr;
-  }, [filteredUnsorted, sortBy, sortAsc]);
+  }, [filteredUnsorted, sortBy, sortBy2, sortAsc]);
 
   // Notify parent of the current filtered list (for WinModal "Next").
   useEffect(() => {
@@ -352,6 +377,17 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
               onChange={e => { setSortBy(e.target.value); setPage(0); }}
             >
               {SORT_OPTIONS.map(o => (
+                <option key={o.key} value={o.key}>{o.label}</option>
+              ))}
+            </select>
+            <select
+              className="pnav__sort-select"
+              value={sortBy2}
+              title="Secondary sort (tiebreaker)"
+              onChange={e => { setSortBy2(e.target.value); setPage(0); }}
+            >
+              <option value="none">then...</option>
+              {SORT_OPTIONS.filter(o => o.key !== sortBy).map(o => (
                 <option key={o.key} value={o.key}>{o.label}</option>
               ))}
             </select>
