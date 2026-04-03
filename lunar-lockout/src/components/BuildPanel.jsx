@@ -15,6 +15,9 @@ export default function BuildPanel({
   const helperCount = pieces.filter(p => !p.isExit).length;
   const canSolve = exitCount > 0 && helperCount > 0 && phase === 'placing';
 
+  // The board is showing the built puzzle (not a library preview)
+  const showingBuild = phase === 'solved' && !buildPreview;
+
   // Compute collision signature of the solved puzzle and find library matches
   const matches = useMemo(() => {
     if (!solvedPuzzle?.solution?.length || !allPuzzles?.length) return [];
@@ -28,32 +31,20 @@ export default function BuildPanel({
         <span className="pnav__title">Build Puzzle</span>
       </div>
 
-      {/* Preview banner */}
-      {buildPreview && (
-        <div className="build-panel__preview-banner">
-          <span>Viewing <strong>{buildPreview.stableId}</strong></span>
-          <button className="pnav__nav-btn" onClick={onPreviewBack}>
-            Back to Build
-          </button>
-        </div>
-      )}
-
       {/* Variant selector */}
-      {!buildPreview && (
-        <div className="pnav__filter-row">
-          <span className="pnav__label">Board</span>
-          <select
-            className="pnav__sort-select"
-            value={variant}
-            onChange={e => onVariantChange(e.target.value)}
-          >
-            {VARIANTS.map(v => <option key={v} value={v}>{v}</option>)}
-          </select>
-        </div>
-      )}
+      <div className="pnav__filter-row">
+        <span className="pnav__label">Board</span>
+        <select
+          className="pnav__sort-select"
+          value={variant}
+          onChange={e => onVariantChange(e.target.value)}
+        >
+          {VARIANTS.map(v => <option key={v} value={v}>{v}</option>)}
+        </select>
+      </div>
 
       {/* Piece type selector */}
-      {phase === 'placing' && !buildPreview && (
+      {phase === 'placing' && (
         <div className="pnav__filter-row">
           <span className="pnav__label">Place</span>
           <button
@@ -72,7 +63,7 @@ export default function BuildPanel({
       )}
 
       {/* Instructions */}
-      {phase === 'placing' && !buildPreview && (
+      {phase === 'placing' && (
         <div className="build-panel__instructions">
           {placingType === 'exit'
             ? exitCount < 4
@@ -85,77 +76,87 @@ export default function BuildPanel({
       )}
 
       {/* Piece status */}
-      {!buildPreview && (
-        <div className="build-panel__status-row">
-          <span className="pnav__label">Exits:</span>
-          <span className={exitCount > 0 ? 'build-panel__placed' : 'build-panel__empty'}>
-            {exitCount || '--'}
-          </span>
-          <span className="pnav__label" style={{ marginLeft: 12 }}>Helpers:</span>
-          <span className={helperCount > 0 ? 'build-panel__placed' : 'build-panel__empty'}>
-            {helperCount || '--'}
-          </span>
-        </div>
-      )}
+      <div className="build-panel__status-row">
+        <span className="pnav__label">Exits:</span>
+        <span className={exitCount > 0 ? 'build-panel__placed' : 'build-panel__empty'}>
+          {exitCount || '--'}
+        </span>
+        <span className="pnav__label" style={{ marginLeft: 12 }}>Helpers:</span>
+        <span className={helperCount > 0 ? 'build-panel__placed' : 'build-panel__empty'}>
+          {helperCount || '--'}
+        </span>
+      </div>
 
       {/* Action buttons */}
-      {!buildPreview && (
-        <div className="build-panel__actions">
-          {phase === 'placing' && (
-            <>
-              <button
-                className="pnav__nav-btn build-panel__solve-btn"
-                disabled={!canSolve}
-                onClick={onSolve}
-              >
-                Solve
-              </button>
-              <button
-                className="pnav__nav-btn"
-                disabled={pieces.length === 0}
-                onClick={() => buildDispatch({ type: 'CLEAR' })}
-              >
-                Clear
-              </button>
-            </>
-          )}
-          {phase === 'solved' && (
+      <div className="build-panel__actions">
+        {phase === 'placing' && (
+          <>
+            <button
+              className="pnav__nav-btn build-panel__solve-btn"
+              disabled={!canSolve}
+              onClick={onSolve}
+            >
+              Solve
+            </button>
             <button
               className="pnav__nav-btn"
-              onClick={() => buildDispatch({ type: 'EDIT' })}
+              disabled={pieces.length === 0}
+              onClick={() => buildDispatch({ type: 'CLEAR' })}
             >
-              Edit
+              Clear
             </button>
-          )}
-        </div>
-      )}
+          </>
+        )}
+        {phase === 'solved' && (
+          <button
+            className="pnav__nav-btn"
+            onClick={() => buildDispatch({ type: 'EDIT' })}
+          >
+            Edit
+          </button>
+        )}
+      </div>
 
       {/* Result / error */}
-      {phase === 'solved' && solvedPuzzle && !buildPreview && (
+      {phase === 'solved' && solvedPuzzle && (
         <div className="build-panel__result">
           Optimal: {solvedPuzzle.minMoves} move{solvedPuzzle.minMoves !== 1 ? 's' : ''} ({solvedPuzzle.rawSlides} slide{solvedPuzzle.rawSlides !== 1 ? 's' : ''})
         </div>
       )}
-      {errorMsg && !buildPreview && (
+      {errorMsg && (
         <div className="build-panel__error">{errorMsg}</div>
       )}
 
-      {/* Library matches */}
-      {phase === 'solved' && matches.length > 0 && (
+      {/* Built puzzle + library matches list */}
+      {phase === 'solved' && solvedPuzzle && (
         <div className="build-panel__matches">
-          <span className="pnav__label">Library matches ({matches.length})</span>
-          <div className="build-panel__match-list">
-            {matches.map(p => (
-              <button
-                key={p.stableId}
-                className={`build-panel__match-id${buildPreview?.stableId === p.stableId ? ' build-panel__match-id--active' : ''}`}
-                onClick={() => onPreview(p)}
-                title={`${p.exits ?? 1}E ${p.helpers}H ${p.minMoves}M`}
-              >
-                {p.stableId}
-              </button>
-            ))}
-          </div>
+          {/* Built puzzle entry */}
+          <button
+            className={`build-panel__match-id build-panel__match-id--built${showingBuild ? ' build-panel__match-id--active' : ''}`}
+            onClick={onPreviewBack}
+            title={`Your puzzle: ${solvedPuzzle.exits}E ${solvedPuzzle.helpers}H ${solvedPuzzle.minMoves}M`}
+          >
+            {solvedPuzzle.stableId} (built)
+          </button>
+
+          {/* Separator + library matches */}
+          {matches.length > 0 && (
+            <>
+              <span className="pnav__label">Library matches ({matches.length})</span>
+              <div className="build-panel__match-list">
+                {matches.map(p => (
+                  <button
+                    key={p.stableId}
+                    className={`build-panel__match-id${buildPreview?.stableId === p.stableId ? ' build-panel__match-id--active' : ''}`}
+                    onClick={() => onPreview(p)}
+                    title={`${p.exits ?? 1}E ${p.helpers}H ${p.minMoves}M`}
+                  >
+                    {p.stableId}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
 

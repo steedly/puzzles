@@ -1030,22 +1030,23 @@ button { cursor: pointer; font-family: inherit; }
   color: #a0a0ff;
 }
 
-/* ── Build panel: preview banner ──────────────────────────────────────────── */
-.build-panel__preview-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 8px 10px;
-  background: rgba(160, 160, 255, 0.08);
-  border-radius: 6px;
-  border: 1px solid rgba(160, 160, 255, 0.2);
-  font-size: 0.82rem;
-  color: var(--text-muted);
+.build-panel__match-id--built {
+  border-color: rgba(224, 64, 251, 0.4);
+  color: #e040fb;
+  font-weight: 600;
+  width: 100%;
+  text-align: left;
 }
 
-.build-panel__preview-banner strong {
-  color: var(--text);
+.build-panel__match-id--built:hover {
+  border-color: rgba(224, 64, 251, 0.7);
+  background: rgba(224, 64, 251, 0.08);
+}
+
+.build-panel__match-id--built.build-panel__match-id--active {
+  background: rgba(224, 64, 251, 0.12);
+  border-color: #e040fb;
+  color: #e040fb;
 }
 
 /* ── Build-mode cell hover ────────────────────────────────────────────────── */
