@@ -2,9 +2,9 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useMemo } from 'react';
-import { collisionSignature, findMatchingPuzzles } from '../logic/collisionSignature';
+import { collisionSignature, findMatchingPuzzles, findD4PositionMatches } from '../logic/collisionSignature';
 
-const VARIANTS = ['standard', 'solitaire', 'ufo', 'french'];
+const VARIANTS = ['standard', 'solitaire', 'ufo', 'french', 'hex', 'beehive'];
 
 export default function BuildPanel({
   variant, onVariantChange, buildState, buildDispatch, onSolve, onBackToLibrary,
@@ -18,11 +18,18 @@ export default function BuildPanel({
   // The board is showing the built puzzle (not a library preview)
   const showingBuild = phase === 'solved' && !buildPreview;
 
-  // Compute collision signature of the solved puzzle and find library matches
+  // Find library matches via collision signature + D4 position matching
   const matches = useMemo(() => {
     if (!solvedPuzzle?.solution?.length || !allPuzzles?.length) return [];
-    const sig = collisionSignature(solvedPuzzle.solution);
-    return findMatchingPuzzles(sig, allPuzzles);
+    const sigMatches = findMatchingPuzzles(collisionSignature(solvedPuzzle.solution), allPuzzles);
+    const posMatches = findD4PositionMatches(solvedPuzzle.solution, solvedPuzzle.robots, allPuzzles);
+    // Merge and dedup by stableId
+    const seen = new Set();
+    const merged = [];
+    for (const p of [...sigMatches, ...posMatches]) {
+      if (!seen.has(p.stableId)) { seen.add(p.stableId); merged.push(p); }
+    }
+    return merged;
   }, [solvedPuzzle, allPuzzles]);
 
   return (
