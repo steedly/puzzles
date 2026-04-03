@@ -1,0 +1,29 @@
+ANALYZE - Run on 01-23-2000 at 21:43:10
+ 
+Solution File Contents
+ 
+Letter pieces .......................... 1
+Number pieces .......................... 1
+ 
+Selection Specifications
+ 
+Maximum configurations out ............. None
+Include insignificant pieces............ No
+Pieces ................................. 1 to N
+Moves .................................. 1 to N
+Steps .................................. 1 to N
+Show rotations and reflections ......... No
+Sort by solution count ................. Yes
+Occupied squares (by number pieces) .... None
+Count .................................. 1 to N
+ 
+Configurations ......................... 0
+Selected configurations ................ 0
+Normalized configurations .............. 0
+     
+       1111122222333334444455555
+       1234512345123451234512345
+       .........................
+ 
+Normallized configurations selected .... 0
+Generated configurations written ....... 0

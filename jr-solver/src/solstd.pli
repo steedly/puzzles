@@ -1,0 +1,9 @@
+ SOLSTD: /* UFO SOLVER */
+
+ %DCL TYPE CHAR;
+
+ %TYPE = 'STD';
+
+ %INCLUDE SOLVER;
+
+ END SOLSTD;

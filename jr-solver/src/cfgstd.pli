@@ -1,0 +1,9 @@
+ CFGSTD: /* UFO SOLVER */
+
+ %DCL TYPE CHAR;
+
+ %TYPE = 'STD';
+
+ %INCLUDE CONFIG;
+
+ END CFGSTD;

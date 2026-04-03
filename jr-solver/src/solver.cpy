@@ -1,0 +1,3979 @@
+ /*--------------------------------------------------------*/
+ /* UFO / HEX SOLVER - Last Changed 14 FEB 2022            */
+ /*--------------------------------------------------------*/
+
+ /*-------------------------------------------------------*/
+ /* by John Rausch, Bexley, Ohio, 2006, 2010, 2019 & 2022 */
+ /*-------------------------------------------------------*/
+
+ PROC (PARM_STRING) OPTIONS (MAIN, NOEXECOPS) REORDER;
+
+ %DCL TESTING CHAR;
+
+ %TESTING = 'N';
+
+ /*--------*/
+ /* Solver */
+ /*--------*/
+
+ DEFAULT RANGE (*) STATIC;
+
+ DCL MAX_BIN                  FIXED BIN (31) VALUE (2_147_483_647);
+
+ DCL CONFIG_SIZE              FIXED BIN (31) VALUE (49);
+ DCL CONFIG_CENTER            FIXED BIN (31) VALUE (25);
+
+ DCL BOARD_SIZE               FIXED BIN (31) VALUE (77);
+ DCL BOARD_CENTER             FIXED BIN (31) VALUE (44);
+ DCL BOARD_BEGIN              FIXED BIN (31) VALUE (11);
+
+ DCL ROW_SIZE                 FIXED BIN (31) VALUE (7);
+ DCL COL_SIZE                 FIXED BIN (31) VALUE (7);
+
+ DCL (LP_CNT,NP_CNT,TP_CNT)   FIXED BIN (31) INIT (0);
+
+ %IF TYPE = 'STD' %THEN %DO;
+ DCL LEFT                     FIXED BIN (31) VALUE (1);
+ DCL RIGHT                    FIXED BIN (31) VALUE (2);
+ DCL UP                       FIXED BIN (31) VALUE (3);
+ DCL DOWN                     FIXED BIN (31) VALUE (4);
+ %END;
+ %ELSE %DO;
+ DCL NORTHEAST                FIXED BIN (31) VALUE (1);
+ DCL SOUTHEAST                FIXED BIN (31) VALUE (2);
+ DCL SOUTH                    FIXED BIN (31) VALUE (3);
+ DCL SOUTHWEST                FIXED BIN (31) VALUE (4);
+ DCL NORTHWEST                FIXED BIN (31) VALUE (5);
+ DCL NORTH                    FIXED BIN (31) VALUE (6);
+ %END;
+ DCL PARM_STRING              CHAR (100) VARYING;
+
+ DCL WORK                     CHAR (512) VARYING INIT ('');
+
+ DCL PARM                     CHAR (100) VARYING INIT ('');
+ DCL ARG                      CHAR (100) VARYING INIT ('');
+
+ DCL (L1,L2,L3,L4)            CHAR (100) VARYING INIT ('');
+
+ %IF TYPE = 'HEX' %THEN %DO;
+ DCL XL (1:11)                CHAR (28) INIT
+       ('             __             ',
+        '          __/. \__          ',
+        '       __/. \__/. \__       ',
+        '    __/. \__/. \__/. \__    ',
+        ' __/. \__/. \__/. \__/. \__ ',
+        '/. \__/. \__/. \__/. \__/. \',
+        '\__/. \__/. \__/. \__/. \__/',
+        '   \__/. \__/. \__/. \__/   ',
+        '      \__/. \__/. \__/      ',
+        '         \__/. \__/         ',
+        '            \__/            ');
+ %END;
+
+ DCL START                    CHAR (CONFIG_SIZE) INIT ('');
+
+ DCL NAME                     CHAR (80)  VARYING INIT ('');
+
+ DCL REPORT_TITLE             CHAR (100) VARYING INIT ('');
+
+ DCL DRIVE_AND_PATH           CHAR (80)  VARYING INIT ('');
+
+ DCL FILE_PREFIX              CHAR (80)  VARYING INIT ('');
+
+ DCL CFGTXT_FILE              CHAR (80)  VARYING INIT ('');
+ DCL SOLTXT_FILE              CHAR (80)  VARYING INIT ('');
+ DCL SOLDAT_FILE              CHAR (80)  VARYING INIT ('');
+ DCL STATS_FILE               CHAR (80)  VARYING INIT ('');
+
+ DCL BOARD                    CHAR (BOARD_SIZE)  INIT ('');
+ DCL B (BOARD_SIZE)           CHAR (1)           DEF BOARD;
+
+ DCL CHECK                    CHAR (BOARD_SIZE)  INIT ('');
+ DCL C (BOARD_SIZE)           CHAR (1)           DEF CHECK;
+
+ DCL MOVE_PIECE               CHAR (1)           INIT ('');
+
+ DCL MOVE_LIST                CHAR (300) VARYING INIT ('');
+
+ DCL MOVE_DIRS                BIT (8) INIT ('00'BX);
+
+ DCL MAX_DEPTH                FIXED BIN (31) INIT (99);
+
+ DCL MIN_MOVES                FIXED BIN (31) INIT (0);
+ DCL MAX_MOVES                FIXED BIN (31) INIT (0);
+ DCL MIN_STEPS                FIXED BIN (31) INIT (0);
+ DCL MAX_STEPS                FIXED BIN (31) INIT (0);
+
+ DCL X                        FIXED BIN (31) INIT (0);
+ DCL Y                        FIXED BIN (31) INIT (0);
+ DCL Z                        FIXED BIN (31) INIT (0);
+ DCL N1                       FIXED BIN (31) INIT (0);
+ DCL N2                       FIXED BIN (31) INIT (0);
+ DCL N3                       FIXED BIN (31) INIT (0);
+ DCL N4                       FIXED BIN (31) INIT (0);
+ DCL N5                       FIXED BIN (31) INIT (0);
+ DCL N6                       FIXED BIN (31) INIT (0);
+ DCL N7                       FIXED BIN (31) INIT (0);
+ DCL N8                       FIXED BIN (31) INIT (0);
+ DCL N9                       FIXED BIN (31) INIT (0);
+
+ DCL (I,J,K)                  FIXED BIN (31) INIT (0);
+
+ DCL ALL_SOLUTIONS            FIXED BIN (31) INIT (0);
+ DCL CONFIGURATIONS           FIXED BIN (31) INIT (0);
+ DCL ELAPSED_TIME             FIXED BIN (31) INIT (0);
+ DCL ELAPSED_TIME_BEG         FIXED BIN (31) INIT (0);
+ DCL ELAPSED_TIME_END         FIXED BIN (31) INIT (0);
+ DCL CONFIGURATION_ERRORS     FIXED BIN (31) INIT (0);
+ DCL MOVE_LOOPS               FIXED BIN (31) INIT (0);
+ DCL HEART_BEAT               FIXED BIN (31) INIT (0);
+ DCL MAX_CONFIGURATIONS       FIXED BIN (31) INIT (MAX_BIN);
+ DCL MAX_DEPTH_REACHED_SOL    FIXED BIN (31) INIT (0);
+ DCL MAX_DEPTH_REACHED_ALL    FIXED BIN (31) INIT (0);
+ DCL MAX_SHOWN                FIXED BIN (31) INIT (2000);
+ DCL MAX_SOLUTIONS            FIXED BIN (31) INIT (MAX_BIN);
+ DCL MIN_MOVES_CNT            FIXED BIN (31) INIT (0);
+ DCL MIN_STEPS_CNT            FIXED BIN (31) INIT (0);
+ DCL MIN_MOVES_TO_KEEP        FIXED BIN (31) INIT (0);
+ DCL MOST_MOVES               FIXED BIN (31) INIT (0);
+ DCL MOST_STEPS               FIXED BIN (31) INIT (0);
+ DCL MOST_SOLUTIONS           FIXED BIN (31) INIT (0);
+ DCL POSITIONS                FIXED BIN (31) INIT (0);
+ DCL SOLUTION_OVERFLOW        FIXED BIN (31) INIT (0);
+ DCL SOLUTIONS                FIXED BIN (31) INIT (0);
+ DCL SPLIT_SOLUTIONS_LIMIT    FIXED BIN (31) INIT (0);
+ DCL SPLIT_SOLUTIONS_COUNT    FIXED BIN (31) INIT (0);
+ DCL STRANDED                 FIXED BIN (31) INIT (0);
+ DCL TOTAL_SOLUTIONS          FIXED BIN (31) INIT (0);
+ DCL TOTAL_SOLUTIONS_NOT_KEPT FIXED BIN (31) INIT (0);
+ DCL TOTAL_TIME               FIXED BIN (31) INIT (0);
+ DCL TOTAL_TIME_NO_SOLUTIONS  FIXED BIN (31) INIT (0);
+ DCL WITH_INSIGNIFICANT       FIXED BIN (31) INIT (0);
+ DCL WITH_SOLUTIONS           FIXED BIN (31) INIT (0);
+
+ DCL SPLIT_SOLUTIONS_TEXT_FILE#      PIC '999' INIT (0);
+
+ DCL 1 COUNT (200),
+       2 SOLUTIONS            FIXED BIN (31) INIT ((200)0),
+       2 MIN_STEPS            FIXED BIN (31) INIT ((200)201),
+       2 MAX_STEPS            FIXED BIN (31) INIT ((200)0);
+
+ DCL NAME_OF_MOST_MOVES       CHAR (80)  VARYING INIT ('');
+ DCL NAME_OF_MOST_STEPS       CHAR (80)  VARYING INIT ('');
+ DCL NAME_OF_MOST_SOLUTIONS   CHAR (80)  VARYING INIT ('');
+
+ DCL CUR_ENT                  CHAR (802) AUTO;
+
+ DCL 1 CUR BASED (ADDR(CUR_ENT)),
+       2 MOVES                FIXED BIN (8) UNSIGNED,
+       2 STEPS                FIXED BIN (8) UNSIGNED,
+       2 MOVE (200),
+         3 PIECE              CHAR (1),
+         3 DIR                FIXED BIN (8) UNSIGNED,
+         3 FR                 FIXED BIN (8) UNSIGNED,
+         3 TO                 FIXED BIN (8) UNSIGNED;
+
+ DCL SOLUTION_TBL (2000)      CHAR (802) AUTO;
+
+ DCL 1 SOLUTION (2000) BASED (ADDR(SOLUTION_TBL)),
+       2 MOVES                FIXED BIN (8) UNSIGNED,
+       2 STEPS                FIXED BIN (8) UNSIGNED,
+       2 MOVE (200),
+         3 PIECE              CHAR (1),
+         3 DIR                FIXED BIN (8) UNSIGNED,
+         3 FR                 FIXED BIN (8) UNSIGNED,
+         3 TO                 FIXED BIN (8) UNSIGNED;
+
+ %IF TYPE = 'STD' %THEN %DO;
+ DCL LTR_DIR (4)              CHAR (1) INIT
+       ('L','R','U','D');
+
+ DCL BIT_DIR (4)              BIT (8) INIT
+       ('01'BX, '02'BX, '04'BX, '08'BX);
+ %END;
+ %ELSE %DO;
+ DCL LTR_DIR (6)              CHAR (2) INIT
+       ('Ne','Se','So','Sw','Nw','No');
+
+ DCL BIT_DIR (6)              BIT (8) INIT
+       ('01'BX, '02'BX, '04'BX, '08'BX, '10'BX, '20'BX);
+
+ DCL LR (0:25)                FIXED BIN (8) UNSIGNED INIT ((26)0);
+
+ DCL TB (0:25)                FIXED BIN (8) UNSIGNED INIT ((26)0);
+ %END;
+ DCL 1 CONFIG,
+       2 X                    FIXED BIN (8) UNSIGNED INIT (0),
+       2 Y                    FIXED BIN (8) UNSIGNED INIT (0),
+       2 Z                    FIXED BIN (8) UNSIGNED INIT (0),
+       2 N1                   FIXED BIN (8) UNSIGNED INIT (0),
+       2 N2                   FIXED BIN (8) UNSIGNED INIT (0),
+       2 N3                   FIXED BIN (8) UNSIGNED INIT (0),
+       2 N4                   FIXED BIN (8) UNSIGNED INIT (0),
+       2 N5                   FIXED BIN (8) UNSIGNED INIT (0),
+       2 N6                   FIXED BIN (8) UNSIGNED INIT (0),
+       2 N7                   FIXED BIN (8) UNSIGNED INIT (0),
+       2 N8                   FIXED BIN (8) UNSIGNED INIT (0),
+       2 N9                   FIXED BIN (8) UNSIGNED INIT (0);
+
+ DCL 1 SOLVED,
+       2 X                    FIXED BIN (8) UNSIGNED INIT (0),
+       2 Y                    FIXED BIN (8) UNSIGNED INIT (0),
+       2 Z                    FIXED BIN (8) UNSIGNED INIT (0),
+       2 N1                   FIXED BIN (8) UNSIGNED INIT (0),
+       2 N2                   FIXED BIN (8) UNSIGNED INIT (0),
+       2 N3                   FIXED BIN (8) UNSIGNED INIT (0),
+       2 N4                   FIXED BIN (8) UNSIGNED INIT (0),
+       2 N5                   FIXED BIN (8) UNSIGNED INIT (0),
+       2 N6                   FIXED BIN (8) UNSIGNED INIT (0),
+       2 N7                   FIXED BIN (8) UNSIGNED INIT (0),
+       2 N8                   FIXED BIN (8) UNSIGNED INIT (0),
+       2 N9                   FIXED BIN (8) UNSIGNED INIT (0),
+       2 MOVES                FIXED BIN (8) UNSIGNED INIT (0),
+       2 STEPS                FIXED BIN (8) UNSIGNED INIT (0),
+       2 MIN_STEP_SOLUTIONS   FIXED BIN (8) UNSIGNED INIT (0),
+       2 MIN_MOVE_SOLUTIONS   FIXED BIN (8) UNSIGNED INIT (0),
+       2 INSIGNIFICANT        BIT (16)       INIT ('0000'BX),
+       2 DIRECTIONS           BIT (8)        INIT ('00'BX);
+
+ %IF TYPE = 'STD' %THEN %DO;
+ DCL CONFIG_TO_BOARD (49)     CHAR (2) INIT
+
+    ('11','12','13','14','15','16','17',
+     '21','22','23','24','25','26','27',
+     '31','32','33','34','35','36','37',
+     '41','42','43','44','45','46','47',
+     '51','52','53','54','55','56','57',
+     '61','62','63','64','65','66','67',
+     '71','72','73','74','75','76','77');
+ %END;
+ %ELSE %DO;
+ DCL CONFIG_TO_BOARD (25)     CHAR (2) INIT
+    ('51','41','31','21','11',
+     '61','52','42','32','22',
+     '71','62','53','43','33',
+     '81','72','63','54','44',
+     '91','82','73','64','55');
+ %END;
+ DCL 1 HIST_TBL (12_000_000)  CONTROLLED,
+       2 NEXT_PTR (0:49)      PTR;
+
+ DCL HIST_TBL_PTR             PTR INIT (SYSNULL);
+
+ DCL HIST_NEXT_PTR (0:49)     PTR BASED (HIST_TBL_PTR);
+
+ DCL HIST_MOVES    (0:49)     FIXED BIN (31) BASED (HIST_TBL_PTR);
+
+ DCL HIST_TBL_CNT             FIXED BIN (31) INIT (0);
+ DCL HIST_ENT_CNT             FIXED BIN (31) INIT (0);
+
+ DCL HIST_KEY                 CHAR (12) INIT ('');
+
+ DCL HK (12)                  FIXED BIN (8) UNSIGNED BASED (ADDR(HIST_KEY));
+ /*
+ %IF TYPE = 'HEX' %THEN %DO;
+ DCL HIST_KEY_TBL (2)         CHAR (12) INIT ((2)(''));
+ %END;
+ %ELSE %DO;
+ DCL HIST_KEY_TBL (4)         CHAR (12) INIT ((4)(''));
+ %END;
+ */
+ DCL RUN_DATETIME             CHAR (17) INIT ('');
+
+ DCL 1 RUN DEF RUN_DATETIME,
+       2 YYYY                 CHAR (4),
+       2 MM                   CHAR (2),
+       2 DD                   CHAR (2),
+       2 HH                   CHAR (2),
+       2 MI                   CHAR (2),
+       2 SS                   CHAR (2),
+       2 MS                   CHAR (3);
+
+ DCL (HH,MM,SS,MS)            FIXED BIN (31) INIT (0);
+
+ DCL (BEG_TIME,END_TIME)      CHAR (9)   INIT ('');
+
+ DCL 1 BEG DEF BEG_TIME,
+       2 HH                   PIC '99',
+       2 MM                   PIC '99',
+       2 SS                   PIC '99',
+       2 MS                   PIC '999';
+
+ DCL 1 END DEF END_TIME,
+       2 HH                   PIC '99',
+       2 MM                   PIC '99',
+       2 SS                   PIC '99',
+       2 MS                   PIC '999';
+
+ DCL 1 TIM,
+       2 HH                   PIC '99'   INIT (0),
+       2 *                    CHAR (1)   INIT (':'),
+       2 MM                   PIC '99'   INIT (0),
+       2 *                    CHAR (1)   INIT (':'),
+       2 SS                   PIC '99'   INIT (0),
+       2 *                    CHAR (1)   INIT (':'),
+       2 MS                   PIC '999'  INIT (0);
+
+ DCL TRUE                     BIT (1) VALUE ('1'B);
+ DCL FALSE                    BIT (1) VALUE ('0'B);
+
+ DCL ABORTED                  BIT (1) INIT (FALSE);
+ DCL DEBUGGING                BIT (1) INIT (FALSE);
+ DCL DFAULT_FILE_PRESENT      BIT (1) INIT (TRUE);
+ DCL INVALID_PARAMETERS       BIT (1) INIT (FALSE);
+ DCL SHOW_ALL_SOLUTIONS       BIT (1) INIT (FALSE);
+ DCL SHOW_PROGRESS            BIT (1) INIT (FALSE);
+ DCL SORTED                   BIT (1) INIT (FALSE);
+ DCL STATISTICS               BIT (1) INIT (FALSE);
+ DCL SWITCH_SETTING           BIT (1) INIT (FALSE);
+ DCL SHOW_ZERO_SOLUTIONS      BIT (1) INIT (FALSE);
+
+ DCL ADDR       BUILTIN;
+ DCL COPY       BUILTIN;
+ DCL DATETIME   BUILTIN;
+ DCL EDIT       BUILTIN;
+ DCL HEX        BUILTIN;
+ DCL HBOUND     BUILTIN;
+ DCL LENGTH     BUILTIN;
+ DCL MOD        BUILTIN;
+ DCL NULL       BUILTIN;
+ DCL STRING     BUILTIN;
+ DCL SUBSTR     BUILTIN;
+ DCL SYSNULL    BUILTIN;
+ DCL TIME       BUILTIN;
+ DCL TRANSLATE  BUILTIN;
+ DCL TRIM       BUILTIN;
+ DCL UNSIGNED   BUILTIN;
+ DCL UNSPEC     BUILTIN;
+ DCL UPPERCASE  BUILTIN;
+ DCL VERIFY     BUILTIN;
+
+ DCL DFAULT   FILE STREAM INPUT;
+ DCL CFGTXT   FILE RECORD INPUT  ENV (RECSIZE(4096));
+ DCL SOLTXT   FILE STREAM OUTPUT ENV (RECSIZE(4096));
+ DCL SOLDAT   FILE RECORD OUTPUT ENV (RECSIZE(4096));
+ DCL STATS    FILE STREAM OUTPUT ENV (RECSIZE(4096));
+ DCL SYSPRINT FILE;
+
+ /*----------------*/
+ /* Initialization */
+ /*----------------*/
+
+ ALLOCATE HIST_TBL;
+
+ /*-----------------------------*/
+ /* Load any default parameters */
+ /*-----------------------------*/
+
+ ON UNDEFINEDFILE (DFAULT) DFAULT_FILE_PRESENT = FALSE;
+
+ OPEN FILE (DFAULT) TITLE('/DEFAULT.SOLVE.TXT');
+
+ IF DFAULT_FILE_PRESENT THEN DO;
+   GET FILE (DFAULT) EDIT (WORK) (L);
+
+   CLOSE FILE (DFAULT);
+
+   IF WORK ^= '' THEN
+     WORK = WORK || ',';
+ END;
+
+ IF PARM_STRING ^= '' THEN
+   WORK = WORK || PARM_STRING || ',';
+
+ WORK = UPPERCASE(WORK);
+
+ /*--------------------------*/
+ /* Parse the parameter list */
+ /*--------------------------*/
+
+ DO WHILE (LENGTH(WORK) > 0);
+
+   /*-----------------------*/
+   /* Extract one parameter */
+   /*-----------------------*/
+
+   DO I = 1 TO LENGTH(WORK) UNTIL (SUBSTR(WORK,I,1) = ',');
+   END;
+
+   PARM = SUBSTR(WORK,1,I-1);
+
+   IF I = LENGTH(WORK) THEN
+     WORK = '';
+   ELSE
+     WORK = SUBSTR(WORK,I+1);
+
+   /*-------------------------------*/
+   /* Extract argument when present */
+   /*-------------------------------*/
+
+   DO I = 1 TO LENGTH(PARM) UNTIL (SUBSTR(PARM,I,1) = '(');
+   END;
+
+   IF I < LENGTH(PARM) THEN DO;
+     ARG = SUBSTR(PARM,I+1);
+
+     IF SUBSTR(ARG,LENGTH(ARG),1) = ')' THEN DO;
+       ARG = SUBSTR(ARG,1,LENGTH(ARG)-1);
+       PARM = SUBSTR(PARM,1,I-1);
+     END;
+   END;
+   ELSE
+     ARG = '';
+
+   /*--------------------------------------------------*/
+   /* Extract "NO" prefix and establish switch setting */
+   /*--------------------------------------------------*/
+
+   IF LENGTH(PARM) > 2 & SUBSTR(PARM,1,2) = 'NO' THEN DO;
+     PARM = SUBSTR(PARM,3);
+     SWITCH_SETTING = FALSE;
+   END;
+   ELSE
+     SWITCH_SETTING = TRUE;
+
+   /*-------------------------*/
+   /* Deal with the parameter */
+   /*-------------------------*/
+
+   SELECT (PARM);
+     WHEN ('?') DO;
+       PUT EDIT
+         ('D .......... Debug Mode <NO>',
+          'HB ......... Heart Beat <1000>',
+          'RT(x) ...... Title For Printed Output <None>',
+          'DP(x) ...... Drive and Path <None>',
+          'FP(x) ...... File Prefix <None>',
+          'SSL(n) ..... Split Solutions Text File Limit <0>',
+          'SA ......... Show All Solutions <NO>',
+          'SP ......... Show Progress <NO>',
+          'SZS ........ Show Zero Solutions Configurations <NO>',
+          'STATS ...... Statistics <NO>',
+          'MAXC(n) .... Maximum Configurations <None>',
+          'MAXD(n) .... Maximum Depth <99>',
+          'MAXS(n) .... Maximum Solutions <None>',
+          'MAXSS(n) ... Maximum Solutions Shown <500>',
+          'MMTK(n) .... Minimum Moves to Keep')
+         (SKIP, A);
+       RETURN;
+     END;
+
+     WHEN ('D')
+       DEBUGGING, SHOW_ALL_SOLUTIONS = SWITCH_SETTING;
+
+     WHEN ('RT')
+       REPORT_TITLE = ARG;
+
+     WHEN ('DP')
+       DRIVE_AND_PATH = ARG || '\';
+
+     WHEN ('FP')
+       FILE_PREFIX = ARG || '.';
+
+     WHEN ('SSL')
+       SPLIT_SOLUTIONS_LIMIT = NUMERIC_VALUE(ARG, 1, MAX_BIN);
+
+     WHEN ('SA')
+       SHOW_ALL_SOLUTIONS = SWITCH_SETTING;
+
+     WHEN ('SP')
+       SHOW_PROGRESS = SWITCH_SETTING;
+
+     WHEN ('HB')
+       HEART_BEAT = NUMERIC_VALUE(ARG, 1, MAX_BIN);
+
+     WHEN ('SZS')
+       SHOW_ZERO_SOLUTIONS = SWITCH_SETTING;
+
+     WHEN ('STATS')
+       STATISTICS = SWITCH_SETTING;
+
+     WHEN ('MAXC')
+       MAX_CONFIGURATIONS = NUMERIC_VALUE(ARG, 1, MAX_BIN);
+
+     WHEN ('MAXD')
+       MAX_DEPTH = NUMERIC_VALUE(ARG, 1, 200);
+
+     WHEN ('MAXS')
+       MAX_SOLUTIONS = NUMERIC_VALUE(ARG, 1, MAX_BIN);
+
+     WHEN ('MAXSS')
+       MAX_SHOWN = NUMERIC_VALUE(ARG, 1, 500);
+
+     WHEN ('MMTK')
+       MIN_MOVES_TO_KEEP = NUMERIC_VALUE(ARG, 1, MAX_BIN);
+
+     OTHERWISE DO;
+       DISPLAY ('Unknown parameter "' || PARM || '"');
+       INVALID_PARAMETERS = TRUE;
+     END;
+   END;
+ END;
+
+ IF INVALID_PARAMETERS THEN DO;
+   DISPLAY ('Invalid parameters - Terminating');
+   STOP;
+ END;
+
+ /*----------------------------------------------*/
+ /* Numeric value function for parameter parsing */
+ /*----------------------------------------------*/
+
+ NUMERIC_VALUE: PROC (ARG, MIN, MAX) RETURNS (FIXED BIN (31));
+
+ DCL ARG                      CHAR (100) VARYING;
+
+ DCL MIN                      FIXED BIN (31);
+ DCL MAX                      FIXED BIN (31);
+
+ DCL VAL                      FIXED BIN (31) INIT (0);
+
+ IF VERIFY(ARG, '0123456789') = 0 THEN DO;
+   VAL = ARG;
+
+   IF VAL < MIN THEN DO;
+     DISPLAY ('Value for "' || PARM || '" < ' || NUMSTR(MIN));
+     INVALID_PARAMETERS = TRUE;
+     RETURN (0);
+   END;
+   ELSE
+     IF VAL > MAX THEN DO;
+       DISPLAY ('Value for "' || PARM || '" > ' || NUMSTR(MAX));
+       INVALID_PARAMETERS = TRUE;
+       RETURN (0);
+     END;
+     ELSE
+       RETURN (VAL);
+ END;
+ ELSE DO;
+   DISPLAY ('Invalid value for "' || PARM || '"');
+   INVALID_PARAMETERS = TRUE;
+ END;
+
+ END NUMERIC_VALUE;
+
+ CFGTXT_FILE = DRIVE_AND_PATH || FILE_PREFIX || 'CONFIGURATIONS';
+ SOLTXT_FILE = DRIVE_AND_PATH || FILE_PREFIX || 'SOLUTIONS.TEXT';
+ SOLDAT_FILE = DRIVE_AND_PATH || FILE_PREFIX || 'SOLUTIONS.DATA';
+ STATS_FILE  = DRIVE_AND_PATH || FILE_PREFIX || 'SOLUTIONS.STATISTICS';
+
+ DISPLAY ('Opening Configurations Text File "' || CFGTXT_FILE || '.TXT');
+
+ OPEN FILE (CFGTXT) TITLE ('/' || CFGTXT_FILE || '.TXT');
+
+ IF SPLIT_SOLUTIONS_LIMIT > 0 THEN DO;
+   SPLIT_SOLUTIONS_TEXT_FILE# = 1;
+
+   DISPLAY ('Opening Solutions Text File "' || SOLTXT_FILE || '.001.TXT,APPEND(N)');
+
+   OPEN FILE (SOLTXT) TITLE ('/' || SOLTXT_FILE || '.001.TXT,APPEND(N)');
+ END;
+ ELSE DO;
+   DISPLAY ('Opening Solutions Text File "' || SOLTXT_FILE || '.TXT,APPEND(N)');
+
+   OPEN FILE (SOLTXT) TITLE ('/' || SOLTXT_FILE || '.TXT,APPEND(N)');
+ END;
+
+ DISPLAY ('Opening Solutions Data File "' || SOLDAT_FILE || '.TXT,APPEND(N)');
+
+ OPEN FILE (SOLDAT) TITLE ('/' || SOLDAT_FILE || '.TXT,APPEND(N)');
+
+ WORK = 'CONFIGURATION............ MOV STP DIF OTH MXS TOT MDR POSTIONS ' ||
+        'STRANDED HISTTABL :NAME: FIRST SOLUTION';
+
+ WRITE FILE (SOLDAT) FROM (WORK);
+
+ DISPLAY ('Opening Solutions Statistics File "' || STATS_FILE || '.TXT,APPEND(N)');
+
+ OPEN FILE (STATS)  TITLE ('/' || STATS_FILE  || '.TXT,APPEND(N)');
+
+ IF REPORT_TITLE ^= '' THEN
+   PUT FILE (STATS) EDIT (REPORT_TITLE, ' ') (SKIP, A);
+
+ RUN_DATETIME = DATETIME;
+
+ PUT FILE (STATS) EDIT
+   ('SOLVE - Run on ',
+    RUN.MM, '-', RUN.DD, '-', RUN.YYYY,
+    ' at ',
+    RUN.HH, ':', RUN.MI, ':', RUN.SS,
+    ' ')
+   (SKIP, 12 A, SKIP, A);
+
+ /*--------------------------------------------------------------*/
+ /* The top number is the subscript for the board array, the 2nd */
+ /* is for the string representaion position, and the 3rd is the */
+ /* hex value for the 2nd.                                       */
+ /*--------------------------------------------------------------*/
+
+ /*--------------------------------------*/
+ /* +----+----+----+----+----+----+----+ */
+ /* | 11 | 12 | 13 | 14 | 15 | 16 | 17 | */
+ /* | 01 | 02 | 03 | 04 | 05 | 06 | 07 | */
+ /* | 01 | 02 | 03 | 04 | 05 | 06 | 07 | */
+ /* +----+----+----+----+----+----+----+ */
+ /* | 21 | 22 | 23 | 24 | 25 | 26 | 27 | */
+ /* | 08 | 09 | 10 | 11 | 12 | 13 | 14 | */
+ /* | 08 | 09 | 0A | 0B | 0C | 0D | 0E | */
+ /* +----+----+----+----+----+----+----+ */
+ /* | 31 | 32 | 33 | 34 | 35 | 36 | 37 | */
+ /* | 15 | 16 | 17 | 18 | 19 | 20 | 21 | */
+ /* | 0F | 10 | 11 | 12 | 13 | 14 | 15 | */
+ /* +----+----+----+----+----+----+----+ */
+ /* | 41 | 42 | 43 | 44 | 45 | 46 | 47 | */
+ /* | 22 | 23 | 24 | 25 | 26 | 27 | 28 | */
+ /* | 16 | 17 | 18 | 19 | 1A | 1B | 1C | */
+ /* +----+----+----+----+----+----+----+ */
+ /* | 51 | 52 | 53 | 54 | 55 | 56 | 57 | */
+ /* | 29 | 30 | 31 | 32 | 33 | 34 | 35 | */
+ /* | 1D | 1E | 1F | 20 | 21 | 22 | 23 | */
+ /* +----+----+----+----+----+----+----+ */
+ /* | 58 | 59 | 60 | 61 | 62 | 63 | 64 | */
+ /* | 36 | 37 | 38 | 39 | 40 | 41 | 42 | */
+ /* | 24 | 25 | 26 | 27 | 28 | 29 | 2A | */
+ /* +----+----+----+----+----+----+----+ */
+ /* | 65 | 66 | 67 | 68 | 69 | 70 | 71 | */
+ /* | 43 | 44 | 45 | 46 | 47 | 48 | 49 | */
+ /* | 2B | 2C | 2D | 2E | 2F | 30 | 31 | */
+ /* +----+----+----+----+----+----+----+ */
+ /*--------------------------------------*/
+
+ BEG_TIME = TIME;
+
+ HH = BEG.HH;
+ MM = BEG.MM;
+ SS = BEG.SS;
+
+ ELAPSED_TIME_BEG = ((HH * 3600) + (MM * 60) + SS);
+
+ ON ENDFILE (CFGTXT) GO TO PRINT_TOTALS;
+
+ IF HEART_BEAT > 0 THEN
+   DISPLAY ('Solver Starting');
+
+ PUT FILE (STATS) SKIP EDIT
+   ('Letter pieces .......................... ',
+    NUMSTR(LP_CNT))
+   (2 A);
+
+ PUT FILE (STATS) EDIT
+   ('Number pieces .......................... ',
+     NUMSTR(NP_CNT))
+   (SKIP, 2 A);
+
+ PUT FILE (STATS) SKIP EDIT
+   ('Statistics ............................. ') (A);
+
+ IF STATISTICS THEN
+   PUT FILE (STATS) EDIT ('Yes') (A);
+ ELSE
+   PUT FILE (STATS) EDIT ('No') (A);
+
+ PUT FILE (STATS) SKIP EDIT
+   ('Show zero solutions .................... ') (A);
+
+ IF SHOW_ZERO_SOLUTIONS THEN
+   PUT FILE (STATS) EDIT ('Yes') (A);
+ ELSE
+   PUT FILE (STATS) EDIT ('No') (A);
+
+ PUT FILE (STATS) SKIP EDIT
+   ('Maximum depth .......................... ', NUMSTR(MAX_DEPTH))
+   (2 A);
+
+ PUT FILE (STATS) SKIP EDIT
+   ('Maximum configurations ................. ') (A);
+
+ IF MAX_CONFIGURATIONS = MAX_BIN THEN
+   PUT FILE (STATS) EDIT ('None') (A);
+ ELSE
+   PUT FILE (STATS) EDIT (NUMSTR(MAX_CONFIGURATIONS)) (A);
+
+ PUT FILE (STATS) SKIP EDIT
+   ('Maximum solutions ...................... ') (A);
+
+ IF MAX_SOLUTIONS = MAX_BIN THEN
+   PUT FILE (STATS) EDIT ('None') (A);
+ ELSE
+   PUT FILE (STATS) EDIT (NUMSTR(MAX_SOLUTIONS)) (A);
+
+ PUT FILE (STATS) SKIP EDIT
+   ('Maximum solutions shown ................ ',
+    NUMSTR(MAX_SHOWN))
+   (2 A);
+
+ PUT FILE (STATS) SKIP EDIT (' ') (A);
+
+ /*------------------------------*/
+ /* Get next board configuration */
+ /*------------------------------*/
+
+ GET_NEXT_CONFIG:
+
+ READ FILE (CFGTXT) INTO (WORK);
+
+ DO I = LENGTH(WORK) TO 1 BY -1
+   WHILE (SUBSTR(WORK,I,1) = ' ');
+ END;
+
+ IF LENGTH(WORK) = 0 THEN
+   GO TO GET_NEXT_CONFIG;
+
+ IF SUBSTR(WORK,1,1) = '*' THEN
+   GO TO GET_NEXT_CONFIG;
+
+ IF SUBSTR(WORK,1,1) = '>' THEN DO;
+   PUT FILE (SOLTXT) SKIP EDIT (SUBSTR(WORK,2)) (A);
+   GO TO GET_NEXT_CONFIG;
+ END;
+
+ IF SUBSTR(WORK,1,1) = '/' THEN
+   GO TO PRINT_TOTALS;
+
+ IF SUBSTR(WORK,1,13) = 'CONFIGURATION' THEN
+   GO TO GET_NEXT_CONFIG;
+
+ IF CONFIGURATIONS = MAX_CONFIGURATIONS THEN
+   GO TO PRINT_TOTALS;
+
+ CONFIGURATIONS = CONFIGURATIONS + 1;
+
+ IF LENGTH(WORK) = CONFIG_SIZE THEN DO;
+   START = WORK;
+
+   NAME = NUMSTR(CONFIGURATIONS);
+ END;
+ ELSE DO;
+   START = UPPERCASE(SUBSTR(WORK,1,CONFIG_SIZE));
+
+   /*---------------------------------------------------*/
+   /* Is this from configuration data output? If so, a  */
+   /* name enclosed with colons follows the statistics. */
+   /*---------------------------------------------------*/
+
+   I = INDEX(WORK,':');
+
+   IF I > 0 THEN DO;
+     DO J = (I + 1) TO LENGTH(WORK)
+       WHILE (SUBSTR(WORK,J,1) ^= ':');
+     END;
+
+     IF J > LENGTH(WORK) THEN DO;
+       DISPLAY (WORK);
+       DISPLAY ('Invalid configuration record - Skipping');
+       DISPLAY ('Name is not enclosed with colons');
+       DISPLAY (' ');
+       CONFIGURATION_ERRORS = CONFIGURATION_ERRORS + 1;
+
+       IF CONFIGURATION_ERRORS = 10 THEN DO;
+         DISPLAY ('Excessive configuration errors - Terminating');
+         STOP;
+       END;
+
+       GO TO GET_NEXT_CONFIG;
+     END;
+
+     NAME = SUBSTR(WORK,I+1,J-I-1);
+   END;
+
+   /*----------------------------------------------------------------------*/
+   /* If not, then it must be followed by a space and a configuration name */
+   /*----------------------------------------------------------------------*/
+
+   ELSE DO;
+     IF LENGTH(WORK) < (CONFIG_SIZE + 2) | SUBSTR(WORK,CONFIG_SIZE+1,1) ^= ' ' THEN DO;
+       DISPLAY (WORK);
+       DISPLAY ('Invalid configuration record - skipping');
+       DISPLAY ('Not followed by a space and name');
+       DISPLAY (' ');
+
+       CONFIGURATION_ERRORS = CONFIGURATION_ERRORS + 1;
+
+       IF CONFIGURATION_ERRORS = 10 THEN DO;
+         DISPLAY ('Excessive configuration errors - Terminating');
+         STOP;
+       END;
+
+       GO TO GET_NEXT_CONFIG;
+     END;
+
+     /*----------------------------------------------------*/
+     /* Use whatever follows the configuration as the name */
+     /*----------------------------------------------------*/
+
+     NAME = SUBSTR(WORK,CONFIG_SIZE+2);
+   END;
+ END;
+
+ X, Y, Z, N1, N2, N3, N4, N5, N6, N7, N8, N9 = 0;
+
+ CONFIG.X,
+ CONFIG.Y,
+ CONFIG.Z,
+ CONFIG.N1,
+ CONFIG.N2,
+ CONFIG.N3,
+ CONFIG.N4,
+ CONFIG.N5,
+ CONFIG.N6,
+ CONFIG.N7,
+ CONFIG.N8,
+ CONFIG.N9 = 0;
+
+ J, K = 0;
+
+ DO I = 1 TO CONFIG_SIZE;
+   SELECT(SUBSTR(START,I,1));
+     WHEN ('X') DO; CONFIG.X  = I; X  = X  + 1; END;
+     WHEN ('Y') DO; CONFIG.Y  = I; Y  = Y  + 1; END;
+     WHEN ('Z') DO; CONFIG.Z  = I; Z  = Z  + 1; END;
+     WHEN ('1') DO; CONFIG.N1 = I; N1 = N1 + 1; END;
+     WHEN ('2') DO; CONFIG.N2 = I; N2 = N2 + 1; END;
+     WHEN ('3') DO; CONFIG.N3 = I; N3 = N3 + 1; END;
+     WHEN ('4') DO; CONFIG.N4 = I; N4 = N4 + 1; END;
+     WHEN ('5') DO; CONFIG.N5 = I; N5 = N5 + 1; END;
+     WHEN ('6') DO; CONFIG.N6 = I; N6 = N6 + 1; END;
+     WHEN ('7') DO; CONFIG.N7 = I; N7 = N7 + 1; END;
+     WHEN ('8') DO; CONFIG.N8 = I; N8 = N8 + 1; END;
+     WHEN ('9') DO; CONFIG.N9 = I; N9 = N9 + 1; END;
+
+     WHEN ('-');
+
+     OTHERWISE  X = 2;
+   END;
+ END;
+
+ IF ( SUBSTR(START,CONFIG_CENTER,1) >= 'X'
+    & SUBSTR(START,CONFIG_CENTER,1) <= 'Z')
+  | X ^= 1 | Y  > 1 | Z  > 1
+  | N1 > 1 | N2 > 1 | N3 > 1
+  | N4 > 1 | N5 > 1 | N6 > 1
+  | N7 > 1 | N8 > 1 | N9 > 1
+  | (N1 = 0)
+  | (N2 = 1 & (N1 = 0))
+  | (N3 = 1 & (N1 = 0 | N2 = 0))
+  | (N4 = 1 & (N1 = 0 | N2 = 0 | N3 = 0))
+  | (N5 = 1 & (N1 = 0 | N2 = 0 | N3 = 0 | N4 = 0))
+  | (N6 = 1 & (N1 = 0 | N2 = 0 | N3 = 0 | N4 = 0 | N5 = 0))
+  | (N7 = 1 & (N1 = 0 | N2 = 0 | N3 = 0 | N4 = 0 | N5 = 0 | N6 = 0))
+  | (N8 = 1 & (N1 = 0 | N2 = 0 | N3 = 0 | N4 = 0 | N5 = 0 | N6 = 0 | N7 = 0))
+  | (N9 = 1 & (N1 = 0 | N2 = 0 | N3 = 0 | N4 = 0 | N5 = 0 | N6 = 0 | N7 = 0 | N8 = 0))
+ THEN DO;
+   DISPLAY (WORK);
+   DISPLAY ('Invalid configuration record - skipping');
+   DISPLAY ('Format is not valid - Skipping');
+   DISPLAY (' ');
+
+   CONFIGURATION_ERRORS = CONFIGURATION_ERRORS + 1;
+
+   IF CONFIGURATION_ERRORS = 10 THEN DO;
+     DISPLAY ('Excessive configuration errors - Terminating');
+     STOP;
+   END;
+
+   GO TO GET_NEXT_CONFIG;
+ END;
+
+ SELECT;
+   WHEN (CONFIG.Z ^= 0) LP_CNT = 3;
+   WHEN (CONFIG.Y ^= 0) LP_CNT = 2;
+   OTHERWISE            LP_CNT = 1;
+ END;
+
+ SELECT;
+   WHEN (CONFIG.N9 ^= 0) NP_CNT = 9;
+   WHEN (CONFIG.N8 ^= 0) NP_CNT = 8;
+   WHEN (CONFIG.N7 ^= 0) NP_CNT = 7;
+   WHEN (CONFIG.N6 ^= 0) NP_CNT = 6;
+   WHEN (CONFIG.N5 ^= 0) NP_CNT = 5;
+   WHEN (CONFIG.N4 ^= 0) NP_CNT = 4;
+   WHEN (CONFIG.N3 ^= 0) NP_CNT = 3;
+   WHEN (CONFIG.N2 ^= 0) NP_CNT = 2;
+   OTHERWISE             NP_CNT = 1;
+ END;
+
+ TP_CNT = LP_CNT + NP_CNT;
+
+ SUBSTR(BOARD,11,5) = SUBSTR(START,01,7);
+ SUBSTR(BOARD,21,5) = SUBSTR(START,08,7);
+ SUBSTR(BOARD,31,5) = SUBSTR(START,15,7);
+ SUBSTR(BOARD,41,5) = SUBSTR(START,22,7);
+ SUBSTR(BOARD,51,5) = SUBSTR(START,29,7);
+ SUBSTR(BOARD,61,5) = SUBSTR(START,36,7);
+ SUBSTR(BOARD,71,5) = SUBSTR(START,43,7);
+
+ IF B(BOARD_CENTER) <= 'X' & B(BOARD_CENTER) >= 'Z' THEN DO;
+   DISPLAY (WORK);
+   DISPLAY ('Invalid configuration record - Skipping');
+   DISPLAY ('Center position occupied by X, Y or Z');
+
+   DISPLAY ('Not followed by a space and name');
+
+   CONFIGURATION_ERRORS = CONFIGURATION_ERRORS + 1;
+
+   IF CONFIGURATION_ERRORS = 10 THEN DO;
+     DISPLAY ('Excessive configuration errors - Terminating');
+     STOP;
+   END;
+
+   GO TO GET_NEXT_CONFIG;
+ END;
+
+ IF HEART_BEAT > 0 & MOD(CONFIGURATIONS,HEART_BEAT) = 0 THEN
+   DISPLAY ('Begining configuration ' || NUMSTR(CONFIGURATIONS));
+
+ IF SHOW_PROGRESS THEN
+   DISPLAY ('Start    ' || NAME);
+
+ STRANDED,
+ POSITIONS,
+ SOLUTIONS,
+ ALL_SOLUTIONS,
+ MOVE_LOOPS,
+ MAX_DEPTH_REACHED_SOL = 0;
+
+ MIN_MOVES = 255;
+
+ CUR.MOVES,
+ CUR.STEPS = 0;
+
+ SOLUTION.MOVES = 255;
+
+ HIST_TBL_CNT = 1;
+ HIST_ENT_CNT = 0;
+
+ HIST_TBL_PTR = ADDR(HIST_TBL);
+
+ HIST_NEXT_PTR = SYSNULL;
+
+ ABORTED = FALSE;
+
+ %IF TYPE = 'STD' %THEN %DO;
+ IF DEBUGGING THEN
+   PUT FILE (SOLTXT) EDIT
+     (SUBSTR(START,01,7), ' : Configuration (', NAME, ')',
+      SUBSTR(START,08,7),
+      SUBSTR(START,15,7),
+      SUBSTR(START,22,7),
+      SUBSTR(START,29,7),
+      SUBSTR(START,36,7),
+      SUBSTR(START,43,7),
+      ' ')
+      ' ')
+    (SKIP, 4 A, 5 (SKIP, A));
+ %END;
+ %IF TYPE = 'HEX' %THEN %DO;
+ IF DEBUGGING THEN DO;
+   CALL MAKE_HEX_BOARD(START);
+
+   PUT FILE (SOLTXT) EDIT
+     (XL(1), ' : Board (', NAME, ')',
+      XL(2),
+      XL(3),
+      XL(4),
+      XL(5),
+      XL(6),
+      XL(7),
+      XL(8),
+      XL(9),
+      XL(10),
+      XL(11),
+      ' ')
+     (SKIP, 4 A, 10 (SKIP, A));
+ END;
+ %END;
+ BEG_TIME = TIME;
+
+ /*------------------------------------------*/
+ /* Begin the recursive search for solutions */
+ /*------------------------------------------*/
+
+ CALL EVALUATE_BOARD (BOARD, 0);
+
+ /*----------------------------------------------------*/
+ /* We're back from the recursive search for solutions */
+ /*----------------------------------------------------*/
+
+ END_TIME = TIME;
+
+ HH = BEG.HH;
+ MM = BEG.MM;
+ SS = BEG.SS;
+ MS = BEG.MS;
+ I = (((HH * 3600) + (MM * 60) + SS) * 1000) + MS;
+
+ HH = END.HH;
+ MM = END.MM;
+ SS = END.SS;
+ MS = END.MS;
+ J = (((HH * 3600) + (MM * 60) + SS) * 1000) + MS;
+
+ MS = J - I;
+
+ TOTAL_TIME = TOTAL_TIME + MS;
+
+ IF SHOW_PROGRESS THEN
+   DISPLAY ('Finished ' || NAME);
+
+ IF SOLUTIONS > 0 THEN DO;
+   WITH_SOLUTIONS = WITH_SOLUTIONS + 1;
+
+   TOTAL_SOLUTIONS = TOTAL_SOLUTIONS + SOLUTIONS;
+
+   COUNT.SOLUTIONS(MIN_MOVES) = COUNT.SOLUTIONS(MIN_MOVES) + 1;
+
+   IF MIN_STEPS < COUNT.MIN_STEPS(MIN_MOVES) THEN
+     COUNT.MIN_STEPS(MIN_MOVES) = MIN_STEPS;
+
+   IF MIN_STEPS > COUNT.MAX_STEPS(MIN_MOVES) THEN
+     COUNT.MAX_STEPS(MIN_MOVES) = MIN_STEPS;
+
+   /*-----------------------------------------------------------------------------------*/
+   /* Are the minimum moves or steps required > than those for previous configurations? */
+   /*-----------------------------------------------------------------------------------*/
+
+   IF MIN_MOVES > MOST_MOVES THEN DO;
+     DISPLAY ('Most Moves ' || NUMSTR(MIN_MOVES) || ' by ' || NAME);
+     MOST_MOVES = MIN_MOVES;
+     NAME_OF_MOST_MOVES = NAME;
+   END;
+
+   IF MIN_STEPS > MOST_STEPS THEN DO;
+     DISPLAY ('Most Steps ' || NUMSTR(MIN_STEPS) || ' by ' || NAME);
+     MOST_STEPS = MIN_STEPS;
+     NAME_OF_MOST_STEPS = NAME;
+   END;
+
+   IF MIN_MOVES < MIN_MOVES_TO_KEEP THEN DO;
+     TOTAL_SOLUTIONS_NOT_KEPT = TOTAL_SOLUTIONS_NOT_KEPT + 1;
+     GO TO GET_NEXT_CONFIG;
+   END;
+ END;
+ ELSE DO;
+   TOTAL_TIME_NO_SOLUTIONS = TOTAL_TIME_NO_SOLUTIONS + MS;
+
+   IF ^ SHOW_ZERO_SOLUTIONS THEN
+     GO TO GET_NEXT_CONFIG;
+ END;
+
+ /*-----------------------*/
+ /* Display the solutions */
+ /*-----------------------*/
+
+ IF SPLIT_SOLUTIONS_LIMIT > 0 THEN
+   IF SPLIT_SOLUTIONS_COUNT = SPLIT_SOLUTIONS_LIMIT THEN DO;
+     SPLIT_SOLUTIONS_TEXT_FILE# = SPLIT_SOLUTIONS_TEXT_FILE# + 1;
+     SPLIT_SOLUTIONS_COUNT = 1;
+
+     CLOSE FILE (SOLTXT);
+
+     DISPLAY ('Opening Solutions Text File "'
+            || SOLTXT_FILE || '.' || SPLIT_SOLUTIONS_TEXT_FILE# ||'.TXT,APPEND(N)');
+
+     OPEN  FILE (SOLTXT) TITLE
+       ('/' || SOLTXT_FILE || '.' || SPLIT_SOLUTIONS_TEXT_FILE# ||'.TXT,APPEND(N)');
+   END;
+   ELSE
+     SPLIT_SOLUTIONS_COUNT = SPLIT_SOLUTIONS_COUNT + 1;
+
+ IF DEBUGGING | SHOW_ALL_SOLUTIONS THEN
+   PUT FILE (SOLTXT) SKIP EDIT (' ') (A);
+
+ L1 = ' : Configuration (' || NAME || ')';
+
+ IF MIN_MOVES = 255 THEN DO;
+   L2 = ' : Solutions ...................... None';
+   L3 = ' :';
+ END;
+ ELSE DO;
+   IF MIN_MOVES > 1 THEN DO;
+     L2 = ' : Solutions (' || NUMSTR(MIN_MOVES) || ' Moves, ' || NUMSTR(MIN_STEPS);
+     L3 = ' : With '       || NUMSTR(MIN_MOVES) || ' moves, but more steps .... ';
+   END;
+   ELSE DO;
+     L2 = ' : Solutions (1 Move, ' || NUMSTR(MIN_STEPS);
+     L3 = ' : With 1 moves, but more steps .... ';
+   END;
+
+   IF MIN_STEPS > 1 THEN
+     L2 = L2 || ' Steps) ....';
+   ELSE
+     L2 = L2 || ' Step) .....';
+
+   L2 = SUBSTR(L2,1,35) || ' ' || NUMSTR(MIN_STEPS_CNT);
+   L3 = SUBSTR(L3,1,35) || ' ' || NUMSTR(MIN_MOVES_CNT-MIN_STEPS_CNT);
+ END;
+
+ L4 = ' : Positions evaluated ............ ' || NUMSTR(POSITIONS);
+
+ %IF TYPE = 'STD' %THEN %DO;
+ PUT FILE (SOLTXT) EDIT
+   (SUBSTR(START,01,7), L1,
+    SUBSTR(START,08,7), ' :',
+    SUBSTR(START,15,7), L2,
+    SUBSTR(START,22,7), L3,
+    SUBSTR(START,29,7), L4
+    SUBSTR(START,36,7), ' ',
+    SUBSTR(START,43,7), ' ')
+   (7 (SKIP, 2 A));
+ %END;
+ %ELSE %DO;
+ CALL MAKE_HEX_BOARD(START);
+
+ PUT FILE (SOLTXT) EDIT
+   (XL(1),  L1,
+    XL(2),  ' :',
+    XL(3),  L2,
+    XL(4),  L3,
+    XL(5),  L4,
+    XL(6),  ' :',
+    XL(7),  ' :',
+    XL(8),  ' :',
+    XL(9),  ' :',
+    XL(10), ' :',
+    XL(11), ' :')
+   (11 (SKIP, 2 A));
+ %END;
+ IF SOLUTIONS > 0 THEN DO;
+   IF SOLUTION_OVERFLOW > 0 THEN DO;
+     PUT FILE (SOLTXT) SKIP EDIT
+       (' ', 'Solution table overflowed')
+       (A, SKIP, A);
+
+     SOLUTION_OVERFLOW = 0;
+   END;
+
+   SOLVED = CONFIG, BY NAME;
+
+   SOLVED.MOVES = MIN_MOVES;
+   SOLVED.STEPS = MIN_STEPS;
+
+   SOLVED.MIN_MOVE_SOLUTIONS = MIN_MOVES_CNT;
+   SOLVED.MIN_STEP_SOLUTIONS = MIN_STEPS_CNT;
+
+   SOLVED.DIRECTIONS = 'FF'BX;
+
+   PUT FILE (SOLTXT) SKIP EDIT (' ') (A);
+
+   /*-------------------------------------*/
+   /* Loop through the list of solutions. */
+   /*-------------------------------------*/
+
+   DO I = 1 TO MIN_STEPS_CNT;
+
+     /*-----------------------------------*/
+     /* Build a displayable move list and */
+     /* check for insignificant pieces.   */
+     /*-----------------------------------*/
+
+     CHECK = BOARD;
+
+     C(SOLUTION.MOVE.FR(I,1)) = '-';
+
+     SELECT(SOLUTION.MOVE.DIR(I,1));
+       %IF TYPE = 'STD' %THEN %DO;
+       WHEN (LEFT)  C(SOLUTION.MOVE.TO(I,1) - 1)  = '-';
+       WHEN (RIGHT) C(SOLUTION.MOVE.TO(I,1) + 1)  = '-';
+       WHEN (UP)    C(SOLUTION.MOVE.TO(I,1) - 10) = '-';
+       OTHERWISE    C(SOLUTION.MOVE.TO(I,1) + 10) = '-';
+       %END;
+       %ELSE %DO;
+       WHEN (NORTHEAST) C(SOLUTION.MOVE.TO(I,1) + 1)  = '-';
+       WHEN (SOUTHEAST) C(SOLUTION.MOVE.TO(I,1) + 10) = '-';
+       WHEN (SOUTH)     C(SOLUTION.MOVE.TO(I,1) + 9)  = '-';
+       WHEN (SOUTHWEST) C(SOLUTION.MOVE.TO(I,1) - 1)  = '-';
+       WHEN (NORTHWEST) C(SOLUTION.MOVE.TO(I,1) - 10) = '-';
+       OTHERWISE        C(SOLUTION.MOVE.TO(I,1) - 9)  = '-';
+       %END;
+     END;
+
+     MOVE_PIECE = SOLUTION.MOVE.PIECE(I,1);
+
+     MOVE_DIRS = BIT_DIR(SOLUTION.MOVE.DIR(I,1));
+
+     MOVE_LIST = MOVE_PIECE || '-' || LTR_DIR(SOLUTION.MOVE.DIR(I,1));
+
+     DO J = 2 TO SOLUTION.STEPS(I);
+
+       C(SOLUTION.MOVE.FR(I,J)) = '-';
+
+       SELECT(SOLUTION.MOVE.DIR(I,J));
+         %IF TYPE = 'STD' %THEN %DO;
+         WHEN (LEFT)  C(SOLUTION.MOVE.TO(I,J) - 1)  = '-';
+         WHEN (RIGHT) C(SOLUTION.MOVE.TO(I,J) + 1)  = '-';
+         WHEN (UP)    C(SOLUTION.MOVE.TO(I,J) - 10) = '-';
+         OTHERWISE    C(SOLUTION.MOVE.TO(I,J) + 10) = '-';
+         %END;
+         %ELSE DO;
+         WHEN (NORTHEAST) C(SOLUTION.MOVE.TO(I,J) + 1)  = '-';
+         WHEN (SOUTHEAST) C(SOLUTION.MOVE.TO(I,J) + 10) = '-';
+         WHEN (SOUTH)     C(SOLUTION.MOVE.TO(I,J) + 9)  = '-';
+         WHEN (SOUTHWEST) C(SOLUTION.MOVE.TO(I,J) - 1)  = '-';
+         WHEN (NORTHWEST) C(SOLUTION.MOVE.TO(I,J) - 10) = '-';
+         OTHERWISE        C(SOLUTION.MOVE.TO(I,J) - 9)  = '-';
+         %END;
+       END;
+
+       IF SOLUTION.MOVE.PIECE(I,J) ^= MOVE_PIECE THEN DO;
+         MOVE_PIECE = SOLUTION.MOVE.PIECE(I,J);
+         MOVE_LIST = MOVE_LIST || ' ' || MOVE_PIECE || '-';
+       END;
+
+       MOVE_DIRS = MOVE_DIRS | BIT_DIR(SOLUTION.MOVE.DIR(I,J));
+
+       MOVE_LIST = MOVE_LIST || LTR_DIR(SOLUTION.MOVE.DIR(I,J));
+     END;
+
+     SOLVED.DIRECTIONS = SOLVED.DIRECTIONS & MOVE_DIRS;
+
+     PUT FILE (SOLTXT) SKIP EDIT (MOVE_LIST) (A);
+
+     K = 0;
+
+     DO J = 11 TO 17,
+            21 TO 27,
+            31 TO 37,
+            41 TO 47,
+            51 TO 57,
+            51 TO 67,
+            51 TO 77;
+
+       MOVE_PIECE = SUBSTR(CHECK,J,1);
+
+       IF MOVE_PIECE ^= '-' THEN DO;
+         IF K = 0 THEN
+           PUT FILE (SOLTXT) EDIT (' - Not Sig (') (A);
+         ELSE
+           PUT FILE (SOLTXT) EDIT (',') (A);
+
+         K = K + 1;
+
+ DCL PIECE_BIT (9) BIT (16) INIT
+     ('0001'BX,
+      '0002'BX,
+      '0004'BX,
+      '0008'BX,
+      '0010'BX,
+      '0020'BX,
+      '0040'BX,
+      '0080'BX,
+      '0100'BX);
+
+         SOLVED.INSIGNIFICANT =
+         SOLVED.INSIGNIFICANT | PIECE_BIT(UNSPEC(MOVE_PIECE)-UNSPEC('0'));
+
+         PUT FILE (SOLTXT) EDIT (MOVE_PIECE) (A);
+       END;
+     END;
+
+     IF K > 0 THEN DO;
+       PUT FILE (SOLTXT) EDIT (')') (A);
+
+       /*----------------------------------------------------*/
+       /* Indicate solutions with indignificant pieces exist */
+       /*----------------------------------------------------*/
+
+       IF K > 0 & SOLVED.X < 128 THEN DO;
+         WITH_INSIGNIFICANT = WITH_INSIGNIFICANT + 1;
+         SOLVED.X = SOLVED.X + 128;
+       END;
+     END;
+     /*
+     else
+     if min_moves = 1 then
+
+     put file (soltxt) skip edit
+       ('!', start, MIN_MOVES, MIN_steps, move_list)
+       (a, a(26), 2 p'99B', a);
+     */
+
+   NEXT_SOLUTION: END;
+ END;
+ ELSE DO;
+   SOLVED = CONFIG, BY NAME;
+
+   SOLVED.MOVES,
+   SOLVED.STEPS,
+   SOLVED.MIN_MOVE_SOLUTIONS,
+   SOLVED.MIN_STEP_SOLUTIONS = 0;
+ END;
+ IF STATISTICS THEN DO;
+   TIM.HH = MS / 3600000;
+   MS = MOD(MS,3600000);
+   TIM.MM = MS / 60000;
+   MS = MOD(MS,60000);
+   TIM.SS = MS / 1000;
+   TIM.MS = MOD(MS,1000);
+
+   PUT FILE (SOLTXT) SKIP EDIT (' ') (A);
+
+   PUT FILE (SOLTXT) EDIT
+     ('Board configurations ................... ', NUMSTR(HIST_ENT_CNT),
+      'Move loops ............................. ', NUMSTR(MOVE_LOOPS),
+      'Stranded positions ..................... ', NUMSTR(STRANDED),
+      'History Nodes .......................... ', NUMSTR(HIST_TBL_CNT),
+      'Maximum depth reached count ............ ', NUMSTR(MAX_DEPTH_REACHED_SOL),
+      'Computation time (h:m:s:ms) ............ ', STRING(TIM))
+     (SKIP, 2 A);
+ END;
+
+ /*-----------------------------------*/
+ /* Write solutions data file records */
+ /*-----------------------------------*/
+
+ WORK = START || EDIT(MIN_MOVES,                   'B999')
+              || EDIT(MIN_STEPS,                   'B999')
+              || EDIT(MIN_STEPS-MIN_MOVES,         'B999')
+              || EDIT(MIN_MOVES_CNT-MIN_STEPS_CNT, 'B999')
+              || EDIT(MAX_STEPS,                   'B999')
+              || EDIT(ALL_SOLUTIONS,               'B999')
+              || EDIT(MAX_DEPTH_REACHED_SOL,       'B999')
+              || EDIT(POSITIONS,                   'B99999999')
+              || EDIT(STRANDED,                    'B99999999')
+              || EDIT(HIST_TBL_CNT,                'B99999999')
+              || ' :' || NAME || ':' || MOVE_LIST;
+
+ WRITE FILE (SOLDAT) FROM (WORK);
+
+ PUT FILE (SOLTXT) EDIT ((75)'-') (SKIP, A);
+
+ IF SOLUTIONS > MOST_SOLUTIONS THEN DO;
+   MOST_SOLUTIONS = SOLUTIONS;
+   NAME_OF_MOST_SOLUTIONS = NAME;
+ END;
+
+ GO TO GET_NEXT_CONFIG;
+
+ /*--------------*/
+ /* Print totals */
+ /*--------------*/
+
+  IF HEART_BEAT > 0 THEN
+   DISPLAY ('Solver Completed');
+
+ PRINT_TOTALS:
+
+ PUT FILE (STATS) EDIT
+   ('Configurations ......................... ', NUMSTR(CONFIGURATIONS),
+    'Configurations with solutions .......... ', NUMSTR(WITH_SOLUTIONS),
+    '  With all pieces significant .......... ', NUMSTR(WITH_SOLUTIONS-WITH_INSIGNIFICANT),
+    '  With insignificant pieces ............ ', NUMSTR(WITH_INSIGNIFICANT),
+    'Maximum depth reached .................. ', NUMSTR(MAX_DEPTH_REACHED_ALL),
+    'Total solutions ........................ ', NUMSTR(TOTAL_SOLUTIONS))
+    (SKIP, 2 A);
+
+ IF MIN_MOVES_TO_KEEP > 1 THEN DO;
+   PUT FILE (STATS) EDIT
+     ('Minimum Moves To Keep .................. ',
+       NUMSTR(MIN_MOVES_TO_KEEP),
+      'Total solutions Not Kept ............... ',
+       NUMSTR(TOTAL_SOLUTIONS_NOT_KEPT))
+      (SKIP, 2 A);
+ END;
+
+ PUT FILE (STATS) SKIP EDIT (' ') (A);
+
+ PUT FILE (STATS) EDIT
+   ('Most moves for minimum solution ........ ',
+    NUMSTR(MOST_MOVES), ' (', NAME_OF_MOST_MOVES, ')',
+    'Most steps for minimum solution ........ ',
+    NUMSTR(MOST_STEPS), ' (', NAME_OF_MOST_STEPS, ')',
+    'Most solutions ......................... ',
+    NUMSTR(MOST_SOLUTIONS), ' (', NAME_OF_MOST_SOLUTIONS, ')')
+   (SKIP, A, A(6), 3 A);
+
+ IF STATISTICS THEN DO;
+   END_TIME = TIME;
+
+   HH = END.HH;
+   MM = END.MM;
+   SS = END.SS;
+
+   ELAPSED_TIME_END = ((HH * 3600) + (MM * 60) + SS);
+
+   ELAPSED_TIME = ELAPSED_TIME_END - ELAPSED_TIME_BEG;
+
+   TIM.HH = ELAPSED_TIME / 3600;
+   ELAPSED_TIME = MOD(ELAPSED_TIME,3600);
+   TIM.MM = ELAPSED_TIME / 60;
+   ELAPSED_TIME = MOD(ELAPSED_TIME,60);
+   TIM.SS = ELAPSED_TIME;
+
+   PUT FILE (STATS) EDIT
+     (' ',
+      'Elapsed Time (h:m:s) ................... ', SUBSTR(STRING(TIM),1,8))
+     (SKIP, A, SKIP, 2 A);
+
+   TIM.HH     = TOTAL_TIME / 3600000;
+   TOTAL_TIME = MOD(TOTAL_TIME,3600000);
+   TIM.MM     = TOTAL_TIME / 60000;
+   TOTAL_TIME = MOD(TOTAL_TIME,60000);
+   TIM.SS     = TOTAL_TIME / 1000;
+
+   PUT FILE (STATS) EDIT
+     ('Compute time (h:m:s) ................... ',
+       SUBSTR(STRING(TIM),1,8))
+     (SKIP, 2 A);
+
+   TIM.HH                  = TOTAL_TIME_NO_SOLUTIONS / 3600000;
+   TOTAL_TIME_NO_SOLUTIONS = MOD(TOTAL_TIME_NO_SOLUTIONS,3600000);
+   TIM.MM                  = TOTAL_TIME_NO_SOLUTIONS / 60000;
+   TOTAL_TIME_NO_SOLUTIONS = MOD(TOTAL_TIME_NO_SOLUTIONS,60000);
+   TIM.SS                  = TOTAL_TIME_NO_SOLUTIONS / 1000;
+
+   PUT FILE (STATS) EDIT
+     ('Compute time for no solutions (h:m:s) .. ',
+       SUBSTR(STRING(TIM),1,8))
+     (SKIP, 2 A);
+ END;
+
+ PUT FILE (STATS) EDIT
+   (' ',
+    '                  Steps...',
+    'Moves  Count....  Min  Max',
+    '-----  ---------  ---  ---')
+   (SKIP, A);
+
+ DO I = 1 TO 200;
+   IF COUNT.SOLUTIONS(I) > 0 THEN
+     PUT FILE (STATS) SKIP EDIT
+       (I, COUNT.SOLUTIONS(I), COUNT.MIN_STEPS(I), COUNT.MAX_STEPS(I))
+       (P'Z,ZZ9', P'ZZZ,ZZZ,ZZ9', 2 P'ZZZZ9');
+ END;
+
+ RETURN;
+
+ /*-------------------------*/
+ /* Evaluate board position */
+ /*-------------------------*/
+
+ EVALUATE_BOARD: PROC (BOARD, BEG_POS) RECURSIVE;
+
+ DCL BOARD                    CHAR (BOARD_SIZE);
+ DCL B (BOARD_SIZE)           CHAR (1)  BASED (ADDR(BOARD));
+
+ DCL BEG_POS                  FIXED BIN (31) BYVALUE;
+
+ DCL NEW_BOARD                CHAR (BOARD_SIZE) AUTO;
+ DCL NB (BOARD_SIZE)          CHAR (1)  DEF NEW_BOARD;
+
+ DCL CUR_PIECE                CHAR (1)  AUTO INIT (' ');
+
+ DCL LETTER_PIECE_HOLD        CHAR (1)  AUTO INIT (' ');
+
+ DCL PRE_DIR                  FIXED BIN (8)  UNSIGNED AUTO INIT (0);
+
+ DCL I                        FIXED BIN (31) INIT (0);
+
+ DCL LETTER_PIECES            FIXED BIN (31) AUTO INIT (0);
+ DCL LETTER_PIECES_CHECKED    FIXED BIN (31) AUTO INIT (0);
+
+ DCL (ROW,COL)                FIXED BIN (31) AUTO INIT (0);
+
+ DCL CUR_POS                  FIXED BIN (31) AUTO INIT (0);
+
+ DCL SOLUTION_FOUND           BIT (1) AUTO INIT (FALSE);
+
+ /*-----------------------*/
+ /* Have we gone too far? */
+ /*-----------------------*/
+
+ IF ABORTED THEN
+   RETURN;
+
+ /*---------------------------*/
+ /* This should never happen! */
+ /*---------------------------*/
+
+ IF CUR.STEPS >= 200 THEN DO;
+   DISPLAY ('More than 200 steps - Terminating');
+   STOP;
+ END;
+
+ IF CUR.STEPS > MAX_DEPTH THEN DO;
+   MAX_DEPTH_REACHED_SOL = MAX_DEPTH_REACHED_SOL + 1;
+   MAX_DEPTH_REACHED_ALL = MAX_DEPTH_REACHED_ALL + 1;
+   RETURN;
+ END;
+
+ IF SOLUTIONS > MAX_SOLUTIONS THEN DO;
+   PUT FILE (SOLTXT) EDIT
+     ('More than ', NUMSTR(MAX_SOLUTIONS), ' solutions - Terminating',
+      ' ')
+     (SKIP, 3 A, SKIP, A);
+
+   ABORTED = TRUE;
+   RETURN;
+ END;
+
+ CUR.STEPS = CUR.STEPS + 1;
+
+ POSITIONS = POSITIONS + 1;
+
+ /*----------------------------------------------------------------*/
+ /* Count letter pieces and create generic board for stranded test */
+ /*----------------------------------------------------------------*/
+
+ NEW_BOARD = COPY('-', BOARD_SIZE);
+
+ DO I = BOARD_BEGIN TO BOARD_SIZE;
+   IF B(I) >= 'X' & B(I) <= 'Z' THEN DO;
+     LETTER_PIECES = LETTER_PIECES + 1;
+     NB(I) = 'L';
+   END;
+   ELSE
+     IF B(I) >= '1' & B(I) <= '9' THEN
+       NB(I) = 'N';
+ END;
+
+ /*----------------------------------*/
+ /* Check for stranded letter pieces */
+ /*----------------------------------*/
+
+ %IF TYPE = 'STD' %THEN %DO;
+ /*---------------------*/
+ /* L - Letter Piece    */
+ /* N - Number Piece    */
+ /* v - Vacant          */
+ /* a - Vacant          */
+ /* b - Vacant          */
+ /* c - Vacant          */
+ /* - - Not Significant */
+ /*----------------------*/
+
+ /*-------------------------------*/
+ /*  a+b  |  a+b  |  a+b  |  a+b  */
+ /*  a+c  |  a+c  |  a+c  |  a+c  */
+ /*-------------------------------*/
+ /* bbacc | --bbb | ----- | bbb-- */
+ /* bbacc | --bbb | ----- | bbb-- */
+ /* bb-cc | ---aa | bb-cc | aa--- */
+ /* ----- | --ccc | bbacc | ccc-- */
+ /* ----- | --ccc | bbacc | ccc-- */
+ /*-------------------------------*/
+
+ IF (B(13) = '-' & B(23) = '-') THEN
+   IF (B(11) = '-' & B(12) = '-' & B(21) = '-'
+    &  B(22) = '-' & B(31) = '-' & B(32) = '-')
+    | (B(14) = '-' & B(15) = '-' & B(24) = '-'
+    &  B(25) = '-' & B(34) = '-' & B(35) = '-') THEN
+     GO TO STRANDED_POSITION;
+
+ IF (B(34) = '-' & B(35) = '-') THEN
+   IF (B(13) = '-' & B(14) = '-' & B(15) = '-'
+    &  B(23) = '-' & B(24) = '-' & B(25) = '-')
+    | (B(43) = '-' & B(44) = '-' & B(45) = '-'
+    &  B(53) = '-' & B(54) = '-' & B(55) = '-') THEN
+     GO TO STRANDED_POSITION;
+
+ IF (B(43) = '-' & B(53) = '-') THEN
+   IF (B(31) = '-' & B(32) = '-' & B(41) = '-'
+    &  B(42) = '-' & B(51) = '-' & B(52) = '-')
+    | (B(34) = '-' & B(35) = '-' & B(44) = '-'
+    &  B(45) = '-' & B(54) = '-' & B(55) = '-') THEN
+     GO TO STRANDED_POSITION;
+
+ IF (B(31) = '-' & B(32) = '-') THEN
+   IF (B(11) = '-' & B(12) = '-' & B(13) = '-'
+    &  B(21) = '-' & B(22) = '-' & B(23) = '-')
+    | (B(41) = '-' & B(42) = '-' & B(43) = '-'
+    &  B(51) = '-' & B(52) = '-' & B(53) = '-') THEN
+     GO TO STRANDED_POSITION;
+
+ /*-------------------------------*/
+ /* L-vvv | vvv-L | v---- | ----v */
+ /* ----- | ----- | v---- | ----v */
+ /* v---- | ----v | v---- | ----v */
+ /* v---- | ----v | ----- | ----- */
+ /* v---- | ----v | L-vvv | vvv-L */
+ /*-------------------------------*/
+
+ IF NB(11) = 'L' THEN DO;
+   IF B(13) = '-' & B(14) = '-' & B(15) = '-'
+    & B(31) = '-' & B(41) = '-' & B(51) = '-' THEN
+     GO TO STRANDED_POSITION;
+
+   LETTER_PIECES_CHECKED = LETTER_PIECES_CHECKED + 1;
+
+   IF LETTER_PIECES_CHECKED = LETTER_PIECES THEN
+     GO TO STRANDED_CHECK_COMPLETE;
+ END;
+
+ IF NB(15) = 'L' THEN DO;
+   IF B(11) = '-' & B(12) = '-' & B(13) = '-'
+    & B(35) = '-' & B(45) = '-' & B(55) = '-' THEN
+     GO TO STRANDED_POSITION;
+
+   LETTER_PIECES_CHECKED = LETTER_PIECES_CHECKED + 1;
+
+   IF LETTER_PIECES_CHECKED = LETTER_PIECES THEN
+     GO TO STRANDED_CHECK_COMPLETE;
+ END;
+
+ IF NB(51) = 'L' THEN DO;
+   IF B(11) = '-' & B(21) = '-' & B(31) = '-'
+    & B(53) = '-' & B(54) = '-' & B(55) = '-' THEN
+     GO TO STRANDED_POSITION;
+
+   LETTER_PIECES_CHECKED = LETTER_PIECES_CHECKED + 1;
+
+   IF LETTER_PIECES_CHECKED = LETTER_PIECES THEN
+     GO TO STRANDED_CHECK_COMPLETE;
+ END;
+
+ IF NB(55) = 'L' THEN DO;
+   IF B(15) = '-' & B(25) = '-' & B(35) = '-'
+    & B(51) = '-' & B(52) = '-' & B(53) = '-' THEN
+     GO TO STRANDED_POSITION;
+
+   LETTER_PIECES_CHECKED = LETTER_PIECES_CHECKED + 1;
+
+   IF LETTER_PIECES_CHECKED = LETTER_PIECES THEN
+     GO TO STRANDED_CHECK_COMPLETE;
+ END;
+
+ /*---------------------------------------------------------------*/
+ /* -L-vv | vv-L- | --vvv | vvv-- | v---- | ----v | vv--- | ---vv */
+ /* ----- | ----- | L-vvv | vvv-L | v---- | ----v | vv--- | ---vv */
+ /* vv--- | ---vv | ----- | ----- | ----- | ----- | vv--- | ---vv */
+ /* vv--- | ---vv | v---- | ----v | L-vvv | vvv-L | ----- | ----- */
+ /* vv--- | ---vv | v---- | ----v | --vvv | vvv-- | -L-vv | vv-L- */
+ /*---------------------------------------------------------------*/
+
+ IF NB(12) = 'L' THEN DO;
+   IF B(14) = '-' & B(15) = '-' & B(31) = '-' & B(32) = '-'
+    & B(41) = '-' & B(42) = '-' & B(51) = '-' & B(52) = '-' THEN
+     GO TO STRANDED_POSITION;
+
+   LETTER_PIECES_CHECKED = LETTER_PIECES_CHECKED + 1;
+
+   IF LETTER_PIECES_CHECKED = LETTER_PIECES THEN
+     GO TO STRANDED_CHECK_COMPLETE;
+ END;
+
+ IF NB(14) = 'L' THEN DO;
+   IF B(11) = '-' & B(12) = '-' & B(34) = '-' & B(35) = '-'
+    & B(44) = '-' & B(45) = '-' & B(54) = '-' & B(55) = '-' THEN
+     GO TO STRANDED_POSITION;
+
+   LETTER_PIECES_CHECKED = LETTER_PIECES_CHECKED + 1;
+
+   IF LETTER_PIECES_CHECKED = LETTER_PIECES THEN
+     GO TO STRANDED_CHECK_COMPLETE;
+ END;
+
+ IF NB(21) = 'L' THEN DO;
+   IF B(13) = '-' & B(14) = '-' & B(15) = '-' & B(23) = '-'
+    & B(24) = '-' & B(25) = '-' & B(41) = '-' & B(51) = '-' THEN
+     GO TO STRANDED_POSITION;
+
+   LETTER_PIECES_CHECKED = LETTER_PIECES_CHECKED + 1;
+
+   IF LETTER_PIECES_CHECKED = LETTER_PIECES THEN
+     GO TO STRANDED_CHECK_COMPLETE;
+ END;
+
+ IF NB(25) = 'L' THEN DO;
+   IF B(11) = '-' & B(12) = '-' & B(13) = '-' & B(21) = '-'
+    & B(22) = '-' & B(23) = '-' & B(45) = '-' & B(55) = '-' THEN
+     GO TO STRANDED_POSITION;
+
+   LETTER_PIECES_CHECKED = LETTER_PIECES_CHECKED + 1;
+
+   IF LETTER_PIECES_CHECKED = LETTER_PIECES THEN
+     GO TO STRANDED_CHECK_COMPLETE;
+ END;
+
+ IF NB(41) = 'L' THEN DO;
+   IF B(11) = '-' & B(21) = '-' & B(43) = '-' & B(44) = '-'
+    & B(45) = '-' & B(53) = '-' & B(54) = '-' & B(55) = '-' THEN
+     GO TO STRANDED_POSITION;
+
+   LETTER_PIECES_CHECKED = LETTER_PIECES_CHECKED + 1;
+
+   IF LETTER_PIECES_CHECKED = LETTER_PIECES THEN
+     GO TO STRANDED_CHECK_COMPLETE;
+ END;
+
+ IF NB(45) = 'L' THEN DO;
+   IF B(15) = '-' & B(25) = '-' & B(41) = '-' & B(42) = '-'
+    & B(43) = '-' & B(51) = '-' & B(52) = '-' & B(53) = '-' THEN
+     GO TO STRANDED_POSITION;
+
+   LETTER_PIECES_CHECKED = LETTER_PIECES_CHECKED + 1;
+
+   IF LETTER_PIECES_CHECKED = LETTER_PIECES THEN
+     GO TO STRANDED_CHECK_COMPLETE;
+ END;
+
+ IF NB(52) = 'L' THEN DO;
+   IF B(11) = '-' & B(12) = '-' & B(21) = '-' & B(22) = '-'
+    & B(31) = '-' & B(32) = '-' & B(54) = '-' & B(55) = '-' THEN
+     GO TO STRANDED_POSITION;
+
+   LETTER_PIECES_CHECKED = LETTER_PIECES_CHECKED + 1;
+
+   IF LETTER_PIECES_CHECKED = LETTER_PIECES THEN
+     GO TO STRANDED_CHECK_COMPLETE;
+ END;
+
+ IF NB(54) = 'L' THEN DO;
+   IF B(14) = '-' & B(15) = '-' & B(24) = '-' & B(25) = '-'
+    & B(34) = '-' & B(35) = '-' & B(51) = '-' & B(52) = '-' THEN
+     GO TO STRANDED_POSITION;
+
+   LETTER_PIECES_CHECKED = LETTER_PIECES_CHECKED + 1;
+
+   IF LETTER_PIECES_CHECKED = LETTER_PIECES THEN
+     GO TO STRANDED_CHECK_COMPLETE;
+ END;
+
+ /*-------------------------------*/
+ /* ---vv | ---vv | vv--- | vv--- */
+ /* -L-vv | ---vv | vv-L- | vv--- */
+ /* ----- | ----- | ----- | ----- */
+ /* vv--- | vv-L- | ---vv | -L-vv */
+ /* vv--- | vv--- | ---vv | ---vv */
+ /*-------------------------------*/
+
+ IF NB(22) = 'L' | NB(44) = 'L' THEN DO;
+   IF B(14) = '-' & B(15) = '-' & B(24) = '-' & B(25) = '-'
+    & B(41) = '-' & B(42) = '-' & B(51) = '-' & B(52) = '-' THEN
+     GO TO STRANDED_POSITION;
+
+   LETTER_PIECES_CHECKED = LETTER_PIECES_CHECKED + 1;
+
+   IF LETTER_PIECES_CHECKED = LETTER_PIECES THEN
+     GO TO STRANDED_CHECK_COMPLETE;
+ END;
+
+ IF NB(24) = 'L' | NB(42) = 'L' THEN DO;
+   IF B(11) = '-' & B(12) = '-' & B(21) = '-' & B(22) = '-'
+    & B(44) = '-' & B(45) = '-' & B(54) = '-' & B(55) = '-' THEN
+     GO TO STRANDED_POSITION;
+
+   LETTER_PIECES_CHECKED = LETTER_PIECES_CHECKED + 1;
+
+   IF LETTER_PIECES_CHECKED = LETTER_PIECES THEN
+     GO TO STRANDED_CHECK_COMPLETE;
+ END;
+
+ /*-------------------------------*/
+ /* L+a+b | L+a+b | L+a+b | L+a+b */
+ /* L+a+c | L+a+c | L+a+c | L+a+c */
+ /*-------------------------------*/
+ /* a---a | aa-cc | bbacc | cc-aa */
+ /* a-L-a | ---cc | bbacc | cc--- */
+ /* ----- | -L-aa | ----- | aa-L- */
+ /* bbacc | ---bb | a-L-a | bb--- */
+ /* bbacc | aa-bb | a---a | bb-aa */
+ /*-------------------------------*/
+
+ IF NB(23) = 'L' THEN DO;
+   IF B(11) = '-' & B(15) = '-' & B(21) = '-'
+    & B(25) = '-' & B(43) = '-' & B(53) = '-' THEN
+     IF (B(41) = '-' & B(42) = '-' & B(51) = '-' & B(52) = '-')
+      | (B(44) = '-' & B(45) = '-' & B(54) = '-' & B(55) = '-') THEN
+       GO TO STRANDED_POSITION;
+
+   LETTER_PIECES_CHECKED = LETTER_PIECES_CHECKED + 1;
+
+   IF LETTER_PIECES_CHECKED = LETTER_PIECES THEN
+     GO TO STRANDED_CHECK_COMPLETE;
+ END;
+
+ IF NB(32) = 'L' THEN DO;
+   IF B(11) = '-' & B(12) = '-' & B(34) = '-'
+    & B(35) = '-' & B(51) = '-' & B(52) = '-' THEN
+     IF (B(14) = '-' & B(15) = '-' & B(24) = '-' & B(25) = '-')
+      | (B(44) = '-' & B(45) = '-' & B(54) = '-' & B(55) = '-') THEN
+       GO TO STRANDED_POSITION;
+
+   LETTER_PIECES_CHECKED = LETTER_PIECES_CHECKED + 1;
+
+   IF LETTER_PIECES_CHECKED = LETTER_PIECES THEN
+     GO TO STRANDED_CHECK_COMPLETE;
+ END;
+
+ IF NB(43) = 'L' THEN DO;
+   IF B(13) = '-' & B(23) = '-' & B(41) = '-'
+    & B(45) = '-' & B(51) = '-' & B(55) = '-' THEN
+     IF (B(11) = '-' & B(12) = '-' & B(21) = '-' & B(22) = '-')
+      | (B(14) = '-' & B(15) = '-' & B(24) = '-' & B(25) = '-') THEN
+       GO TO STRANDED_POSITION;
+
+   LETTER_PIECES_CHECKED = LETTER_PIECES_CHECKED + 1;
+
+   IF LETTER_PIECES_CHECKED = LETTER_PIECES THEN
+     GO TO STRANDED_CHECK_COMPLETE;
+ END;
+
+ IF NB(34) = 'L' THEN
+   IF B(14) = '-' & B(15) = '-' & B(31) = '-'
+    & B(32) = '-' & B(54) = '-' & B(55) = '-' THEN
+     IF (B(41) = '-' & B(42) = '-' & B(51) = '-' & B(52) = '-')
+      | (B(11) = '-' & B(12) = '-' & B(21) = '-' & B(22) = '-') THEN
+       GO TO STRANDED_POSITION;
+
+ GO TO STRANDED_CHECK_COMPLETE;
+ %END;
+ %ELSE %DO;
+ GO TO STRANDED_CHECK_COMPLETE;
+ %END;
+ /*-------------------------------------------------*/
+ /* It's not possible for the letter pieces to exit */
+ /*-------------------------------------------------*/
+
+ STRANDED_POSITION:
+
+ STRANDED = STRANDED + 1;
+
+ IF DEBUGGING THEN
+   PUT FILE (SOLTXT) EDIT (' - Stranded') (A);
+
+ CUR.STEPS = CUR.STEPS - 1;
+
+ RETURN;
+
+ STRANDED_CHECK_COMPLETE:
+
+ %IF TYPE = 'STD' %THEN %DO;
+ IF DEBUGGING THEN
+   PUT FILE (SOLTXT) EDIT
+     ('Steps', CUR.STEPS,
+      SUBSTR(BOARD,11,5),
+      SUBSTR(BOARD,21,5),
+      SUBSTR(BOARD,31,5),
+      SUBSTR(BOARD,41,5),
+      SUBSTR(BOARD,51,5))
+     (SKIP, A, P'ZZ9', 5 (SKIP, A));
+ %END;
+ %ELSE %DO;
+ IF DEBUGGING THEN DO;
+   CALL MAKE_HEX_BOARD(SUBSTR(BOARD,11,5) ||
+                       SUBSTR(BOARD,21,5) ||
+                       SUBSTR(BOARD,31,5) ||
+                       SUBSTR(BOARD,41,5) ||
+                       SUBSTR(BOARD,51,5));
+
+   PUT FILE (SOLTXT) EDIT
+     ('Steps', CUR.STEPS,
+      XL(1),
+      XL(2),
+      XL(3),
+      XL(4),
+      XL(5),
+      XL(6),
+      XL(7),
+      XL(8),
+      XL(9),
+      XL(10),
+      XL(11),
+      ' ')
+     (SKIP, A, P'ZZ9', 11 (SKIP, A));
+ END;
+ %END;
+ /*----------------------------------------*/
+ /* If a beginning position was specified, */
+ /* it is so the same piece is moved first */
+ /*----------------------------------------*/
+
+ IF BEG_POS > 0 THEN DO;
+   ROW       = BEG_POS / 10;
+   COL       = MOD(BEG_POS,10);
+   CUR_POS   = BEG_POS;
+   CUR_PIECE = B(CUR_POS);
+
+   CALL CHECK_MOVES;
+
+   IF SOLUTION_FOUND THEN DO;
+     CUR.STEPS = CUR.STEPS - 1;
+     RETURN;
+   END;
+ END;
+
+ /*----------------------------------------*/
+ /* Loop through and try moving each piece */
+ /*----------------------------------------*/
+
+ /*-----------------------------*/
+ /* Try the letter pieces first */
+ /*-----------------------------*/
+
+ DO ROW = 1 TO ROW_SIZE;
+   DO COL = 1 TO COL_SIZE;
+     CUR_POS = ROW * 10 + COL;
+
+     IF CUR_POS ^= BEG_POS THEN DO;
+       CUR_PIECE = B(CUR_POS);
+
+       IF CUR_PIECE >= 'X' & CUR_PIECE <= 'Z' THEN DO;
+         CALL CHECK_MOVES;
+
+         /*-----------------------------------*/
+         /* If there's a solution, we're done */
+         /*-----------------------------------*/
+
+         IF SOLUTION_FOUND THEN DO;
+           CUR.STEPS = CUR.STEPS - 1;
+           RETURN;
+         END;
+       END;
+     END;
+   END;
+ END;
+
+ /*----------------------*/
+ /* Now the other pieces */
+ /*----------------------*/
+
+ DO ROW = 1 TO ROW_SIZE;
+   DO COL = 1 TO COL_SIZE;
+     CUR_POS = ROW * 10 + COL;
+
+     IF CUR_POS ^= BEG_POS THEN DO;
+       CUR_PIECE = B(CUR_POS);
+
+       IF CUR_PIECE >= '1' & CUR_PIECE <= '9' THEN
+         CALL CHECK_MOVES;
+     END;
+   END;
+ END;
+
+ CUR.STEPS = CUR.STEPS - 1;
+
+ /*------------------------------*/
+ /* Board evaluation is complete */
+ /*------------------------------*/
+
+ RETURN;
+
+ /*---------------------------------*/
+ /* Check moves at current position */
+ /*---------------------------------*/
+
+ CHECK_MOVES: PROC;
+
+ IF CUR.STEPS > 1 THEN
+   IF CUR_PIECE = CUR.MOVE.PIECE(CUR.STEPS-1) THEN
+     PRE_DIR = CUR.MOVE.DIR(CUR.STEPS-1);
+   ELSE
+     PRE_DIR = 0;
+
+ %IF TYPE = 'STD' %THEN %DO;
+ SELECT (ROW);
+
+   /*-------*/
+   /* Row 1 */
+   /*-------*/
+
+   WHEN (1) DO;
+     SELECT (COL);
+
+       /*------------------*/
+       /* Row 1 - Column 1 */
+       /*------------------*/
+
+       WHEN (1) DO;
+         IF PRE_DIR ^= LEFT THEN
+           IF B(12) = '-' THEN
+           IF B(13) = '-' THEN
+           IF B(14) = '-' THEN
+           IF B(15) = '-' THEN
+           IF B(16) = '-' THEN
+           IF B(17) = '-' THEN;
+           ELSE CALL MOVE(RIGHT,16);
+           ELSE CALL MOVE(RIGHT,15);
+           ELSE CALL MOVE(RIGHT,14);
+           ELSE CALL MOVE(RIGHT,13);
+           ELSE CALL MOVE(RIGHT,12);
+
+         IF PRE_DIR ^= UP THEN
+           IF B(21) = '-' THEN
+           IF B(31) = '-' THEN
+           IF B(41) = '-' THEN
+           IF B(51) = '-' THEN
+           IF B(61) = '-' THEN
+           IF B(71) = '-' THEN;
+           ELSE CALL MOVE(DOWN,61);
+           ELSE CALL MOVE(DOWN,51);
+           ELSE CALL MOVE(DOWN,41);
+           ELSE CALL MOVE(DOWN,31);
+           ELSE CALL MOVE(DOWN,21);
+       END;
+
+       /*------------------*/
+       /* Row 1 - Column 2 */
+       /*------------------*/
+
+       WHEN (2) DO;
+         IF PRE_DIR ^= LEFT THEN
+           IF B(13) = '-' THEN
+           IF B(14) = '-' THEN
+           IF B(15) = '-' THEN;
+           ELSE CALL MOVE(RIGHT,14);
+           ELSE CALL MOVE(RIGHT,13);
+
+         IF PRE_DIR ^= UP THEN
+           IF B(22) = '-' THEN
+           IF B(32) = '-' THEN
+           IF B(42) = '-' THEN
+           IF B(52) = '-' THEN;
+           ELSE CALL MOVE(DOWN,42);
+           ELSE CALL MOVE(DOWN,32);
+           ELSE CALL MOVE(DOWN,22);
+       END;
+
+       /*------------------*/
+       /* Row 1 - Column 3 */
+       /*------------------*/
+
+       WHEN (3) DO;
+         IF PRE_DIR ^= RIGHT THEN
+           IF B(12) = '-' THEN
+           IF B(11) = '-' THEN;
+           ELSE CALL MOVE(LEFT,12);
+
+         IF PRE_DIR ^= LEFT THEN
+           IF B(14) = '-' THEN
+           IF B(15) = '-' THEN;
+           ELSE CALL MOVE(RIGHT,14);
+
+         IF PRE_DIR ^= UP THEN
+           IF B(23) = '-' THEN
+           IF B(33) = '-' THEN
+           IF B(43) = '-' THEN
+           IF B(53) = '-' THEN;
+           ELSE CALL MOVE(DOWN,43);
+           ELSE CALL MOVE(DOWN,33);
+           ELSE CALL MOVE(DOWN,23);
+       END;
+
+       /*------------------*/
+       /* Row 1 - Column 4 */
+       /*------------------*/
+
+       WHEN (4) DO;
+         IF PRE_DIR ^= RIGHT THEN
+           IF B(13) = '-' THEN
+           IF B(12) = '-' THEN
+           IF B(11) = '-' THEN;
+           ELSE CALL MOVE(LEFT,12);
+           ELSE CALL MOVE(LEFT,13);
+
+         IF PRE_DIR ^= UP THEN
+           IF B(24) = '-' THEN
+           IF B(34) = '-' THEN
+           IF B(44) = '-' THEN
+           IF B(54) = '-' THEN;
+           ELSE CALL MOVE(DOWN,44);
+           ELSE CALL MOVE(DOWN,34);
+           ELSE CALL MOVE(DOWN,24);
+       END;
+
+       /*------------------*/
+       /* Row 1 - Column 5 */
+       /*------------------*/
+
+       WHEN (5) DO;
+         IF PRE_DIR ^= RIGHT THEN
+           IF B(14) = '-' THEN
+           IF B(13) = '-' THEN
+           IF B(12) = '-' THEN
+           IF B(11) = '-' THEN;
+           ELSE CALL MOVE(LEFT,12);
+           ELSE CALL MOVE(LEFT,13);
+           ELSE CALL MOVE(LEFT,14);
+
+         IF PRE_DIR ^= UP THEN
+           IF B(25) = '-' THEN
+           IF B(35) = '-' THEN
+           IF B(45) = '-' THEN
+           IF B(55) = '-' THEN;
+           ELSE CALL MOVE(DOWN,45);
+           ELSE CALL MOVE(DOWN,35);
+           ELSE CALL MOVE(DOWN,25);
+       END;
+       OTHERWISE;
+     END;
+   END;
+
+   /*-------*/
+   /* Row 2 */
+   /*-------*/
+
+   WHEN (2) DO;
+     SELECT (COL);
+
+       /*------------------*/
+       /* Row 2 - Column 1 */
+       /*------------------*/
+
+       WHEN (1) DO;
+         IF PRE_DIR ^= LEFT THEN
+           IF B(22) = '-' THEN
+           IF B(23) = '-' THEN
+           IF B(24) = '-' THEN
+           IF B(25) = '-' THEN;
+           ELSE CALL MOVE(RIGHT,24);
+           ELSE CALL MOVE(RIGHT,23);
+           ELSE CALL MOVE(RIGHT,22);
+
+         IF PRE_DIR ^= UP THEN
+           IF B(31) = '-' THEN
+           IF B(41) = '-' THEN
+           IF B(51) = '-' THEN;
+           ELSE CALL MOVE(DOWN,41);
+           ELSE CALL MOVE(DOWN,31);
+       END;
+
+       /*------------------*/
+       /* Row 2 - Column 2 */
+       /*------------------*/
+
+       WHEN (2) DO;
+         IF PRE_DIR ^= LEFT THEN
+           IF B(23) = '-' THEN
+           IF B(24) = '-' THEN
+           IF B(25) = '-' THEN;
+           ELSE CALL MOVE(RIGHT,24);
+           ELSE CALL MOVE(RIGHT,23);
+
+         IF PRE_DIR ^= UP THEN
+           IF B(32) = '-' THEN
+           IF B(42) = '-' THEN
+           IF B(52) = '-' THEN;
+           ELSE CALL MOVE(DOWN,42);
+           ELSE CALL MOVE(DOWN,32);
+       END;
+
+       /*------------------*/
+       /* Row 2 - Column 3 */
+       /*------------------*/
+
+       WHEN (3) DO;
+         IF PRE_DIR ^= RIGHT THEN
+           IF B(22) = '-' THEN
+           IF B(21) = '-' THEN;
+           ELSE CALL MOVE(LEFT,22);
+
+         IF PRE_DIR ^= LEFT THEN
+           IF B(24) = '-' THEN
+           IF B(25) = '-' THEN;
+           ELSE CALL MOVE(RIGHT,24);
+
+         IF PRE_DIR ^= UP THEN
+           IF B(33) = '-' THEN
+           IF B(43) = '-' THEN
+           IF B(53) = '-' THEN;
+           ELSE CALL MOVE(DOWN,43);
+           ELSE CALL MOVE(DOWN,33);
+       END;
+
+       /*------------------*/
+       /* Row 2 - Column 4 */
+       /*------------------*/
+
+       WHEN (4) DO;
+         IF PRE_DIR ^= RIGHT THEN
+           IF B(23) = '-' THEN
+           IF B(22) = '-' THEN
+           IF B(21) = '-' THEN;
+           ELSE CALL MOVE(LEFT,22);
+           ELSE CALL MOVE(LEFT,23);
+
+         IF PRE_DIR ^= UP THEN
+           IF B(34) = '-' THEN
+           IF B(44) = '-' THEN
+           IF B(54) = '-' THEN;
+           ELSE CALL MOVE(DOWN,44);
+           ELSE CALL MOVE(DOWN,34);
+       END;
+
+       /*------------------*/
+       /* Row 2 - Column 5 */
+       /*------------------*/
+
+       WHEN (5) DO;
+         IF PRE_DIR ^= RIGHT THEN
+           IF B(24) = '-' THEN
+           IF B(23) = '-' THEN
+           IF B(22) = '-' THEN
+           IF B(21) = '-' THEN;
+           ELSE CALL MOVE(LEFT,22);
+           ELSE CALL MOVE(LEFT,23);
+           ELSE CALL MOVE(LEFT,24);
+
+         IF PRE_DIR ^= UP THEN
+           IF B(35) = '-' THEN
+           IF B(45) = '-' THEN
+           IF B(55) = '-' THEN;
+           ELSE CALL MOVE(DOWN,45);
+           ELSE CALL MOVE(DOWN,35);
+       END;
+       OTHERWISE;
+     END;
+   END;
+
+   /*-------*/
+   /* Row 3 */
+   /*-------*/
+
+   WHEN (3) DO;
+     SELECT (COL);
+
+       /*------------------*/
+       /* Row 3 - Column 1 */
+       /*------------------*/
+
+       WHEN (1) DO;
+         IF PRE_DIR ^= LEFT THEN
+           IF B(32) = '-' THEN
+           IF B(33) = '-' THEN
+           IF B(34) = '-' THEN
+           IF B(35) = '-' THEN;
+           ELSE CALL MOVE(RIGHT,34);
+           ELSE CALL MOVE(RIGHT,33);
+           ELSE CALL MOVE(RIGHT,32);
+
+         IF PRE_DIR ^= DOWN THEN
+           IF B(21) = '-' THEN
+           IF B(11) = '-' THEN;
+           ELSE CALL MOVE(UP,21);
+
+         IF PRE_DIR ^= UP THEN
+           IF B(41) = '-' THEN
+           IF B(51) = '-' THEN;
+           ELSE CALL MOVE(DOWN,41);
+       END;
+
+       /*------------------*/
+       /* Row 3 - Column 2 */
+       /*------------------*/
+
+       WHEN (2) DO;
+         IF PRE_DIR ^= LEFT THEN
+           IF B(33) = '-' THEN
+           IF B(34) = '-' THEN
+           IF B(35) = '-' THEN;
+           ELSE CALL MOVE(RIGHT,34);
+           ELSE CALL MOVE(RIGHT,33);
+
+         IF PRE_DIR ^= DOWN THEN
+           IF B(22) = '-' THEN
+           IF B(12) = '-' THEN;
+           ELSE CALL MOVE(UP,22);
+
+         IF PRE_DIR ^= UP THEN
+           IF B(42) = '-' THEN
+           IF B(52) = '-' THEN;
+           ELSE CALL MOVE(DOWN,42);
+       END;
+
+       /*------------------*/
+       /* Row 3 - Column 3 */
+       /*------------------*/
+
+       WHEN (3) DO;
+         IF PRE_DIR ^= RIGHT THEN
+           IF B(32) = '-' THEN
+           IF B(31) = '-' THEN;
+           ELSE CALL MOVE(LEFT,32);
+
+         IF PRE_DIR ^= LEFT THEN
+           IF B(34) = '-' THEN
+           IF B(35) = '-' THEN;
+           ELSE CALL MOVE(RIGHT,34);
+
+         IF PRE_DIR ^= DOWN THEN
+           IF B(23) = '-' THEN
+           IF B(13) = '-' THEN;
+           ELSE CALL MOVE(UP,23);
+
+         IF PRE_DIR ^= UP THEN
+           IF B(43) = '-' THEN
+           IF B(53) = '-' THEN;
+           ELSE CALL MOVE(DOWN,43);
+       END;
+
+       /*------------------*/
+       /* Row 3 - Column 4 */
+       /*------------------*/
+
+       WHEN (4) DO;
+         IF PRE_DIR ^= RIGHT THEN
+           IF B(33) = '-' THEN
+           IF B(32) = '-' THEN
+           IF B(31) = '-' THEN;
+           ELSE CALL MOVE(LEFT,32);
+           ELSE CALL MOVE(LEFT,33);
+
+         IF PRE_DIR ^= DOWN THEN
+           IF B(24) = '-' THEN
+           IF B(14) = '-' THEN;
+           ELSE CALL MOVE(UP,24);
+
+         IF PRE_DIR ^= UP THEN
+           IF B(44) = '-' THEN
+           IF B(54) = '-' THEN;
+           ELSE CALL MOVE(DOWN,44);
+       END;
+
+       /*------------------*/
+       /* Row 3 - Column 5 */
+       /*------------------*/
+
+       WHEN (5) DO;
+         IF PRE_DIR ^= RIGHT THEN
+           IF B(34) = '-' THEN
+           IF B(33) = '-' THEN
+           IF B(32) = '-' THEN
+           IF B(31) = '-' THEN;
+           ELSE CALL MOVE(LEFT,32);
+           ELSE CALL MOVE(LEFT,33);
+           ELSE CALL MOVE(LEFT,34);
+
+         IF PRE_DIR ^= DOWN THEN
+           IF B(25) = '-' THEN
+           IF B(15) = '-' THEN;
+           ELSE CALL MOVE(UP,25);
+
+         IF PRE_DIR ^= UP THEN
+           IF B(45) = '-' THEN
+           IF B(55) = '-' THEN;
+           ELSE CALL MOVE(DOWN,45);
+       END;
+       OTHERWISE;
+     END;
+   END;
+
+   /*-------*/
+   /* Row 4 */
+   /*-------*/
+
+   WHEN (4) DO;
+     SELECT (COL);
+
+       /*------------------*/
+       /* Row 4 - Column 1 */
+       /*------------------*/
+
+       WHEN (1) DO;
+         IF PRE_DIR ^= LEFT THEN
+           IF B(42) = '-' THEN
+           IF B(43) = '-' THEN
+           IF B(44) = '-' THEN
+           IF B(45) = '-' THEN;
+           ELSE CALL MOVE(RIGHT,44);
+           ELSE CALL MOVE(RIGHT,43);
+           ELSE CALL MOVE(RIGHT,42);
+
+         IF PRE_DIR ^= DOWN THEN
+           IF B(31) = '-' THEN
+           IF B(21) = '-' THEN
+           IF B(11) = '-' THEN;
+           ELSE CALL MOVE(UP,21);
+           ELSE CALL MOVE(UP,31);
+       END;
+
+       /*------------------*/
+       /* Row 4 - Column 2 */
+       /*------------------*/
+
+       WHEN (2) DO;
+         IF PRE_DIR ^= LEFT THEN
+           IF B(43) = '-' THEN
+           IF B(44) = '-' THEN
+           IF B(45) = '-' THEN;
+           ELSE CALL MOVE(RIGHT,44);
+           ELSE CALL MOVE(RIGHT,43);
+
+         IF PRE_DIR ^= DOWN THEN
+           IF B(32) = '-' THEN
+           IF B(22) = '-' THEN
+           IF B(12) = '-' THEN;
+           ELSE CALL MOVE(UP,22);
+           ELSE CALL MOVE(UP,32);
+       END;
+
+       /*------------------*/
+       /* Row 4 - Column 3 */
+       /*------------------*/
+
+       WHEN (3) DO;
+         IF PRE_DIR ^= RIGHT THEN
+           IF B(42) = '-' THEN
+           IF B(41) = '-' THEN;
+           ELSE CALL MOVE(LEFT,42);
+
+         IF PRE_DIR ^= LEFT THEN
+           IF B(44) = '-' THEN
+           IF B(45) = '-' THEN;
+           ELSE CALL MOVE(RIGHT,44);
+
+         IF PRE_DIR ^= DOWN THEN
+           IF B(33) = '-' THEN
+           IF B(23) = '-' THEN
+           IF B(13) = '-' THEN;
+           ELSE CALL MOVE(UP,23);
+           ELSE CALL MOVE(UP,33);
+       END;
+
+       /*------------------*/
+       /* Row 4 - Column 4 */
+       /*------------------*/
+
+       WHEN (4) DO;
+         IF PRE_DIR ^= RIGHT THEN
+           IF B(43) = '-' THEN
+           IF B(42) = '-' THEN
+           IF B(41) = '-' THEN;
+           ELSE CALL MOVE(LEFT,42);
+           ELSE CALL MOVE(LEFT,43);
+
+         IF PRE_DIR ^= DOWN THEN
+           IF B(34) = '-' THEN
+           IF B(24) = '-' THEN
+           IF B(14) = '-' THEN;
+           ELSE CALL MOVE(UP,24);
+           ELSE CALL MOVE(UP,34);
+       END;
+
+       /*------------------*/
+       /* Row 4 - Column 5 */
+       /*------------------*/
+
+       WHEN (5) DO;
+         IF PRE_DIR ^= RIGHT THEN
+           IF B(44) = '-' THEN
+           IF B(43) = '-' THEN
+           IF B(42) = '-' THEN
+           IF B(41) = '-' THEN;
+           ELSE CALL MOVE(LEFT,42);
+           ELSE CALL MOVE(LEFT,43);
+           ELSE CALL MOVE(LEFT,44);
+
+         IF PRE_DIR ^= DOWN THEN
+           IF B(35) = '-' THEN
+           IF B(25) = '-' THEN
+           IF B(15) = '-' THEN;
+           ELSE CALL MOVE(UP,25);
+           ELSE CALL MOVE(UP,35);
+       END;
+       OTHERWISE;
+     END;
+   END;
+
+   /*-------*/
+   /* Row 5 */
+   /*-------*/
+
+   WHEN (5) DO;
+     SELECT (COL);
+
+       /*------------------*/
+       /* Row 5 - Column 1 */
+       /*------------------*/
+
+       WHEN (1) DO;
+         IF PRE_DIR ^= LEFT THEN
+           IF B(52) = '-' THEN
+           IF B(53) = '-' THEN
+           IF B(54) = '-' THEN
+           IF B(55) = '-' THEN;
+           ELSE CALL MOVE(RIGHT,54);
+           ELSE CALL MOVE(RIGHT,53);
+           ELSE CALL MOVE(RIGHT,52);
+
+         IF PRE_DIR ^= DOWN THEN
+           IF B(41) = '-' THEN
+           IF B(31) = '-' THEN
+           IF B(21) = '-' THEN
+           IF B(11) = '-' THEN;
+           ELSE CALL MOVE(UP,21);
+           ELSE CALL MOVE(UP,31);
+           ELSE CALL MOVE(UP,41);
+       END;
+
+       /*------------------*/
+       /* Row 5 - Column 2 */
+       /*------------------*/
+
+       WHEN (2) DO;
+         IF PRE_DIR ^= LEFT THEN
+           IF B(53) = '-' THEN
+           IF B(54) = '-' THEN
+           IF B(55) = '-' THEN;
+           ELSE CALL MOVE(RIGHT,54);
+           ELSE CALL MOVE(RIGHT,53);
+
+         IF PRE_DIR ^= DOWN THEN
+           IF B(42) = '-' THEN
+           IF B(32) = '-' THEN
+           IF B(22) = '-' THEN
+           IF B(12) = '-' THEN;
+           ELSE CALL MOVE(UP,22);
+           ELSE CALL MOVE(UP,32);
+           ELSE CALL MOVE(UP,42);
+       END;
+
+       /*------------------*/
+       /* Row 5 - Column 3 */
+       /*------------------*/
+
+       WHEN (3) DO;
+         IF PRE_DIR ^= RIGHT THEN
+           IF B(52) = '-' THEN
+           IF B(51) = '-' THEN;
+           ELSE CALL MOVE(LEFT,52);
+
+         IF PRE_DIR ^= LEFT THEN
+           IF B(54) = '-' THEN
+           IF B(55) = '-' THEN;
+           ELSE CALL MOVE(RIGHT,54);
+
+         IF PRE_DIR ^= DOWN THEN
+           IF B(43) = '-' THEN
+           IF B(33) = '-' THEN
+           IF B(23) = '-' THEN
+           IF B(13) = '-' THEN;
+           ELSE CALL MOVE(UP,23);
+           ELSE CALL MOVE(UP,33);
+           ELSE CALL MOVE(UP,43);
+       END;
+
+       /*------------------*/
+       /* Row 5 - Column 4 */
+       /*------------------*/
+
+       WHEN (4) DO;
+         IF PRE_DIR ^= RIGHT THEN
+           IF B(53) = '-' THEN
+           IF B(52) = '-' THEN
+           IF B(51) = '-' THEN;
+           ELSE CALL MOVE(LEFT,52);
+           ELSE CALL MOVE(LEFT,53);
+
+         IF PRE_DIR ^= DOWN THEN
+           IF B(44) = '-' THEN
+           IF B(34) = '-' THEN
+           IF B(24) = '-' THEN
+           IF B(14) = '-' THEN;
+           ELSE CALL MOVE(UP,24);
+           ELSE CALL MOVE(UP,34);
+           ELSE CALL MOVE(UP,44);
+       END; /* Column 4 */
+
+       /*------------------*/
+       /* Row 5 - Column 5 */
+       /*------------------*/
+
+       WHEN (5) DO;
+         IF PRE_DIR ^= RIGHT THEN
+           IF B(54) = '-' THEN
+           IF B(53) = '-' THEN
+           IF B(52) = '-' THEN
+           IF B(51) = '-' THEN;
+           ELSE CALL MOVE(LEFT,52);
+           ELSE CALL MOVE(LEFT,53);
+           ELSE CALL MOVE(LEFT,54);
+
+         IF PRE_DIR ^= DOWN THEN
+           IF B(45) = '-' THEN
+           IF B(35) = '-' THEN
+           IF B(25) = '-' THEN
+           IF B(15) = '-' THEN;
+           ELSE CALL MOVE(UP,25);
+           ELSE CALL MOVE(UP,35);
+           ELSE CALL MOVE(UP,45);
+       END;
+       OTHERWISE;
+     END;
+   END;
+   OTHERWISE;
+ END;
+ %END;
+ %ELSE %DO;
+ SELECT (ROW);
+
+   /*-------*/
+   /* Row 1 */
+   /*-------*/
+
+   WHEN (1) DO;
+     SELECT (COL);
+
+       /*------------------*/
+       /* Row 1 - Column 1 */
+       /*------------------*/
+
+       WHEN (1) DO;
+         IF PRE_DIR ^= SOUTHWEST THEN
+           IF B(12) = '-' THEN
+           IF B(13) = '-' THEN
+           IF B(14) = '-' THEN
+           IF B(15) = '-' THEN;
+           ELSE CALL MOVE(NORTHEAST,14);
+           ELSE CALL MOVE(NORTHEAST,13);
+           ELSE CALL MOVE(NORTHEAST,12);
+
+         IF PRE_DIR ^= NORTHWEST THEN
+           IF B(21) = '-' THEN
+           IF B(31) = '-' THEN
+           IF B(41) = '-' THEN
+           IF B(51) = '-' THEN;
+           ELSE CALL MOVE(SOUTHEAST,41);
+           ELSE CALL MOVE(SOUTHEAST,31);
+           ELSE CALL MOVE(SOUTHEAST,21);
+       END;
+
+       /*------------------*/
+       /* Row 1 - Column 2 */
+       /*------------------*/
+
+       WHEN (2) DO;
+         IF PRE_DIR ^= SOUTHWEST THEN
+           IF B(13) = '-' THEN
+           IF B(14) = '-' THEN
+           IF B(15) = '-' THEN;
+           ELSE CALL MOVE(NORTHEAST,14);
+           ELSE CALL MOVE(NORTHEAST,13);
+
+         IF PRE_DIR ^= NORTHWEST THEN
+           IF B(22) = '-' THEN
+           IF B(32) = '-' THEN
+           IF B(42) = '-' THEN
+           IF B(52) = '-' THEN;
+           ELSE CALL MOVE(SOUTHEAST,42);
+           ELSE CALL MOVE(SOUTHEAST,32);
+           ELSE CALL MOVE(SOUTHEAST,22);
+       END;
+
+       /*------------------*/
+       /* Row 1 - Column 3 */
+       /*------------------*/
+
+       WHEN (3) DO;
+         IF PRE_DIR ^= SOUTHWEST THEN
+           IF B(14) = '-' THEN
+           IF B(15) = '-' THEN;
+           ELSE CALL MOVE(NORTHEAST,14);
+
+         IF PRE_DIR ^= NORTHWEST THEN
+           IF B(23) = '-' THEN
+           IF B(33) = '-' THEN
+           IF B(43) = '-' THEN
+           IF B(53) = '-' THEN;
+           ELSE CALL MOVE(SOUTHEAST,43);
+           ELSE CALL MOVE(SOUTHEAST,33);
+           ELSE CALL MOVE(SOUTHEAST,23);
+
+         IF PRE_DIR ^= NORTH THEN
+           IF B(22) = '-' THEN
+           IF B(31) = '-' THEN;
+           ELSE CALL MOVE(SOUTH,22);
+
+         IF PRE_DIR ^= NORTHEAST THEN
+           IF B(12) = '-' THEN
+           IF B(11) = '-' THEN;
+           ELSE CALL MOVE(SOUTHWEST,12);
+       END;
+
+       /*------------------*/
+       /* Row 1 - Column 4 */
+       /*------------------*/
+
+       WHEN (4) DO;
+         IF PRE_DIR ^= NORTHWEST THEN
+           IF B(24) = '-' THEN
+           IF B(34) = '-' THEN
+           IF B(44) = '-' THEN
+           IF B(54) = '-' THEN;
+           ELSE CALL MOVE(SOUTHEAST,44);
+           ELSE CALL MOVE(SOUTHEAST,34);
+           ELSE CALL MOVE(SOUTHEAST,24);
+
+         IF PRE_DIR ^= NORTH THEN
+           IF B(23) = '-' THEN
+           IF B(32) = '-' THEN
+           IF B(41) = '-' THEN;
+           ELSE CALL MOVE(SOUTH,32);
+           ELSE CALL MOVE(SOUTH,23);
+
+         IF PRE_DIR ^= NORTHEAST THEN
+           IF B(13) = '-' THEN
+           IF B(12) = '-' THEN
+           IF B(11) = '-' THEN;
+           ELSE CALL MOVE(SOUTHWEST,12);
+           ELSE CALL MOVE(SOUTHWEST,13);
+       END;
+
+       /*------------------*/
+       /* Row 1 - Column 5 */
+       /*------------------*/
+
+       WHEN (5) DO;
+         IF PRE_DIR ^= NORTHWEST THEN
+           IF B(25) = '-' THEN
+           IF B(35) = '-' THEN
+           IF B(45) = '-' THEN
+           IF B(55) = '-' THEN;
+           ELSE CALL MOVE(SOUTHEAST,45);
+           ELSE CALL MOVE(SOUTHEAST,35);
+           ELSE CALL MOVE(SOUTHEAST,25);
+
+         IF PRE_DIR ^= NORTH THEN
+           IF B(24) = '-' THEN
+           IF B(33) = '-' THEN
+           IF B(42) = '-' THEN
+           IF B(51) = '-' THEN;
+           ELSE CALL MOVE(SOUTH,42);
+           ELSE CALL MOVE(SOUTH,33);
+           ELSE CALL MOVE(SOUTH,24);
+
+         IF PRE_DIR ^= NORTHEAST THEN
+           IF B(14) = '-' THEN
+           IF B(13) = '-' THEN
+           IF B(12) = '-' THEN
+           IF B(11) = '-' THEN;
+           ELSE CALL MOVE(SOUTHWEST,12);
+           ELSE CALL MOVE(SOUTHWEST,13);
+           ELSE CALL MOVE(SOUTHWEST,14);
+       END;
+       OTHERWISE;
+     END;
+   END;
+
+   /*-------*/
+   /* Row 2 */
+   /*-------*/
+
+   WHEN (2) DO;
+     SELECT (COL);
+
+       /*------------------*/
+       /* Row 2 - Column 1 */
+       /*------------------*/
+
+       WHEN (1) DO;
+         IF PRE_DIR ^= SOUTHWEST THEN
+           IF B(22) = '-' THEN
+           IF B(23) = '-' THEN
+           IF B(24) = '-' THEN
+           IF B(25) = '-' THEN;
+           ELSE CALL MOVE(NORTHEAST,24);
+           ELSE CALL MOVE(NORTHEAST,23);
+           ELSE CALL MOVE(NORTHEAST,22);
+
+         IF PRE_DIR ^= NORTHWEST THEN
+           IF B(31) = '-' THEN
+           IF B(41) = '-' THEN
+           IF B(51) = '-' THEN;
+           ELSE CALL MOVE(SOUTHEAST,41);
+           ELSE CALL MOVE(SOUTHEAST,31);
+       END;
+
+       /*------------------*/
+       /* Row 2 - Column 2 */
+       /*------------------*/
+
+       WHEN (2) DO;
+         IF PRE_DIR ^= SOUTHWEST THEN
+           IF B(23) = '-' THEN
+           IF B(24) = '-' THEN
+           IF B(25) = '-' THEN;
+           ELSE CALL MOVE(NORTHEAST,24);
+           ELSE CALL MOVE(NORTHEAST,23);
+
+         IF PRE_DIR ^= NORTHWEST THEN
+           IF B(32) = '-' THEN
+           IF B(42) = '-' THEN
+           IF B(52) = '-' THEN;
+           ELSE CALL MOVE(SOUTHEAST,42);
+           ELSE CALL MOVE(SOUTHEAST,32);
+       END;
+
+       /*------------------*/
+       /* Row 2 - Column 3 */
+       /*------------------*/
+
+       WHEN (3) DO;
+         IF PRE_DIR ^= SOUTHWEST THEN
+           IF B(24) = '-' THEN
+           IF B(25) = '-' THEN;
+           ELSE CALL MOVE(NORTHEAST,24);
+
+         IF PRE_DIR ^= NORTHWEST THEN
+           IF B(33) = '-' THEN
+           IF B(43) = '-' THEN
+           IF B(53) = '-' THEN;
+           ELSE CALL MOVE(SOUTHEAST,43);
+           ELSE CALL MOVE(SOUTHEAST,33);
+
+         IF PRE_DIR ^= NORTH THEN
+           IF B(32) = '-' THEN
+           IF B(41) = '-' THEN;
+           ELSE CALL MOVE(SOUTH,32);
+
+         IF PRE_DIR ^= NORTHEAST THEN
+           IF B(22) = '-' THEN
+           IF B(21) = '-' THEN;
+           ELSE CALL MOVE(SOUTHWEST,22);
+       END;
+
+       /*------------------*/
+       /* Row 2 - Column 4 */
+       /*------------------*/
+
+       WHEN (4) DO;
+         IF PRE_DIR ^= NORTHWEST THEN
+           IF B(34) = '-' THEN
+           IF B(44) = '-' THEN
+           IF B(54) = '-' THEN;
+           ELSE CALL MOVE(SOUTHEAST,44);
+           ELSE CALL MOVE(SOUTHEAST,34);
+
+         IF PRE_DIR ^= NORTHEAST THEN
+           IF B(23) = '-' THEN
+           IF B(22) = '-' THEN
+           IF B(21) = '-' THEN;
+           ELSE CALL MOVE(SOUTHWEST,22);
+           ELSE CALL MOVE(SOUTHWEST,23);
+
+         IF PRE_DIR ^= NORTH THEN
+           IF B(33) = '-' THEN
+           IF B(42) = '-' THEN
+           IF B(51) = '-' THEN;
+           ELSE CALL MOVE(SOUTH,42);
+           ELSE CALL MOVE(SOUTH,33);
+       END;
+
+       /*------------------*/
+       /* Row 2 - Column 5 */
+       /*------------------*/
+
+       WHEN (5) DO;
+         IF PRE_DIR ^= NORTHWEST THEN
+           IF B(35) = '-' THEN
+           IF B(45) = '-' THEN
+           IF B(55) = '-' THEN;
+           ELSE CALL MOVE(SOUTHEAST,45);
+           ELSE CALL MOVE(SOUTHEAST,35);
+
+         IF PRE_DIR ^= NORTH THEN
+           IF B(34) = '-' THEN
+           IF B(43) = '-' THEN
+           IF B(52) = '-' THEN;
+           ELSE CALL MOVE(SOUTH,43);
+           ELSE CALL MOVE(SOUTH,34);
+
+         IF PRE_DIR ^= NORTHEAST THEN
+           IF B(24) = '-' THEN
+           IF B(23) = '-' THEN
+           IF B(22) = '-' THEN
+           IF B(21) = '-' THEN;
+           ELSE CALL MOVE(SOUTHWEST,22);
+           ELSE CALL MOVE(SOUTHWEST,23);
+           ELSE CALL MOVE(SOUTHWEST,24);
+       END;
+       OTHERWISE;
+     END;
+   END;
+
+   /*-------*/
+   /* Row 3 */
+   /*-------*/
+
+   WHEN (3) DO;
+     SELECT (COL);
+
+       /*------------------*/
+       /* Row 3 - Column 1 */
+       /*------------------*/
+
+       WHEN (1) DO;
+         IF PRE_DIR ^= SOUTHWEST THEN
+           IF B(32) = '-' THEN
+           IF B(33) = '-' THEN
+           IF B(34) = '-' THEN
+           IF B(35) = '-' THEN;
+           ELSE CALL MOVE(NORTHEAST,34);
+           ELSE CALL MOVE(NORTHEAST,33);
+           ELSE CALL MOVE(NORTHEAST,32);
+
+         IF PRE_DIR ^= NORTHWEST THEN
+           IF B(41) = '-' THEN
+           IF B(51) = '-' THEN;
+           ELSE CALL MOVE(SOUTHEAST,41);
+
+         IF PRE_DIR ^= SOUTHEAST THEN
+           IF B(21) = '-' THEN
+           IF B(11) = '-' THEN;
+           ELSE CALL MOVE(NORTHWEST,21);
+
+         IF PRE_DIR ^= SOUTH THEN
+           IF B(22) = '-' THEN
+           IF B(13) = '-' THEN;
+           ELSE CALL MOVE(NORTH,22);
+       END;
+
+       /*------------------*/
+       /* Row 3 - Column 2 */
+       /*------------------*/
+
+       WHEN (2) DO;
+         IF PRE_DIR ^= SOUTHWEST THEN
+           IF B(33) = '-' THEN
+           IF B(34) = '-' THEN
+           IF B(35) = '-' THEN;
+           ELSE CALL MOVE(NORTHEAST,34);
+           ELSE CALL MOVE(NORTHEAST,33);
+
+         IF PRE_DIR ^= NORTHWEST THEN
+           IF B(42) = '-' THEN
+           IF B(52) = '-' THEN;
+           ELSE CALL MOVE(SOUTHEAST,42);
+
+         IF PRE_DIR ^= SOUTHEAST THEN
+           IF B(22) = '-' THEN
+           IF B(12) = '-' THEN;
+           ELSE CALL MOVE(NORTHWEST,22);
+
+         IF PRE_DIR ^= SOUTH THEN
+           IF B(23) = '-' THEN
+           IF B(14) = '-' THEN;
+           ELSE CALL MOVE(NORTH,23);
+       END;
+
+       /*------------------*/
+       /* Row 3 - Column 3 */
+       /*------------------*/
+
+       WHEN (3) DO;
+         IF PRE_DIR ^= SOUTHWEST THEN
+           IF B(34) = '-' THEN
+           IF B(35) = '-' THEN;
+           ELSE CALL MOVE(NORTHEAST,34);
+
+         IF PRE_DIR ^= NORTHWEST THEN
+           IF B(43) = '-' THEN
+           IF B(53) = '-' THEN;
+           ELSE CALL MOVE(SOUTHEAST,43);
+
+         IF PRE_DIR ^= NORTH THEN
+           IF B(42) = '-' THEN
+           IF B(51) = '-' THEN;
+           ELSE CALL MOVE(SOUTH,42);
+
+         IF PRE_DIR ^= NORTHEAST THEN
+           IF B(32) = '-' THEN
+           IF B(31) = '-' THEN;
+           ELSE CALL MOVE(SOUTHWEST,32);
+
+         IF PRE_DIR ^= SOUTHEAST THEN
+           IF B(23) = '-' THEN
+           IF B(13) = '-' THEN;
+           ELSE CALL MOVE(NORTHWEST,23);
+
+         IF PRE_DIR ^= SOUTH THEN
+           IF B(24) = '-' THEN
+           IF B(15) = '-' THEN;
+           ELSE CALL MOVE(NORTH,24);
+       END;
+
+       /*------------------*/
+       /* Row 3 - Column 4 */
+       /*------------------*/
+
+       WHEN (4) DO;
+         IF PRE_DIR ^= NORTHWEST THEN
+           IF B(44) = '-' THEN
+           IF B(54) = '-' THEN;
+           ELSE CALL MOVE(SOUTHEAST,44);
+
+         IF PRE_DIR ^= NORTH THEN
+           IF B(43) = '-' THEN
+           IF B(52) = '-' THEN;
+           ELSE CALL MOVE(SOUTH,43);
+
+         IF PRE_DIR ^= NORTHEAST THEN
+           IF B(33) = '-' THEN
+           IF B(32) = '-' THEN
+           IF B(31) = '-' THEN;
+           ELSE CALL MOVE(SOUTHWEST,32);
+           ELSE CALL MOVE(SOUTHWEST,33);
+
+         IF PRE_DIR ^= SOUTHEAST THEN
+           IF B(24) = '-' THEN
+           IF B(14) = '-' THEN;
+           ELSE CALL MOVE(NORTHWEST,24);
+       END;
+
+       /*------------------*/
+       /* Row 3 - Column 5 */
+       /*------------------*/
+
+       WHEN (5) DO;
+         IF PRE_DIR ^= NORTHWEST THEN
+           IF B(45) = '-' THEN
+           IF B(55) = '-' THEN;
+           ELSE CALL MOVE(SOUTHEAST,45);
+
+         IF PRE_DIR ^= NORTH THEN
+           IF B(44) = '-' THEN
+           IF B(53) = '-' THEN;
+           ELSE CALL MOVE(SOUTH,44);
+
+         IF PRE_DIR ^= NORTHEAST THEN
+           IF B(34) = '-' THEN
+           IF B(33) = '-' THEN
+           IF B(32) = '-' THEN
+           IF B(31) = '-' THEN;
+           ELSE CALL MOVE(SOUTHWEST,32);
+           ELSE CALL MOVE(SOUTHWEST,33);
+           ELSE CALL MOVE(SOUTHWEST,34);
+
+         IF PRE_DIR ^= SOUTHEAST THEN
+           IF B(25) = '-' THEN
+           IF B(15) = '-' THEN;
+           ELSE CALL MOVE(NORTHWEST,25);
+       END;
+       OTHERWISE;
+     END;
+   END;
+
+   /*-------*/
+   /* Row 4 */
+   /*-------*/
+
+   WHEN (4) DO;
+     SELECT (COL);
+
+       /*------------------*/
+       /* Row 4 - Column 1 */
+       /*------------------*/
+
+       WHEN (1) DO;
+         IF PRE_DIR ^= SOUTHWEST THEN
+           IF B(42) = '-' THEN
+           IF B(43) = '-' THEN
+           IF B(44) = '-' THEN
+           IF B(45) = '-' THEN;
+           ELSE CALL MOVE(NORTHEAST,44);
+           ELSE CALL MOVE(NORTHEAST,43);
+           ELSE CALL MOVE(NORTHEAST,42);
+
+         IF PRE_DIR ^= SOUTHEAST THEN
+           IF B(31) = '-' THEN
+           IF B(21) = '-' THEN
+           IF B(11) = '-' THEN;
+           ELSE CALL MOVE(NORTHWEST,21);
+           ELSE CALL MOVE(NORTHWEST,31);
+
+         IF PRE_DIR ^= SOUTH THEN
+           IF B(32) = '-' THEN
+           IF B(23) = '-' THEN
+           IF B(14) = '-' THEN;
+           ELSE CALL MOVE(NORTH,23);
+           ELSE CALL MOVE(NORTH,32);
+       END;
+
+       /*------------------*/
+       /* Row 4 - Column 2 */
+       /*------------------*/
+
+       WHEN (2) DO;
+         IF PRE_DIR ^= SOUTHWEST THEN
+           IF B(43) = '-' THEN
+           IF B(44) = '-' THEN
+           IF B(45) = '-' THEN;
+           ELSE CALL MOVE(NORTHEAST,44);
+           ELSE CALL MOVE(NORTHEAST,43);
+
+         IF PRE_DIR ^= SOUTHEAST THEN
+           IF B(32) = '-' THEN
+           IF B(22) = '-' THEN
+           IF B(12) = '-' THEN;
+           ELSE CALL MOVE(NORTHWEST,22);
+           ELSE CALL MOVE(NORTHWEST,32);
+
+         IF PRE_DIR ^= SOUTH THEN
+           IF B(33) = '-' THEN
+           IF B(24) = '-' THEN
+           IF B(15) = '-' THEN;
+           ELSE CALL MOVE(NORTH,24);
+           ELSE CALL MOVE(NORTH,33);
+       END;
+
+       /*------------------*/
+       /* Row 4 - Column 3 */
+       /*------------------*/
+
+       WHEN (3) DO;
+         IF PRE_DIR ^= SOUTHWEST THEN
+           IF B(44) = '-' THEN
+           IF B(45) = '-' THEN;
+           ELSE CALL MOVE(NORTHEAST,44);
+
+         IF PRE_DIR ^= NORTHEAST THEN
+           IF B(42) = '-' THEN
+           IF B(41) = '-' THEN;
+           ELSE CALL MOVE(SOUTHWEST,42);
+
+         IF PRE_DIR ^= SOUTHEAST THEN
+           IF B(33) = '-' THEN
+           IF B(23) = '-' THEN
+           IF B(13) = '-' THEN;
+           ELSE CALL MOVE(NORTHWEST,23);
+           ELSE CALL MOVE(NORTHWEST,33);
+
+         IF PRE_DIR ^= SOUTH THEN
+           IF B(34) = '-' THEN
+           IF B(25) = '-' THEN;
+           ELSE CALL MOVE(NORTH,34);
+       END;
+
+       /*------------------*/
+       /* Row 4 - Column 4 */
+       /*------------------*/
+
+       WHEN (4) DO;
+         IF PRE_DIR ^= NORTHEAST THEN
+           IF B(43) = '-' THEN
+           IF B(42) = '-' THEN
+           IF B(41) = '-' THEN;
+           ELSE CALL MOVE(SOUTHWEST,42);
+           ELSE CALL MOVE(SOUTHWEST,43);
+
+         IF PRE_DIR ^= SOUTHEAST THEN
+           IF B(34) = '-' THEN
+           IF B(24) = '-' THEN
+           IF B(14) = '-' THEN;
+           ELSE CALL MOVE(NORTHWEST,24);
+           ELSE CALL MOVE(NORTHWEST,34);
+       END;
+
+       /*------------------*/
+       /* Row 4 - Column 5 */
+       /*------------------*/
+
+       WHEN (5) DO;
+         IF PRE_DIR ^= NORTHEAST THEN
+           IF B(44) = '-' THEN
+           IF B(43) = '-' THEN
+           IF B(42) = '-' THEN
+           IF B(41) = '-' THEN;
+           ELSE CALL MOVE(SOUTHWEST,42);
+           ELSE CALL MOVE(SOUTHWEST,43);
+           ELSE CALL MOVE(SOUTHWEST,44);
+
+         IF PRE_DIR ^= SOUTHEAST THEN
+           IF B(35) = '-' THEN
+           IF B(25) = '-' THEN
+           IF B(15) = '-' THEN;
+           ELSE CALL MOVE(NORTHWEST,25);
+           ELSE CALL MOVE(NORTHWEST,35);
+       END;
+       OTHERWISE;
+     END;
+   END;
+
+   /*-------*/
+   /* Row 5 */
+   /*-------*/
+
+   WHEN (5) DO;
+     SELECT (COL);
+
+       /*------------------*/
+       /* Row 5 - Column 1 */
+       /*------------------*/
+
+       WHEN (1) DO;
+         IF PRE_DIR ^= SOUTHWEST THEN
+           IF B(52) = '-' THEN
+           IF B(53) = '-' THEN
+           IF B(54) = '-' THEN
+           IF B(55) = '-' THEN;
+           ELSE CALL MOVE(NORTHEAST,54);
+           ELSE CALL MOVE(NORTHEAST,53);
+           ELSE CALL MOVE(NORTHEAST,52);
+
+         IF PRE_DIR ^= SOUTHEAST THEN
+           IF B(41) = '-' THEN
+           IF B(31) = '-' THEN
+           IF B(21) = '-' THEN
+           IF B(11) = '-' THEN;
+           ELSE CALL MOVE(NORTHWEST,21);
+           ELSE CALL MOVE(NORTHWEST,31);
+           ELSE CALL MOVE(NORTHWEST,41);
+
+         IF PRE_DIR ^= SOUTH THEN
+           IF B(42) = '-' THEN
+           IF B(33) = '-' THEN
+           IF B(24) = '-' THEN
+           IF B(15) = '-' THEN;
+           ELSE CALL MOVE(NORTH,24);
+           ELSE CALL MOVE(NORTH,33);
+           ELSE CALL MOVE(NORTH,42);
+       END;
+
+       /*------------------*/
+       /* Row 5 - Column 2 */
+       /*------------------*/
+
+       WHEN (2) DO;
+         IF PRE_DIR ^= SOUTHWEST THEN
+           IF B(53) = '-' THEN
+           IF B(54) = '-' THEN
+           IF B(55) = '-' THEN;
+           ELSE CALL MOVE(NORTHEAST,54);
+           ELSE CALL MOVE(NORTHEAST,53);
+
+         IF PRE_DIR ^= SOUTHEAST THEN
+           IF B(42) = '-' THEN
+           IF B(32) = '-' THEN
+           IF B(22) = '-' THEN
+           IF B(12) = '-' THEN;
+           ELSE CALL MOVE(NORTHWEST,22);
+           ELSE CALL MOVE(NORTHWEST,32);
+           ELSE CALL MOVE(NORTHWEST,42);
+
+         IF PRE_DIR ^= SOUTH THEN
+           IF B(43) = '-' THEN
+           IF B(34) = '-' THEN
+           IF B(25) = '-' THEN;
+           ELSE CALL MOVE(NORTH,34);
+           ELSE CALL MOVE(NORTH,43);
+       END;
+
+       /*------------------*/
+       /* Row 5 - Column 3 */
+       /*------------------*/
+
+       WHEN (3) DO;
+         IF PRE_DIR ^= SOUTHWEST THEN
+           IF B(54) = '-' THEN
+           IF B(55) = '-' THEN;
+           ELSE CALL MOVE(NORTHEAST,54);
+
+         IF PRE_DIR ^= NORTHEAST THEN
+           IF B(52) = '-' THEN
+           IF B(51) = '-' THEN;
+           ELSE CALL MOVE(SOUTHWEST,52);
+
+         IF PRE_DIR ^= SOUTHEAST THEN
+           IF B(43) = '-' THEN
+           IF B(33) = '-' THEN
+           IF B(23) = '-' THEN
+           IF B(13) = '-' THEN;
+           ELSE CALL MOVE(NORTHWEST,23);
+           ELSE CALL MOVE(NORTHWEST,33);
+           ELSE CALL MOVE(NORTHWEST,43);
+
+         IF PRE_DIR ^= SOUTH THEN
+           IF B(44) = '-' THEN
+           IF B(35) = '-' THEN;
+           ELSE CALL MOVE(NORTH,44);
+       END;
+
+       /*------------------*/
+       /* Row 5 - Column 4 */
+       /*------------------*/
+
+       WHEN (4) DO;
+         IF PRE_DIR ^= NORTHEAST THEN
+           IF B(53) = '-' THEN
+           IF B(52) = '-' THEN
+           IF B(51) = '-' THEN;
+           ELSE CALL MOVE(SOUTHWEST,52);
+           ELSE CALL MOVE(SOUTHWEST,53);
+
+         IF PRE_DIR ^= SOUTHEAST THEN
+           IF B(44) = '-' THEN
+           IF B(34) = '-' THEN
+           IF B(24) = '-' THEN
+           IF B(14) = '-' THEN;
+           ELSE CALL MOVE(NORTHWEST,24);
+           ELSE CALL MOVE(NORTHWEST,34);
+           ELSE CALL MOVE(NORTHWEST,44);
+       END;
+
+       /*------------------*/
+       /* Row 5 - Column 5 */
+       /*------------------*/
+
+       WHEN (5) DO;
+         IF PRE_DIR ^= NORTHEAST THEN
+           IF B(54) = '-' THEN
+           IF B(53) = '-' THEN
+           IF B(52) = '-' THEN
+           IF B(51) = '-' THEN;
+           ELSE CALL MOVE(SOUTHWEST,52);
+           ELSE CALL MOVE(SOUTHWEST,53);
+           ELSE CALL MOVE(SOUTHWEST,54);
+
+         IF PRE_DIR ^= SOUTHEAST THEN
+           IF B(45) = '-' THEN
+           IF B(35) = '-' THEN
+           IF B(25) = '-' THEN
+           IF B(15) = '-' THEN;
+           ELSE CALL MOVE(NORTHWEST,25);
+           ELSE CALL MOVE(NORTHWEST,35);
+           ELSE CALL MOVE(NORTHWEST,45);
+       END;
+       OTHERWISE;
+     END;
+   END;
+   OTHERWISE;
+ END;
+ %END;
+ /*-----------------------------------*/
+ /* Finished with this board position */
+ /*-----------------------------------*/
+
+ RETURN;
+
+ /*-------------------------------------*/
+ /* Move Piece and Check for a Solution */
+ /*-------------------------------------*/
+
+ MOVE: PROC (DIR, NEW_POS);
+
+ DCL DIR                      FIXED BIN (31) BYVALUE;
+ DCL NEW_POS                  FIXED BIN (31) BYVALUE;
+
+ DCL I                        FIXED BIN (31) INIT (0);
+
+ MOVE_PIECE = B(CUR_POS);
+
+ IF DEBUGGING THEN
+   PUT FILE (SOLTXT) SKIP EDIT
+     ('Steps',            CUR.STEPS,
+      ' - Moving piece ', MOVE_PIECE,
+      ' from ',           NUMSTR(CUR_POS),
+      ' to ',             NUMSTR(NEW_POS))
+     (A, P'ZZ9', 6 A);
+
+ /*-------------------*/
+ /* Detect move loops */
+ /*-------------------*/
+
+ DO I = (CUR.STEPS - 1) TO 1 BY -1
+   WHILE (CUR.MOVE.PIECE(I) = MOVE_PIECE);
+   IF CUR.MOVE.FR(I) = NEW_POS THEN DO;
+     MOVE_LOOPS = MOVE_LOOPS + 1;
+
+     IF DEBUGGING THEN
+       PUT FILE (SOLTXT) EDIT (' - Move loop detected') (A);
+
+     RETURN;
+   END;
+ END;
+
+ /*------------*/
+ /* Update CUR */
+ /*------------*/
+
+ CUR.MOVE.PIECE (CUR.STEPS) = MOVE_PIECE;
+ CUR.MOVE.DIR   (CUR.STEPS) = DIR;
+ CUR.MOVE.FR    (CUR.STEPS) = CUR_POS;
+ CUR.MOVE.TO    (CUR.STEPS) = NEW_POS;
+
+ /*-------------*/
+ /* Count moves */
+ /*-------------*/
+
+ CUR.MOVES = 1;
+
+ MOVE_PIECE = CUR.MOVE.PIECE(1);
+
+ DO I = 2 TO CUR.STEPS;
+   IF MOVE_PIECE ^= CUR.MOVE.PIECE(I) THEN DO;
+     CUR.MOVES = CUR.MOVES + 1;
+     MOVE_PIECE = CUR.MOVE.PIECE(I);
+   END;
+ END;
+
+ IF CUR.MOVES > MIN_MOVES THEN DO;
+   IF DEBUGGING THEN
+     PUT FILE (SOLTXT) EDIT
+       (' - Moves(',    NUMSTR(CUR.MOVES),
+        ') > Minimum(', NUMSTR(MIN_MOVES),
+        ')')
+       (5 A);
+
+   RETURN;
+ END;
+
+ NEW_BOARD = BOARD;
+ NB(NEW_POS) = NB(CUR_POS);
+ NB(CUR_POS) = '-';
+
+ /*----------------------------------------*/
+ /* Is there a letter piece in the center? */
+ /*----------------------------------------*/
+
+ IF NB(BOARD_CENTER) >= 'X' & NB(BOARD_CENTER) <= 'Z' THEN DO;
+
+   /*------------------------------------------------------*/
+   /* If there's only one letter piece, we have a solution */
+   /*------------------------------------------------------*/
+
+   IF LETTER_PIECES = 1 THEN DO;
+
+     ALL_SOLUTIONS = ALL_SOLUTIONS + 1;
+
+     /*-----------------------------------------------------------*/
+     /* Only keep solutions with lowest number of moves and steps */
+     /*-----------------------------------------------------------*/
+
+     /*------------------------------------------*/
+     /* Update the solution table and statistics */
+     /*------------------------------------------*/
+
+     SELECT;
+       WHEN (CUR.MOVES < MIN_MOVES) DO;
+
+         /*------------------------------------------------------*/
+         /* We have the first solution, or a solution less moves */
+         /*------------------------------------------------------*/
+
+         SOLUTIONS = 1;
+
+         MIN_MOVES_CNT,
+         MIN_STEPS_CNT = 1;
+
+         MIN_MOVES = CUR.MOVES;
+         MIN_STEPS = CUR.STEPS;
+         MAX_STEPS = CUR.STEPS;
+
+         SOLUTION_TBL(1) = CUR_ENT;
+       END;
+
+       WHEN (CUR.MOVES = MIN_MOVES) DO;
+
+         /*--------------------------------------------------------*/
+         /* We have another solution with the same number of moves */
+         /*--------------------------------------------------------*/
+
+         MIN_MOVES_CNT = MIN_MOVES_CNT + 1;
+
+         SELECT;
+           WHEN (CUR.STEPS < MIN_STEPS) DO;
+
+             /*-------------------------------------------------------------*/
+             /* But it uses fewer steps, so it now become solution number 1 */
+             /*-------------------------------------------------------------*/
+
+             SOLUTIONS = 1;
+
+             MIN_STEPS_CNT = 1;
+
+             MIN_STEPS = CUR.STEPS;
+
+             SOLUTION_TBL(1) = CUR_ENT;
+           END;
+
+           WHEN (CUR.STEPS = MIN_STEPS) DO;
+
+             /*----------------------------------------------------------*/
+             /* Add the solution because it has the same moves and steps */
+             /*----------------------------------------------------------*/
+
+             SOLUTIONS = SOLUTIONS + 1;
+
+             IF MIN_STEPS_CNT < HBOUND(SOLUTION_TBL,1) THEN DO;
+               MIN_STEPS_CNT = MIN_STEPS_CNT + 1;
+
+               SOLUTION_TBL(MIN_STEPS_CNT) = CUR_ENT;
+             END;
+             ELSE DO;
+               IF SOLUTION_OVERFLOW = 0 THEN
+                 DISPLAY ('Solution Table Overflow for ' || NAME);
+
+               SOLUTION_OVERFLOW = SOLUTION_OVERFLOW + 1;
+             END;
+           END;
+
+           OTHERWISE DO;
+
+             /*-------------------------------------------------------------------*/
+             /* Don't keep it, but keep track of the maximum steps for a solution */
+             /*-------------------------------------------------------------------*/
+
+             MAX_STEPS = CUR.STEPS;
+           END;
+         END;
+       END;
+
+       OTHERWISE DO;
+
+         /*-------------------------------------------------------------------*/
+         /* Don't keep it, but keep track of the maximum moves for a solution */
+         /*-------------------------------------------------------------------*/
+
+         MAX_MOVES = CUR.MOVES;
+       END;
+     END;
+
+     /*----------------------------------*/
+     /* Show the solution if appropriate */
+     /*----------------------------------*/
+
+     IF SHOW_ALL_SOLUTIONS THEN DO;
+       IF DEBUGGING THEN
+         PUT FILE (SOLTXT) SKIP EDIT
+           ('Solution ') (A);
+       ELSE
+         PUT FILE (SOLTXT) SKIP;
+
+       PUT FILE (SOLTXT) EDIT
+         (CUR.MOVES, CUR.STEPS, ' : ')
+         (P'Z9', P'ZZ9', A);
+
+       MOVE_PIECE = CUR.MOVE.PIECE(1);
+
+       MOVE_LIST = MOVE_PIECE || '-' || LTR_DIR(CUR.MOVE.DIR(1));
+
+       DO I = 2 TO CUR.STEPS;
+         IF CUR.MOVE.PIECE(I) ^= MOVE_PIECE THEN DO;
+           MOVE_PIECE = CUR.MOVE.PIECE(I);
+           MOVE_LIST = MOVE_LIST || ' ' || MOVE_PIECE || '-';
+         END;
+
+         MOVE_LIST = MOVE_LIST || LTR_DIR(CUR.MOVE.DIR(I));
+       END;
+
+       PUT FILE (SOLTXT) EDIT (MOVE_LIST) (A);
+     END;
+
+     SOLUTION_FOUND = TRUE;
+
+     RETURN;
+   END;
+
+   /*----------------------------------------------------------------*/
+   /* One letter piece has made it to the center, but not solved Yet */
+   /*----------------------------------------------------------------*/
+
+   ELSE DO;
+
+     /*-------------------------------------------------------*/
+     /* EVALUATE_BOARD will recount the letter pieces, so we  */
+     /* so we have to put it back if we come back here again. */
+     /*                                                       */
+     /* Remember, LETTER_PIECES is part of EVALUATE_BOARD,    */
+     /* which is recursively called!                          */
+     /*                                                       */
+     /* Save the letter piece, clear the center, and continue */
+     /* evaluating                                            */
+     /*-------------------------------------------------------*/
+
+     LETTER_PIECE_HOLD = NB(BOARD_CENTER);
+
+     NB(BOARD_CENTER) = '-';
+
+     IF UNSEEN (NEW_BOARD) THEN
+       CALL EVALUATE_BOARD (NEW_BOARD, 0);
+
+     NB(BOARD_CENTER) = LETTER_PIECE_HOLD;
+   END;
+ END;
+ ELSE
+
+   /*-------------------------------------------------------*/
+   /* There's not a solution for this move, so keep looking */
+   /*-------------------------------------------------------*/
+
+   IF UNSEEN (NEW_BOARD) THEN
+     CALL EVALUATE_BOARD (NEW_BOARD, NEW_POS);
+
+ END MOVE;
+
+ END CHECK_MOVES;
+
+ END EVALUATE_BOARD;
+
+ /*-----------------------------------------------*/
+ /* Try to find a version, including reflections, */
+ /* of the board in history table                 */
+ /*-----------------------------------------------*/
+
+ UNSEEN: PROC (BOARD) RETURNS(BIT (1));
+
+ DCL BOARD                    CHAR (BOARD_SIZE);
+
+ DCL (I,J,K)                  FIXED BIN (31) INIT (0);
+
+ DCL TMP                      CHAR (CONFIG_SIZE) INIT ('');
+ DCL T (CONFIG_SIZE)          CHAR (1)           DEF TMP;
+
+ SUBSTR(TMP,01,5) = SUBSTR(BOARD,11,5);
+ SUBSTR(TMP,06,5) = SUBSTR(BOARD,21,5);
+ SUBSTR(TMP,11,5) = SUBSTR(BOARD,31,5);
+ SUBSTR(TMP,16,5) = SUBSTR(BOARD,41,5);
+ SUBSTR(TMP,21,5) = SUBSTR(BOARD,51,5);
+
+ /*-------------------------*/
+ /* Build history table key */
+ /*-------------------------*/
+
+ /*-----------------------------------------------------------------------------------*/
+ /* The key can represent up to 12 pieces. The one-byte binary configuration location */
+ /* of the 1 to 3 letter pieces come first, followed by the 1 to 9 number locations.  */
+ /* This allows the search to walk a chain of history table pointers to try to find a */
+ /* configuration that has already been seen.                                         */
+ /*-----------------------------------------------------------------------------------*/
+
+ J = 0;
+ K = LP_CNT;
+
+ HIST_KEY = (12)'00'X;
+
+ BUILD_HIST_KEY:
+
+ DO I = 1 TO CONFIG_SIZE;
+   IF T(I) ^= '-' THEN
+     IF T(I) >= 'X' & T(I) <= 'Z' THEN DO;
+       J = J + 1;
+       HK(J) = I;
+     END;
+     ELSE DO;
+       K = K + 1;
+       HK(K) = I;
+     END;
+ END;
+
+ %IF TESTING = 'Y' %THEN %DO;
+ PUT FILE (SOLTXT) SKIP EDIT
+   ('Beg ', HEX(SUBSTR(HIST_KEY,1,TP_CNT)), ' | ', TMP) (4 A);
+ %END;
+ /*--------------------------*/
+ /* Search the history table */
+ /*--------------------------*/
+
+ /*---------------------------------------------*/
+ /* Point to the 1st entry in the history table */
+ /*---------------------------------------------*/
+
+ HIST_TBL_PTR = ADDR(HIST_TBL);
+
+ /*-----------------------------------*/
+ /* Walk the chain of board positions */
+ /*-----------------------------------*/
+
+ DO J = 1 TO (TP_CNT - 1);
+   %IF TESTING = 'Y' %THEN %DO;
+   CALL DUMP_HIST_ENT;
+
+   %END;
+   IF HIST_NEXT_PTR(HK(J)) = SYSNULL THEN DO;
+
+     /*------------------------------*/
+     /* The chain ends, add an entry */
+     /*------------------------------*/
+
+     HIST_TBL_CNT = HIST_TBL_CNT + 1;
+
+     IF HIST_TBL_CNT > HBOUND(HIST_TBL) THEN DO;
+       DISPLAY ('Number of history table entries exceeds maximum');
+       DISPLAY ('Enlarge HIST_TBL to remedy');
+       DISPLAY ('Terminating');
+       STOP;
+     END;
+
+     HIST_NEXT_PTR(HK(J)) = ADDR(HIST_TBL(HIST_TBL_CNT));
+
+     HIST_TBL_PTR         = ADDR(HIST_TBL(HIST_TBL_CNT));
+
+     %IF TESTING = 'Y' %THEN %DO;
+     PUT FILE (SOLTXT) EDIT
+       (' - Adding ', HK(J), '=', HEX(HIST_TBL_PTR))
+       (A, P'99', 2 A);
+
+     %END;
+     HIST_NEXT_PTR = SYSNULL;
+   END;
+   ELSE
+     HIST_TBL_PTR = HIST_NEXT_PTR(HK(J));
+ END;
+ %IF TESTING = 'Y' %THEN %DO;
+
+ CALL DUMP_HIST_ENT;
+ %END;
+ /*-----------------------------*/
+ /* If vacant, it doesn't exist */
+ /*-----------------------------*/
+
+ IF HIST_MOVES(HK(J)) = 0 THEN DO;
+
+   /*----------------------------*/
+   /* Add board to history table */
+   /*----------------------------*/
+
+   HIST_ENT_CNT = HIST_ENT_CNT + 1;
+
+   %IF TESTING = 'Y' %THEN %DO;
+   IF MOD(HIST_ENT_CNT,1000) = 0 THEN
+     DISPLAY ('History Table Entries = ' || NUMSTR(HIST_ENT_CNT));
+
+   %END;
+   HIST_MOVES(HK(J)) = CUR.MOVES;
+
+   %IF TESTING = 'Y' %THEN %DO;
+     PUT FILE (SOLTXT) EDIT
+       (' - Unseen (', HEX(SUBSTR(HIST_KEY,1,TP_CNT)), ')') (3 A);
+
+   %END;
+   RETURN (TRUE); /* Unseen */
+ END;
+
+ /*----------------*/
+ /* Existing board */
+ /*----------------*/
+
+ %IF TESTING = 'Y' %THEN %DO;
+   PUT FILE (SOLTXT) EDIT
+     (' - Seen (', HEX(SUBSTR(HIST_KEY,1,TP_CNT)), ')') (3 A);
+
+   IF CUR.MOVES < HIST_MOVES(HK(J)) THEN
+     PUT FILE (SOLTXT) EDIT
+       (' - Updating Moves from ', NUMSTR(HIST_MOVES(HK(J))), ' to ', NUMSTR(CUR.MOVES)) (4 A);
+
+ %END;
+ IF UNSIGNED(CUR.MOVES - 1) <= HIST_MOVES(HK(J)) THEN DO;
+   IF DEBUGGING THEN
+     PUT FILE (SOLTXT) EDIT
+       (' - Old (',      HEX(SUBSTR(HIST_KEY,1,TP_CNT)),
+        ') - Moves(',    NUMSTR(CUR.MOVES),
+        ') - Previous(', NUMSTR(HIST_MOVES(HK(J))),
+        ') <= 1')
+       (7 A);
+
+   IF CUR.MOVES < HIST_MOVES(HK(J)) THEN
+     HIST_MOVES(HK(J)) = CUR.MOVES;
+
+   RETURN (TRUE);
+ END;
+
+ IF DEBUGGING THEN
+   PUT FILE (SOLTXT) EDIT
+     (' - Old (',      HEX(SUBSTR(HIST_KEY,1,TP_CNT)),
+      ') - Moves(',    NUMSTR(CUR.MOVES),
+      ') > Previous(', NUMSTR(HIST_MOVES(HK(J))),
+      ') - No evaluation')
+     (7 A);
+ RETURN (FALSE);
+
+ %IF TESTING = 'Y' %THEN %DO;
+ DUMP_HIST_ENT: PROC;
+
+ DCL I                        FIXED BIN (32) UNSIGNED INIT (0);
+
+ PUT FILE (SOLTXT) SKIP EDIT
+   (HEX(HK(J)), '->', HEX(HIST_TBL_PTR))
+   (2 A, A(9));
+
+ DO I = 1 TO 25;
+   IF HIST_NEXT_PTR(I) ^= SYSNULL THEN
+     PUT FILE (SOLTXT) EDIT
+       (I, '=', HEX(HIST_NEXT_PTR(I)))
+       (P'99', A, A(9));
+ END;
+
+ END DUMP_HIST_ENT;
+
+ %END;
+ END UNSEEN;
+
+ /*----------------------------------------*/
+ /* Convert an integer to a numeric string */
+ /*----------------------------------------*/
+
+ DCL NUMSTR GENERIC (NUMSTR_8     WHEN (FIXED BIN (8)  UNSIGNED),
+                     NUMSTR_31    WHEN (FIXED BIN (31)),
+                     NUMSTR_ERROR OTHERWISE);
+
+ NUMSTR_8: PROC (NUM) RETURNS (CHAR (13) VARYING) REORDER;
+
+ DCL NUM                      FIXED BIN (8) UNSIGNED;
+
+ DCL I                        FIXED BIN (31) INIT (0);
+
+ DCL CHR                      CHAR (3)  INIT ((3)' ');
+ DCL PIC                      PIC 'ZZ9' BASED(ADDR(CHR));
+
+ PIC = NUM;
+
+ DO I = 1 TO 2 WHILE (SUBSTR(CHR,I,1) = ' ');
+ END;
+
+ RETURN (SUBSTR(CHR,I));
+
+ END NUMSTR_8;
+
+ NUMSTR_31: PROC (NUM) RETURNS (CHAR (13) VARYING) REORDER;
+
+ DCL NUM                      FIXED BIN (31);
+
+ DCL I                        FIXED BIN (31) INIT (0);
+
+ DCL CHR                      CHAR (13)           INIT ((13)' ');
+ DCL PIC                      PIC 'Z,ZZZ,ZZZ,ZZ9' BASED(ADDR(CHR));
+
+ PIC = NUM;
+
+ DO I = 1 TO 12 WHILE (SUBSTR(CHR,I,1) = ' ');
+ END;
+
+ RETURN (SUBSTR(CHR,I));
+
+ END NUMSTR_31;
+
+ NUMSTR_ERROR: PROC;
+
+ DISPLAY ('NUMSTR received invalid value');
+
+ STOP;
+
+ END NUMSTR_ERROR;
+ %IF TYPE = 'HEX' THEN %DO;
+
+ /*------------------------------*/
+ /* Make a displayable hex board */
+ /*------------------------------*/
+
+ MAKE_HEX_BOARD: PROC (CONFIG);
+
+ DCL I                        FIXED BIN (32) UNSIGNED INIT (0);
+
+ DCL CONFIG                   CHAR (CONFIG_SIZE);
+
+ IF SUBSTR(CONFIG,05,1) ^= '-' THEN
+   SUBSTR(XL(02),14,1) = SUBSTR(CONFIG,05,1);
+ ELSE
+   SUBSTR(XL(02),14,1) = ' ';
+
+ IF SUBSTR(CONFIG,04,1) ^= '-' THEN
+   SUBSTR(XL(03),11,1) = SUBSTR(CONFIG,04,1);
+ ELSE
+   SUBSTR(XL(03),11,1) = ' ';
+
+ IF SUBSTR(CONFIG,10,1) ^= '-' THEN
+   SUBSTR(XL(03),17,1) = SUBSTR(CONFIG,10,1);
+ ELSE
+   SUBSTR(XL(03),17,1) = ' ';
+
+ IF SUBSTR(CONFIG,03,1) ^= '-' THEN
+   SUBSTR(XL(04),08,1) = SUBSTR(CONFIG,03,1);
+ ELSE
+   SUBSTR(XL(04),08,1) = ' ';
+
+ IF SUBSTR(CONFIG,09,1) ^= '-' THEN
+   SUBSTR(XL(04),14,1) = SUBSTR(CONFIG,09,1);
+ ELSE
+   SUBSTR(XL(04),14,1) = ' ';
+
+ IF SUBSTR(CONFIG,15,1) ^= '-' THEN
+   SUBSTR(XL(04),20,1) = SUBSTR(CONFIG,15,1);
+ ELSE
+   SUBSTR(XL(04),20,1) = ' ';
+
+ IF SUBSTR(CONFIG,02,1) ^= '-' THEN
+   SUBSTR(XL(05),05,1) = SUBSTR(CONFIG,02,1);
+ ELSE
+   SUBSTR(XL(05),05,1) = ' ';
+
+ IF SUBSTR(CONFIG,08,1) ^= '-' THEN
+   SUBSTR(XL(05),11,1) = SUBSTR(CONFIG,08,1);
+ ELSE
+   SUBSTR(XL(05),11,1) = ' ';
+
+ IF SUBSTR(CONFIG,14,1) ^= '-' THEN
+   SUBSTR(XL(05),17,1) = SUBSTR(CONFIG,14,1);
+ ELSE
+   SUBSTR(XL(05),17,1) = ' ';
+
+ IF SUBSTR(CONFIG,20,1) ^= '-' THEN
+   SUBSTR(XL(05),23,1) = SUBSTR(CONFIG,20,1);
+ ELSE
+   SUBSTR(XL(05),23,1) = ' ';
+
+ IF SUBSTR(CONFIG,01,1) ^= '-' THEN
+   SUBSTR(XL(06),02,1) = SUBSTR(CONFIG,01,1);
+ ELSE
+   SUBSTR(XL(06),02,1) = ' ';
+
+ IF SUBSTR(CONFIG,07,1) ^= '-' THEN
+   SUBSTR(XL(06),08,1) = SUBSTR(CONFIG,07,1);
+ ELSE
+   SUBSTR(XL(06),08,1) = ' ';
+
+ IF SUBSTR(CONFIG,13,1) ^= '-' THEN
+   SUBSTR(XL(06),14,1) = SUBSTR(CONFIG,13,1);
+ ELSE
+   SUBSTR(XL(06),14,1) = ' ';
+
+ IF SUBSTR(CONFIG,19,1) ^= '-' THEN
+   SUBSTR(XL(06),20,1) = SUBSTR(CONFIG,19,1);
+ ELSE
+   SUBSTR(XL(06),20,1) = ' ';
+
+ IF SUBSTR(CONFIG,25,1) ^= '-' THEN
+   SUBSTR(XL(06),26,1) = SUBSTR(CONFIG,25,1);
+ ELSE
+   SUBSTR(XL(06),26,1) = ' ';
+
+ IF SUBSTR(CONFIG,06,1) ^= '-' THEN
+   SUBSTR(XL(07),05,1) = SUBSTR(CONFIG,06,1);
+ ELSE
+   SUBSTR(XL(07),05,1) = ' ';
+
+ IF SUBSTR(CONFIG,12,1) ^= '-' THEN
+   SUBSTR(XL(07),11,1) = SUBSTR(CONFIG,12,1);
+ ELSE
+   SUBSTR(XL(07),11,1) = ' ';
+
+ IF SUBSTR(CONFIG,18,1) ^= '-' THEN
+   SUBSTR(XL(07),17,1) = SUBSTR(CONFIG,18,1);
+ ELSE
+   SUBSTR(XL(07),17,1) = ' ';
+
+ IF SUBSTR(CONFIG,24,1) ^= '-' THEN
+   SUBSTR(XL(07),23,1) = SUBSTR(CONFIG,24,1);
+ ELSE
+   SUBSTR(XL(07),23,1) = ' ';
+
+ IF SUBSTR(CONFIG,11,1) ^= '-' THEN
+   SUBSTR(XL(08),08,1) = SUBSTR(CONFIG,11,1);
+ ELSE
+   SUBSTR(XL(08),08,1) = ' ';
+
+ IF SUBSTR(CONFIG,17,1) ^= '-' THEN
+   SUBSTR(XL(08),14,1) = SUBSTR(CONFIG,17,1);
+ ELSE
+   SUBSTR(XL(08),14,1) = ' ';
+
+ IF SUBSTR(CONFIG,23,1) ^= '-' THEN
+   SUBSTR(XL(08),20,1) = SUBSTR(CONFIG,23,1);
+ ELSE
+   SUBSTR(XL(08),20,1) = ' ';
+
+ IF SUBSTR(CONFIG,16,1) ^= '-' THEN
+   SUBSTR(XL(09),11,1) = SUBSTR(CONFIG,16,1);
+ ELSE
+   SUBSTR(XL(09),11,1) = ' ';
+
+ IF SUBSTR(CONFIG,22,1) ^= '-' THEN
+   SUBSTR(XL(09),17,1) = SUBSTR(CONFIG,22,1);
+ ELSE
+   SUBSTR(XL(09),17,1) = ' ';
+
+ IF SUBSTR(CONFIG,21,1) ^= '-' THEN
+   SUBSTR(XL(10),14,1) = SUBSTR(CONFIG,21,1);
+ ELSE
+   SUBSTR(XL(10),14,1) = ' ';
+
+ END MAKE_HEX_BOARD;
+ %END;

@@ -1,0 +1,79 @@
+ONE EXIT CONFIG
+ 
+SOLVE - Run on 01-23-2000 at 21:14:05
+ 
+Custom configurations .................. Yes
+Statistics ............................. No
+Show zero solutions .................... No
+Maximum depth .......................... 99
+Maximum configurations ................. None
+Maximum solutions ...................... None
+Maximum solutions shown ................ 500
+ 
+Configurations ......................... 4,620
+Configurations with solutions .......... 3
+  With all pieces significant .......... 3
+  With insignificant pieces ............ 0
+Total solutions ........................ 16
+ 
+Most moves for minimum solution ........ 8      (6-1)
+Most steps for minimum solution ........ 10     (6-1)
+Most solutions ......................... 8      (3-1)
+ 
+                  Steps...
+Moves  Count....  Min  Max
+-----  ---------  ---  ---
+    5          1    6    6
+    6          1    6    6
+    8          1   10   10
+
+---------------------------------------------------------------------------
+            -             : Board (1-1)
+         -     -          :
+      -     X     -       : Solutions (6 Moves, 6 Steps) ... 2
+   -     -     -     -    : Other solutions (6 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 699
+   2     -     Y     -    :
+      -     -     -       :
+         -     -          :
+            Z             :
+ 
+2-Ne 1-Se Z-No 1-Ne X-So Y-Nw
+2-Ne 1-Se Z-No 1-Ne Y-Nw X-So
+---------------------------------------------------------------------------
+            -             : Board (3-1)
+         -     2          :
+      -     -     -       : Solutions (5 Moves, 6 Steps) ... 8
+   -     X     -     -    : Other solutions (5 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 1,549
+   -     -     Y     -    :
+      -     -     -       :
+         -     -          :
+            Z             :
+ 
+1-Se 2-Sw X-Se Y-SwNo Z-No
+1-Se 2-Sw X-Se Z-No Y-SwNo
+1-Se 2-Sw Z-No X-Se Y-SwNo
+2-Sw X-Se 1-Se Y-SwNo Z-No
+2-Sw X-Se 1-Se Z-No Y-SwNo
+2-Sw 1-Se X-Se Y-SwNo Z-No
+2-Sw 1-Se X-Se Z-No Y-SwNo
+2-Sw 1-Se Z-No X-Se Y-SwNo
+---------------------------------------------------------------------------
+            X             : Board (6-1)
+         -     -          :
+      1     -     -       : Solutions (8 Moves, 10 Steps) .. 6
+   -     -     -     -    : Other solutions (8 Moves) ...... 0
+-     -     -     -     - : Positions evaluated ............ 2,725
+   2     -     Y     -    :
+      -     -     -       :
+         -     -          :
+            Z             :
+ 
+1-SeNoSw 2-Se Z-No 1-Ne 2-Ne Z-So X-So Y-Nw
+1-SeNoSw 2-Se Z-No 1-Ne 2-Ne Z-So Y-Nw X-So
+1-SeNoSw 2-Se Z-No 1-Ne 2-Ne Y-Nw Z-So X-So
+1-SeNoSw 2-Se Z-No 2-Ne 1-Ne Z-So X-So Y-Nw
+1-SeNoSw 2-Se Z-No 2-Ne 1-Ne Z-So Y-Nw X-So
+1-SeNoSw 2-Se Z-No 2-Ne 1-Ne Y-Nw Z-So X-So
+---------------------------------------------------------------------------

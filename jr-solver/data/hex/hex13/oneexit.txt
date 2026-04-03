@@ -1,0 +1,382 @@
+ONE EXIT CONFIG
+ 
+SOLVE - Run on 01-23-2000 at 20:56:58
+ 
+Custom configurations .................. Yes
+Statistics ............................. No
+Show zero solutions .................... No
+Maximum depth .......................... 99
+Maximum configurations ................. None
+Maximum solutions ...................... None
+Maximum solutions shown ................ 500
+ 
+Configurations ......................... 147
+Configurations with solutions .......... 29
+  With all pieces significant .......... 7
+  With insignificant pieces ............ 22
+Total solutions ........................ 33
+ 
+Most moves for minimum solution ........ 3      (2-1)
+Most steps for minimum solution ........ 6      (2-1)
+Most solutions ......................... 2      (2-1)
+ 
+                  Steps...
+Moves  Count....  Min  Max
+-----  ---------  ---  ---
+    1         16    1    2
+    2         11    2    5
+    3          2    5    6
+
+---------------------------------------------------------------------------
+            -             : Board (1-1)
+         -     -          :
+      2     -     -       : Solutions (1 Move, 1 Step) ..... 1
+   -     -     3     -    : Other solutions (1 Move) ....... 0
+1     -     -     -     - : Positions evaluated ............ 1
+   -     -     -     -    :
+      X     -     -       :
+         -     -          :
+            -             :
+ 
+X-Ne - Not Sig (1,2)
+---------------------------------------------------------------------------
+            -             : Board (1-1)
+         -     -          :
+      2     -     -       : Solutions (1 Move, 1 Step) ..... 1
+   -     -     3     -    : Other solutions (1 Move) ....... 0
+1     -     -     -     - : Positions evaluated ............ 1
+   -     X     -     -    :
+      -     -     -       :
+         -     -          :
+            -             :
+ 
+X-Ne - Not Sig (1,2)
+---------------------------------------------------------------------------
+            -             : Board (1-1)
+         -     -          :
+      2     -     -       : Solutions (2 Moves, 5 Steps) ... 1
+   -     -     3     -    : Other solutions (2 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 22
+   -     -     -     -    :
+      -     -     -       :
+         X     -          :
+            -             :
+ 
+1-SeNeNw X-NoNe
+---------------------------------------------------------------------------
+            -             : Board (2-1)
+         2     -          :
+      -     -     -       : Solutions (1 Move, 1 Step) ..... 1
+   -     -     3     -    : Other solutions (1 Move) ....... 0
+1     -     -     -     - : Positions evaluated ............ 1
+   -     -     -     -    :
+      X     -     -       :
+         -     -          :
+            -             :
+ 
+X-Ne - Not Sig (1,2)
+---------------------------------------------------------------------------
+            -             : Board (2-1)
+         2     -          :
+      -     -     -       : Solutions (1 Move, 1 Step) ..... 1
+   -     -     3     -    : Other solutions (1 Move) ....... 0
+1     -     -     -     - : Positions evaluated ............ 1
+   -     X     -     -    :
+      -     -     -       :
+         -     -          :
+            -             :
+ 
+X-Ne - Not Sig (1,2)
+---------------------------------------------------------------------------
+            -             : Board (2-1)
+         2     -          :
+      -     -     -       : Solutions (3 Moves, 6 Steps) ... 1
+   -     -     3     -    : Other solutions (3 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 133
+   -     -     -     -    :
+      -     -     -       :
+         X     -          :
+            -             :
+ 
+1-Ne 2-SoNeNw X-NoNe
+---------------------------------------------------------------------------
+            -             : Board (2-1)
+         2     -          :
+      -     -     -       : Solutions (2 Moves, 2 Steps) ... 2
+   -     -     3     -    : Other solutions (2 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 23
+   -     -     -     -    :
+      -     X     -       :
+         -     -          :
+            -             :
+ 
+2-Se X-No - Not Sig (1)
+3-Nw X-No - Not Sig (1)
+---------------------------------------------------------------------------
+            -             : Board (2-1)
+         2     -          :
+      -     -     -       : Solutions (2 Moves, 2 Steps) ... 2
+   -     -     3     -    : Other solutions (2 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 69
+   -     -     -     -    :
+      -     -     -       :
+         -     -          :
+            X             :
+ 
+2-Se X-No - Not Sig (1)
+3-Nw X-No - Not Sig (1)
+---------------------------------------------------------------------------
+            -             : Board (11-1)
+         -     3          :
+      -     -     -       : Solutions (2 Moves, 2 Steps) ... 1
+   1     -     -     -    : Other solutions (2 Moves) ...... 0
+-     -     -     -     - : Positions evaluated ............ 22
+   2     -     -     -    :
+      -     X     -       :
+         -     -          :
+            -             :
+ 
+2-Ne X-No - Not Sig (1)
+---------------------------------------------------------------------------
+            -             : Board (11-1)
+         -     3          :
+      -     -     -       : Solutions (2 Moves, 2 Steps) ... 1
+   1     -     -     -    : Other solutions (2 Moves) ...... 0
+-     -     -     -     - : Positions evaluated ............ 13
+   2     -     -     -    :
+      -     -     -       :
+         -     -          :
+            X             :
+ 
+2-Ne X-No - Not Sig (1)
+---------------------------------------------------------------------------
+            -             : Board (11-1)
+         -     3          :
+      -     -     -       : Solutions (3 Moves, 5 Steps) ... 1
+   1     -     -     -    : Other solutions (3 Moves) ...... 0
+-     -     -     -     - : Positions evaluated ............ 67
+   2     -     -     -    :
+      -     -     -       :
+         -     X          :
+            -             :
+ 
+2-Ne 3-So X-NwNeSe
+---------------------------------------------------------------------------
+            -             : Board (12-1)
+         -     -          :
+      -     2     -       : Solutions (1 Move, 1 Step) ..... 1
+   1     -     -     -    : Other solutions (1 Move) ....... 0
+-     -     -     -     - : Positions evaluated ............ 4
+   -     -     -     -    :
+      3     X     -       :
+         -     -          :
+            -             :
+ 
+X-No - Not Sig (1,3)
+---------------------------------------------------------------------------
+            -             : Board (12-1)
+         -     -          :
+      -     2     -       : Solutions (1 Move, 1 Step) ..... 1
+   1     -     -     -    : Other solutions (1 Move) ....... 0
+-     -     -     -     - : Positions evaluated ............ 2
+   -     -     -     -    :
+      3     -     -       :
+         -     -          :
+            X             :
+ 
+X-No - Not Sig (1,3)
+---------------------------------------------------------------------------
+            -             : Board (12-1)
+         -     -          :
+      -     2     -       : Solutions (2 Moves, 5 Steps) ... 1
+   1     -     -     -    : Other solutions (2 Moves) ...... 0
+-     -     -     -     - : Positions evaluated ............ 12
+   -     -     -     -    :
+      3     -     -       :
+         -     X          :
+            -             :
+ 
+1-SeNoSw X-NwNo
+---------------------------------------------------------------------------
+            1             : Board (24-1)
+         -     -          :
+      X     -     -       : Solutions (1 Move, 1 Step) ..... 1
+   -     -     -     -    : Other solutions (1 Move) ....... 0
+-     -     -     -     - : Positions evaluated ............ 2
+   2     -     3     -    :
+      -     -     -       :
+         -     -          :
+            -             :
+ 
+X-Se - Not Sig (1,2)
+---------------------------------------------------------------------------
+            1             : Board (24-1)
+         -     -          :
+      -     -     -       : Solutions (1 Move, 1 Step) ..... 1
+   -     X     -     -    : Other solutions (1 Move) ....... 0
+-     -     -     -     - : Positions evaluated ............ 1
+   2     -     3     -    :
+      -     -     -       :
+         -     -          :
+            -             :
+ 
+X-Se - Not Sig (1,2)
+---------------------------------------------------------------------------
+            1             : Board (24-1)
+         -     -          :
+      -     -     -       : Solutions (2 Moves, 4 Steps) ... 1
+   -     -     -     -    : Other solutions (2 Moves) ...... 0
+-     -     -     -     - : Positions evaluated ............ 18
+   2     -     3     -    :
+      -     -     -       :
+         -     -          :
+            X             :
+ 
+2-SeNeNo X-No
+---------------------------------------------------------------------------
+            -             : Board (32-1)
+         -     -          :
+      X     2     -       : Solutions (1 Move, 1 Step) ..... 1
+   -     -     -     -    : Other solutions (1 Move) ....... 0
+-     -     -     -     - : Positions evaluated ............ 1
+   1     -     3     -    :
+      -     -     -       :
+         -     -          :
+            -             :
+ 
+X-Se - Not Sig (1,2)
+---------------------------------------------------------------------------
+            -             : Board (32-1)
+         -     -          :
+      -     2     -       : Solutions (1 Move, 2 Steps) .... 1
+   -     -     -     -    : Other solutions (1 Move) ....... 0
+-     X     -     -     - : Positions evaluated ............ 4
+   1     -     3     -    :
+      -     -     -       :
+         -     -          :
+            -             :
+ 
+X-NeSe - Not Sig (1)
+---------------------------------------------------------------------------
+            -             : Board (32-1)
+         -     -          :
+      -     2     -       : Solutions (1 Move, 1 Step) ..... 1
+   -     X     -     -    : Other solutions (1 Move) ....... 0
+-     -     -     -     - : Positions evaluated ............ 1
+   1     -     3     -    :
+      -     -     -       :
+         -     -          :
+            -             :
+ 
+X-Se - Not Sig (1,2)
+---------------------------------------------------------------------------
+            -             : Board (32-1)
+         -     X          :
+      -     2     -       : Solutions (2 Moves, 3 Steps) ... 1
+   -     -     -     -    : Other solutions (2 Moves) ...... 0
+-     -     -     -     - : Positions evaluated ............ 22
+   1     -     3     -    :
+      -     -     -       :
+         -     -          :
+            -             :
+ 
+2-Sw X-SwSe
+---------------------------------------------------------------------------
+            -             : Board (32-1)
+         -     -          :
+      -     2     -       : Solutions (1 Move, 2 Steps) .... 1
+   -     -     -     -    : Other solutions (1 Move) ....... 0
+-     -     -     -     - : Positions evaluated ............ 10
+   1     -     3     -    :
+      -     -     -       :
+         X     -          :
+            -             :
+ 
+X-NeNo - Not Sig (1)
+---------------------------------------------------------------------------
+            -             : Board (32-1)
+         -     -          :
+      -     2     -       : Solutions (1 Move, 1 Step) ..... 1
+   -     -     -     -    : Other solutions (1 Move) ....... 0
+-     -     -     -     - : Positions evaluated ............ 1
+   1     -     3     -    :
+      -     X     -       :
+         -     -          :
+            -             :
+ 
+X-No - Not Sig (1,3)
+---------------------------------------------------------------------------
+            -             : Board (32-1)
+         -     -          :
+      -     2     -       : Solutions (1 Move, 1 Step) ..... 1
+   -     -     -     -    : Other solutions (1 Move) ....... 0
+-     -     -     -     - : Positions evaluated ............ 10
+   1     -     3     -    :
+      -     -     -       :
+         -     -          :
+            X             :
+ 
+X-No - Not Sig (1,3)
+---------------------------------------------------------------------------
+            -             : Board (38-1)
+         -     -          :
+      X     -     -       : Solutions (2 Moves, 2 Steps) ... 2
+   -     -     -     -    : Other solutions (2 Moves) ...... 0
+-     -     -     3     - : Positions evaluated ............ 12
+   1     -     -     -    :
+      -     2     -       :
+         -     -          :
+            -             :
+ 
+2-Ne X-Se - Not Sig (1)
+3-Sw X-Se - Not Sig (1)
+---------------------------------------------------------------------------
+            X             : Board (38-1)
+         -     -          :
+      -     -     -       : Solutions (1 Move, 1 Step) ..... 1
+   -     -     -     -    : Other solutions (1 Move) ....... 0
+-     -     -     3     - : Positions evaluated ............ 1
+   1     -     -     -    :
+      -     2     -       :
+         -     -          :
+            -             :
+ 
+X-So - Not Sig (1,3)
+---------------------------------------------------------------------------
+            -             : Board (38-1)
+         -     -          :
+      -     -     -       : Solutions (2 Moves, 2 Steps) ... 2
+   -     X     -     -    : Other solutions (2 Moves) ...... 0
+-     -     -     3     - : Positions evaluated ............ 33
+   1     -     -     -    :
+      -     2     -       :
+         -     -          :
+            -             :
+ 
+2-Ne X-Se - Not Sig (1)
+3-Sw X-Se - Not Sig (1)
+---------------------------------------------------------------------------
+            -             : Board (38-1)
+         -     -          :
+      -     X     -       : Solutions (1 Move, 1 Step) ..... 1
+   -     -     -     -    : Other solutions (1 Move) ....... 0
+-     -     -     3     - : Positions evaluated ............ 13
+   1     -     -     -    :
+      -     2     -       :
+         -     -          :
+            -             :
+ 
+X-So - Not Sig (1,3)
+---------------------------------------------------------------------------
+            -             : Board (38-1)
+         -     X          :
+      -     -     -       : Solutions (2 Moves, 5 Steps) ... 1
+   -     -     -     -    : Other solutions (2 Moves) ...... 0
+-     -     -     3     - : Positions evaluated ............ 66
+   1     -     -     -    :
+      -     2     -       :
+         -     -          :
+            -             :
+ 
+3-SwNo X-SwSeNe
+---------------------------------------------------------------------------

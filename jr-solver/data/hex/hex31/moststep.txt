@@ -1,0 +1,28 @@
+MOST STEPS
+ 
+SOLVE - Run on 01-23-2000 at 20:55:18
+ 
+Letter pieces .......................... 3
+Number pieces .......................... 1
+Statistics ............................. No
+Show zero solutions .................... No
+Maximum depth .......................... 99
+Maximum configurations ................. None
+Maximum solutions ...................... None
+Maximum solutions shown ................ 500
+ 
+Configurations ......................... 0
+Configurations with solutions .......... 0
+  With all pieces significant .......... 0
+  With insignificant pieces ............ 0
+Total solutions ........................ 0
+ 
+Most moves for minimum solution ........ 0      ()
+Most steps for minimum solution ........ 0      ()
+Most solutions ......................... 0      ()
+ 
+                  Steps...
+Moves  Count....  Min  Max
+-----  ---------  ---  ---
+
+---------------------------------------------------------------------------

@@ -1,0 +1,90 @@
+MOST MOVES
+ 
+SOLVE - Run on 01-23-2000 at 20:54:29
+ 
+Letter pieces .......................... 1
+Number pieces .......................... 2
+Statistics ............................. No
+Show zero solutions .................... No
+Maximum depth .......................... 99
+Maximum configurations ................. None
+Maximum solutions ...................... None
+Maximum solutions shown ................ 500
+ 
+Configurations ......................... 5
+Configurations with solutions .......... 5
+  With all pieces significant .......... 5
+  With insignificant pieces ............ 0
+Total solutions ........................ 5
+ 
+Most moves for minimum solution ........ 2      (X31:22:82)
+Most steps for minimum solution ........ 2      (X31:22:82)
+Most solutions ......................... 1      (X31:22:82)
+ 
+                  Steps...
+Moves  Count....  Min  Max
+-----  ---------  ---  ---
+    1          4    2    2
+    2          1    2    2
+
+---------------------------------------------------------------------------
+            -             : Board (X31:22:82)
+         -     1          :
+      X     -     -       : Solutions (2 Moves, 2 Steps) ... 1
+   -     -     -     -    : Other solutions (2 Moves) ...... 0
+-     -     -     -     - : Positions evaluated ............ 4
+   -     -     -     -    :
+      -     -     -       :
+         -     2          :
+            -             :
+ 
+1-So X-Se
+---------------------------------------------------------------------------
+            -             : Board (X41:32:82)
+         -     -          :
+      -     1     -       : Solutions (1 Move, 2 Steps) .... 1
+   X     -     -     -    : Other solutions (1 Move) ....... 0
+-     -     -     -     - : Positions evaluated ............ 4
+   -     -     -     -    :
+      -     -     -       :
+         -     2          :
+            -             :
+ 
+X-SeNo
+---------------------------------------------------------------------------
+            -             : Board (X52:32:82)
+         -     -          :
+      -     1     -       : Solutions (1 Move, 2 Steps) .... 1
+   -     -     -     -    : Other solutions (1 Move) ....... 0
+-     X     -     -     - : Positions evaluated ............ 5
+   -     -     -     -    :
+      -     -     -       :
+         -     2          :
+            -             :
+ 
+X-SeNo
+---------------------------------------------------------------------------
+            -             : Board (X52:22:72)
+         -     1          :
+      -     -     -       : Solutions (1 Move, 2 Steps) .... 1
+   -     -     -     -    : Other solutions (1 Move) ....... 0
+-     X     -     -     - : Positions evaluated ............ 5
+   -     -     -     -    :
+      -     2     -       :
+         -     -          :
+            -             :
+ 
+X-NeSo
+---------------------------------------------------------------------------
+            -             : Board (X42:43:81)
+         -     -          :
+      -     -     -       : Solutions (1 Move, 2 Steps) .... 1
+   -     X     1     -    : Other solutions (1 Move) ....... 0
+-     -     -     -     - : Positions evaluated ............ 4
+   -     -     -     -    :
+      -     -     -       :
+         2     -          :
+            -             :
+ 
+X-SoNe
+---------------------------------------------------------------------------

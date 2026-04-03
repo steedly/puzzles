@@ -1,0 +1,382 @@
+Letter pieces .................. 1
+Number pieces .................. 1
+Configurations checked ......... 120
+Already seen ................... 1
+Reflections .................... 1
+Stranded configurations ........ 0
+No-move configurations ......... 94
+Configurations written ......... 25
+---------------------------------------------------------------------------
+Letter pieces .................. 1
+Number pieces .................. 2
+Configurations checked ......... 1,380
+Already seen ................... 87
+Reflections .................... 87
+Stranded configurations ........ 0
+No-move configurations ......... 643
+Configurations written ......... 650
+---------------------------------------------------------------------------
+Letter pieces .................. 1
+Number pieces .................. 3
+Configurations checked ......... 10,120
+Already seen ................... 1,042
+Reflections .................... 1,042
+Stranded configurations ........ 0
+No-move configurations ......... 2,206
+Configurations written ......... 6,872
+---------------------------------------------------------------------------
+Letter pieces .................. 1
+Number pieces .................. 4
+Configurations checked ......... 53,130
+Already seen ................... 6,292
+Reflections .................... 6,292
+Stranded configurations ........ 0
+No-move configurations ......... 4,679
+Configurations written ......... 42,159
+---------------------------------------------------------------------------
+Letter pieces .................. 1
+Number pieces .................. 5
+Configurations checked ......... 212,520
+Already seen ................... 24,806
+Reflections .................... 24,806
+Stranded configurations ........ 0
+No-move configurations ......... 7,369
+Configurations written ......... 180,345
+---------------------------------------------------------------------------
+Letter pieces .................. 2
+Number pieces .................. 1
+Configurations checked ......... 2,645
+Already seen ................... 476
+Reflections .................... 380
+Stranded configurations ........ 0
+No-move configurations ......... 1,229
+Configurations written ......... 940
+---------------------------------------------------------------------------
+Letter pieces .................. 2
+Number pieces .................. 2
+Configurations checked ......... 29,095
+Already seen ................... 8,331
+Reflections .................... 6,609
+Stranded configurations ........ 0
+No-move configurations ......... 6,299
+Configurations written ......... 14,465
+---------------------------------------------------------------------------
+Letter pieces .................. 2
+Number pieces .................. 3
+Configurations checked ......... 203,665
+Already seen ................... 70,379
+Reflections .................... 55,520
+Stranded configurations ........ 0
+No-move configurations ......... 17,686
+Configurations written ......... 115,600
+---------------------------------------------------------------------------
+Letter pieces .................. 2
+Number pieces .................. 4
+Configurations checked ......... 1,018,325
+Already seen ................... 373,378
+Reflections .................... 292,365
+Stranded configurations ........ 0
+No-move configurations ......... 34,507
+Configurations written ......... 610,440
+---------------------------------------------------------------------------
+Letter pieces .................. 3
+Number pieces .................. 1
+Configurations checked ......... 27,830
+Already seen ................... 10,571
+Reflections .................... 7,644
+Stranded configurations ........ 0
+No-move configurations ......... 5,980
+Configurations written ......... 11,279
+
+---------------------------------------------------------------------------
+Letter pieces .................. 3
+Number pieces .................. 2
+Configurations checked ......... 292,215
+Already seen ................... 133,756
+Reflections .................... 96,573
+Stranded configurations ........ 0
+No-move configurations ......... 24,984
+Configurations written ......... 133,475
+---------------------------------------------------------------------------
+Letter pieces .......................... 1
+Number pieces .......................... 1
+Statistics ............................. No
+Show zero solutions .................... No
+Maximum depth .......................... 99
+Maximum configurations ................. None
+Maximum solutions ...................... None
+Maximum solutions shown ................ 500
+ 
+Configurations ......................... 0
+Configurations with solutions .......... 0
+  With all pieces significant .......... 0
+  With insignificant pieces ............ 0
+Total solutions ........................ 0
+---------------------------------------------------------------------------
+Letter pieces .......................... 1
+Number pieces .......................... 2
+Statistics ............................. No
+Show zero solutions .................... No
+Maximum depth .......................... 99
+Maximum configurations ................. None
+Maximum solutions ...................... None
+Maximum solutions shown ................ 500
+ 
+Configurations ......................... 5
+Configurations with solutions .......... 5
+  With all pieces significant .......... 5
+  With insignificant pieces ............ 0
+Total solutions ........................ 5
+ 
+Most moves for minimum solution ........ 2      (X31:22:82)
+Most steps for minimum solution ........ 2      (X41:32:82)
+Most solutions ......................... 1      (X41:32:82)
+ 
+                  Steps...
+Moves  Count....  Min  Max
+-----  ---------  ---  ---
+    1          4    2    2
+    2          1    2    2
+---------------------------------------------------------------------------
+Letter pieces .......................... 1
+Number pieces .......................... 3
+Statistics ............................. No
+Show zero solutions .................... No
+Maximum depth .......................... 99
+Maximum configurations ................. None
+Maximum solutions ...................... None
+Maximum solutions shown ................ 500
+ 
+Configurations ......................... 185
+Configurations with solutions .......... 185
+  With all pieces significant .......... 185
+  With insignificant pieces ............ 0
+Total solutions ........................ 198
+ 
+Most moves for minimum solution ........ 4      (X41:11:72:64)
+Most steps for minimum solution ........ 6      (X31:51:11:82)
+Most solutions ......................... 2      (X41:42:22:82)
+ 
+                  Steps...
+Moves  Count....  Min  Max
+-----  ---------  ---  ---
+    1         21    3    4
+    2        114    2    6
+    3         46    3    6
+    4          4    4    4
+---------------------------------------------------------------------------
+Letter pieces .......................... 1
+Number pieces .......................... 4
+Statistics ............................. No
+Show zero solutions .................... No
+Maximum depth .......................... 99
+Maximum configurations ................. None
+Maximum solutions ...................... None
+Maximum solutions shown ................ 500
+ 
+Configurations ......................... 2,537
+Configurations with solutions .......... 2,537
+  With all pieces significant .......... 2,537
+  With insignificant pieces ............ 0
+Total solutions ........................ 3,457
+ 
+Most moves for minimum solution ........ 8      (X51:31:44:91:73)
+Most steps for minimum solution ........ 13     (X51:31:21:44:91)
+Most solutions ......................... 10     (X51:11:44:91:64)
+ 
+                  Steps...
+Moves  Count....  Min  Max
+-----  ---------  ---  ---
+    1         52    4    6
+    2      1,003    3   11
+    3        984    3   13
+    4        357    4   12
+    5        126    5   12
+    6          9    6   13
+    7          3    9   10
+    8          3   10   10
+---------------------------------------------------------------------------
+Letter pieces .......................... 1
+Number pieces .......................... 5
+Statistics ............................. No
+Show zero solutions .................... No
+Maximum depth .......................... 99
+Maximum configurations ................. None
+Maximum solutions ...................... None
+Maximum solutions shown ................ 500
+ 
+Configurations ......................... 5,553
+Configurations with solutions .......... 5,553
+  With all pieces significant .......... 5,553
+  With insignificant pieces ............ 0
+Total solutions ........................ 9,376
+ 
+Most moves for minimum solution ........ 9      (X31:41:61:33:81:91)
+Most steps for minimum solution ........ 18     (X51:41:22:33:91:64)
+Most solutions ......................... 17     (X51:31:22:53:91:73)
+ 
+                  Steps...
+Moves  Count....  Min  Max
+-----  ---------  ---  ---
+    1         30    5    8
+    2      1,501    4   12
+    3      2,439    3   12
+    4        916    4   14
+    5        434    5   15
+    6        156    6   14
+    7         66    7   18
+    8         10    9   12
+    9          1   13   13
+---------------------------------------------------------------------------
+Letter pieces .......................... 2
+Number pieces .......................... 1
+Statistics ............................. No
+Show zero solutions .................... No
+Maximum depth .......................... 99
+Maximum configurations ................. None
+Maximum solutions ...................... None
+Maximum solutions shown ................ 500
+ 
+Configurations ......................... 0
+Configurations with solutions .......... 0
+  With all pieces significant .......... 0
+  With insignificant pieces ............ 0
+Total solutions ........................ 0
+---------------------------------------------------------------------------
+Letter pieces .......................... 2
+Number pieces .......................... 2
+Statistics ............................. No
+Show zero solutions .................... No
+Maximum depth .......................... 99
+Maximum configurations ................. None
+Maximum solutions ...................... None
+Maximum solutions shown ................ 500
+ 
+Configurations ......................... 100
+Configurations with solutions .......... 100
+  With all pieces significant .......... 100
+  With insignificant pieces ............ 0
+Total solutions ........................ 166
+ 
+Most moves for minimum solution ........ 5      (X31:Y73:11:81)
+Most steps for minimum solution ........ 5      (X51:Y33:21:81)
+Most solutions ......................... 4      (X31:Y11:81:63)
+ 
+                  Steps...
+Moves  Count....  Min  Max
+-----  ---------  ---  ---
+    2         52    2    4
+    3         36    3    4
+    4         11    4    5
+    5          1    5    5
+---------------------------------------------------------------------------
+Letter pieces .......................... 2
+Number pieces .......................... 3
+Statistics ............................. No
+Show zero solutions .................... No
+Maximum depth .......................... 99
+Maximum configurations ................. None
+Maximum solutions ...................... None
+Maximum solutions shown ................ 500
+ 
+Configurations ......................... 7,847
+Configurations with solutions .......... 7,847
+  With all pieces significant .......... 7,847
+  With insignificant pieces ............ 0
+Total solutions ........................ 15,820
+ 
+Most moves for minimum solution ........ 11     (X41:Y11:32:33:91)
+Most steps for minimum solution ........ 15     (X51:Y44:31:11:81)
+Most solutions ......................... 16     (X52:Y21:22:81:63)
+ 
+                  Steps...
+Moves  Count....  Min  Max
+-----  ---------  ---  ---
+    2        440    3    9
+    3      2,313    3   10
+    4      2,445    4   11
+    5      1,388    5   13
+    6        640    6   13
+    7        434    7   14
+    8        141    8   14
+    9         37    9   15
+   10          4   11   12
+--------------------------------------------------------------------------- 
+Letter pieces .......................... 2
+Number pieces .......................... 4
+Statistics ............................. No
+Show zero solutions .................... No
+Maximum depth .......................... 99
+Maximum configurations ................. None
+Maximum solutions ...................... None
+Maximum solutions shown ................ 500
+ 
+Configurations ......................... 115,410
+Configurations with solutions .......... 115,410
+  With all pieces significant .......... 115,410
+  With insignificant pieces ............ 0
+Total solutions ........................ 312,747
+ 
+Most moves for minimum solution ........ 16     (X41:Y71:51:22:81:73)
+Most steps for minimum solution ........ 26     (X41:Y71:51:22:81:73)
+Most solutions ......................... 64     (X51:Y31:61:22:72:55)
+ 
+                  Steps...
+Moves  Count....  Min  Max
+-----  ---------  ---  ---
+    2      1,563    4   11
+    3     25,411    3   16
+    4     42,128    4   19
+    5     25,378    5   22
+    6     10,459    6   23
+    7      5,185    7   22
+    8      3,068    8   21
+    9      1,261    9   22
+   10        439   10   21
+---------------------------------------------------------------------------
+Letter pieces .......................... 3
+Number pieces .......................... 1
+Statistics ............................. No
+Show zero solutions .................... No
+Maximum depth .......................... 99
+Maximum configurations ................. None
+Maximum solutions ...................... None
+Maximum solutions shown ................ 500
+ 
+Configurations ......................... 0
+Configurations with solutions .......... 0
+  With all pieces significant .......... 0
+  With insignificant pieces ............ 0
+Total solutions ........................ 0
+---------------------------------------------------------------------------
+Letter pieces .......................... 3
+Number pieces .......................... 2
+Statistics ............................. No
+Show zero solutions .................... No
+Maximum depth .......................... 99
+Maximum configurations ................. None
+Maximum solutions ...................... None
+Maximum solutions shown ................ 500
+ 
+Configurations ......................... 976
+Configurations with solutions .......... 976
+  With all pieces significant .......... 976
+  With insignificant pieces ............ 0
+Total solutions ........................ 3,125
+ 
+Most moves for minimum solution ........ 10     (X41:Y11:Z91:32:64)
+Most steps for minimum solution ........ 11     (X41:Y11:Z91:32:64)
+Most solutions ......................... 18     (X52:Y21:Z43:41:82)
+ 
+                  Steps...
+Moves  Count....  Min  Max
+-----  ---------  ---  ---
+    3        203    3    7
+    4        252    4    7
+    5        238    5    8
+    6        141    6    8
+    7         88    7    9
+    8         37    8   10
+    9         11   10   10
+   10          6   11   11
+---------------------------------------------------------------------------

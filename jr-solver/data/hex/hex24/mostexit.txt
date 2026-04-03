@@ -1,0 +1,2544 @@
+MOST EXIT CONFIGS
+ 
+SOLVE - Run on 01-23-2000 at 20:47:15
+ 
+Custom configurations .................. Yes
+Statistics ............................. No
+Show zero solutions .................... Yes
+Maximum depth .......................... 99
+Maximum configurations ................. None
+Maximum solutions ...................... None
+Maximum solutions shown ................ 500
+ 
+Configurations ......................... 190
+Configurations with solutions .......... 190
+  With all pieces significant .......... 149
+  With insignificant pieces ............ 41
+Total solutions ........................ 421
+ 
+Most moves for minimum solution ........ 8      (1-159)
+Most steps for minimum solution ........ 14     (1-159)
+Most solutions ......................... 13     (1-159)
+ 
+                  Steps...
+Moves  Count....  Min  Max
+-----  ---------  ---  ---
+    3         16    4    8
+    4         92    4   11
+    5         63    5   14
+    6         17    6   14
+    7          1    9    9
+    8          1    9    9
+
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      Y     -     -       : Solutions (5 Moves, 11 Steps) .. 1
+   X     -     -     -    : Other solutions (5 Moves) ...... 5
+1     -     -     -     - : Positions evaluated ............ 29,463
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+Y-NeSe X-NeSe 1-NeSe Y-SwNo X-SeSwNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         Y     -          :
+      -     -     -       : Solutions (5 Moves, 10 Steps) .. 1
+   X     -     -     -    : Other solutions (5 Moves) ...... 2
+1     -     -     -     - : Positions evaluated ............ 65,029
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+Y-Se X-NeSe 1-NeSe Y-SwNo X-SeSwNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (5 Moves, 10 Steps) .. 1
+   X     -     -     -    : Other solutions (5 Moves) ...... 4
+1     -     -     -     - : Positions evaluated ............ 9,634
+   Y     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-NeSo 1-NeSeSwNo 4-Nw X-Ne Y-SeNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (5 Moves, 11 Steps) .. 2
+   X     -     -     -    : Other solutions (5 Moves) ...... 12
+1     Y     -     -     - : Positions evaluated ............ 5,102
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-NeSe 1-NeSe X-SwNwNe 4-NwSw Y-SeNe
+X-NeSo 1-NeSeSwNo 4-Nw X-Ne Y-NeSoNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (5 Moves, 9 Steps) ... 1
+   X     Y     -     -    : Other solutions (5 Moves) ...... 4
+1     -     -     -     - : Positions evaluated ............ 12,859
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-NeSeSw 1-NeSe X-NeNw 3-Ne Y-Se
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     Y     -       : Solutions (5 Moves, 9 Steps) ... 3
+   X     -     -     -    : Other solutions (5 Moves) ...... 3
+1     -     -     -     - : Positions evaluated ............ 12,752
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-NeSo 2-SwSe 4-Nw X-Ne Y-SwSoNe
+X-NeSo 4-Nw 2-SwSe X-Ne Y-SwSoNe
+4-Nw X-NeSo 2-SwSe X-Ne Y-SwSoNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     Y          :
+      -     -     -       : Solutions (6 Moves, 9 Steps) ... 1
+   X     -     -     -    : Other solutions (6 Moves) ...... 8
+1     -     -     -     - : Positions evaluated ............ 15,336
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-NeSeSw 1-Ne 3-No Y-SwSo 4-Nw X-No
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (5 Moves, 9 Steps) ... 1
+   X     -     -     -    : Other solutions (5 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 18,984
+   -     -     -     4    :
+      Y     -     -       :
+         3     -          :
+            -             :
+ 
+X-NeSo 1-NeSeSwNo 4-Nw X-Ne Y-Ne
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (5 Moves, 10 Steps) .. 4
+   X     -     -     -    : Other solutions (5 Moves) ...... 3
+1     -     -     -     - : Positions evaluated ............ 6,047
+   -     Y     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-NeSe 1-NeSeSwNo X-SwNo 4-Nw Y-Ne
+X-NeSe 1-NeSeSwNo X-NwSw 4-Nw Y-Ne - Not Sig (3)
+X-NeSo 1-NeSeSwNo 4-Nw Y-Ne X-SoNe
+X-Se 1-NeSeSwNo 4-Nw Y-Ne X-NeSoNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (3 Moves, 6 Steps) ... 1
+   X     -     Y     -    : Other solutions (3 Moves) ...... 4
+1     -     -     -     - : Positions evaluated ............ 8,457
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-NeSoNe 1-NeSo Y-Sw - Not Sig (4)
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     Y       : Solutions (4 Moves, 7 Steps) ... 1
+   X     -     -     -    : Other solutions (4 Moves) ...... 4
+1     -     -     -     - : Positions evaluated ............ 77,725
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-NeSoNe 1-NeSo X-Sw Y-Sw - Not Sig (4)
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (5 Moves, 7 Steps) ... 1
+   X     -     -     -    : Other solutions (5 Moves) ...... 9
+1     -     -     -     - : Positions evaluated ............ 22,596
+   -     -     -     4    :
+      -     Y     -       :
+         3     -          :
+            -             :
+ 
+X-NeSe 1-Ne X-NwSo 4-Nw Y-No - Not Sig (3)
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (5 Moves, 7 Steps) ... 1
+   X     -     -     -    : Other solutions (5 Moves) ...... 14
+1     -     -     -     - : Positions evaluated ............ 20,203
+   -     -     Y     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-NeSo 1-Ne X-NoSe 3-No Y-Nw - Not Sig (4)
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 9 Steps) ... 1
+   X     -     -     -    : Other solutions (4 Moves) ...... 2
+1     -     -     Y     - : Positions evaluated ............ 10,157
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-NeSe 1-NeSe Y-SwNo X-SeSwNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (5 Moves, 8 Steps) ... 1
+   X     -     -     Y    : Other solutions (5 Moves) ...... 11
+1     -     -     -     - : Positions evaluated ............ 33,766
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-NeSeSw 1-Ne 4-Nw X-No Y-SwNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (5 Moves, 7 Steps) ... 3
+   X     -     -     -    : Other solutions (5 Moves) ...... 37
+1     -     -     -     - : Positions evaluated ............ 54,519
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            Y             :
+ 
+X-NeSeSw 1-Ne 4-Nw X-No Y-No
+4-Sw X-SeNo Y-No 2-SwSe X-So - Not Sig (3)
+4-Sw Y-No X-SeNo 2-SwSe Y-So - Not Sig (3)
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (5 Moves, 9 Steps) ... 6
+   X     -     -     -    : Other solutions (5 Moves) ...... 44
+1     -     -     -     - : Positions evaluated ............ 60,417
+   -     -     -     4    :
+      -     -     -       :
+         3     Y          :
+            -             :
+ 
+X-Ne 4-Nw X-SoSeNo 1-NeSo Y-NwNo
+X-Ne 4-Nw X-SwSeNo 1-NeSo Y-NwNo
+X-SeNo 2-SwSe 3-NwNe X-So Y-NeNw
+X-SeNo 2-SwSe 3-NwNe Y-NeNw X-So
+X-SeNo 3-NwNe 2-SwSe X-So Y-NeNw
+X-SeNo 3-NwNe 2-SwSe Y-NeNw X-So
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (5 Moves, 9 Steps) ... 2
+   X     -     -     -    : Other solutions (5 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 9,137
+   -     -     -     4    :
+      -     -     Y       :
+         3     -          :
+            -             :
+ 
+X-Ne 1-NeSeSw 3-No X-SeSwNw Y-Nw
+X-Ne 1-NeSeSw 3-No Y-Nw X-SeSwNw
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (6 Moves, 10 Steps) .. 1
+   X     -     -     -    : Other solutions (6 Moves) ...... 6
+1     -     -     -     Y : Positions evaluated ............ 46,722
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-NeSeSw 1-Ne 3-No Y-NwSwSo 4-Nw X-No
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         Y     -          :
+      X     -     -       : Solutions (5 Moves, 10 Steps) .. 1
+   -     -     -     -    : Other solutions (5 Moves) ...... 11
+1     -     -     -     - : Positions evaluated ............ 62,337
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+Y-Se X-NeSe 1-NeSe Y-SwNo X-SeSwNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      X     -     -       : Solutions (5 Moves, 10 Steps) .. 1
+   -     -     -     -    : Other solutions (5 Moves) ...... 4
+1     -     -     -     - : Positions evaluated ............ 19,622
+   Y     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-NeSo 1-NeSeSwNo 4-Nw X-Ne Y-SeNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      X     -     -       : Solutions (5 Moves, 11 Steps) .. 2
+   -     -     -     -    : Other solutions (5 Moves) ...... 12
+1     Y     -     -     - : Positions evaluated ............ 6,798
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-NeSe 1-NeSe X-SwNwNe 4-NwSw Y-SeNe
+X-NeSo 1-NeSeSwNo 4-Nw X-Ne Y-NeSoNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      X     -     -       : Solutions (4 Moves, 5 Steps) ... 1
+   -     Y     -     -    : Other solutions (4 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 17,002
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+2-SwSe 3-Ne Y-Se X-Se - Not Sig (1)
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      X     Y     -       : Solutions (4 Moves, 9 Steps) ... 4
+   -     -     -     -    : Other solutions (4 Moves) ...... 2
+1     -     -     -     - : Positions evaluated ............ 27,233
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+1-SeNo 4-Nw X-NeSoNe Y-SwSoNe
+1-SeNo 4-Nw Y-SwSoNe X-NeSoNe
+4-Nw 1-SeNo X-NeSoNe Y-SwSoNe
+4-Nw 1-SeNo Y-SwSoNe X-NeSoNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     Y          :
+      X     -     -       : Solutions (5 Moves, 8 Steps) ... 4
+   -     -     -     -    : Other solutions (5 Moves) ...... 19
+1     -     -     -     - : Positions evaluated ............ 30,607
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+1-SeNo 2-SwSe 3-Ne X-Se Y-SwSe
+1-SeNo 2-SwSe 3-Ne Y-SwSe X-Se
+2-SwSe 1-SeNo 3-Ne X-Se Y-SwSe
+2-SwSe 1-SeNo 3-Ne Y-SwSe X-Se
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      X     -     -       : Solutions (5 Moves, 9 Steps) ... 1
+   -     -     -     -    : Other solutions (5 Moves) ...... 2
+1     -     -     -     - : Positions evaluated ............ 28,219
+   -     -     -     4    :
+      Y     -     -       :
+         3     -          :
+            -             :
+ 
+X-NeSo 1-NeSeSwNo 4-Nw X-Ne Y-Ne
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      X     -     -       : Solutions (5 Moves, 10 Steps) .. 3
+   -     -     -     -    : Other solutions (5 Moves) ...... 6
+1     -     -     -     - : Positions evaluated ............ 8,951
+   -     Y     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-NeSe 1-NeSeSwNo X-SwNo 4-Nw Y-Ne
+X-NeSe 1-NeSeSwNo X-NwSw 4-Nw Y-Ne - Not Sig (3)
+X-NeSo 1-NeSeSwNo 4-Nw Y-Ne X-SoNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      X     -     -       : Solutions (3 Moves, 6 Steps) ... 1
+   -     -     Y     -    : Other solutions (3 Moves) ...... 4
+1     -     -     -     - : Positions evaluated ............ 11,071
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-NeSoNe 1-NeSo Y-Sw - Not Sig (4)
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      X     -     Y       : Solutions (4 Moves, 7 Steps) ... 1
+   -     -     -     -    : Other solutions (4 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 85,170
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-NeSoNe 1-NeSo X-Sw Y-Sw - Not Sig (4)
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      X     -     -       : Solutions (5 Moves, 7 Steps) ... 2
+   -     -     -     -    : Other solutions (5 Moves) ...... 19
+1     -     -     -     - : Positions evaluated ............ 45,046
+   -     -     -     4    :
+      -     Y     -       :
+         3     -          :
+            -             :
+ 
+X-NeSe 1-Ne X-NwSo 4-Nw Y-No - Not Sig (3)
+2-SwSe Y-NeNw 3-Ne Y-Se X-Se - Not Sig (1)
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      X     -     -       : Solutions (4 Moves, 4 Steps) ... 2
+   -     -     -     -    : Other solutions (4 Moves) ...... 4
+1     -     -     -     - : Positions evaluated ............ 24,206
+   -     -     Y     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-Se 1-Ne 3-No Y-Nw - Not Sig (4)
+2-Sw X-Se 3-No Y-Nw - Not Sig (1,4)
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      X     -     -       : Solutions (4 Moves, 9 Steps) ... 1
+   -     -     -     -    : Other solutions (4 Moves) ...... 2
+1     -     -     Y     - : Positions evaluated ............ 14,852
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-NeSe 1-NeSe Y-SwNo X-SeSwNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      X     -     -       : Solutions (5 Moves, 8 Steps) ... 1
+   -     -     -     Y    : Other solutions (5 Moves) ...... 26
+1     -     -     -     - : Positions evaluated ............ 68,859
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-NeSeSw 1-Ne 4-Nw X-No Y-SwNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      X     -     -       : Solutions (4 Moves, 9 Steps) ... 2
+   -     -     -     -    : Other solutions (4 Moves) ...... 2
+1     -     -     -     - : Positions evaluated ............ 106,284
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            Y             :
+ 
+4-Sw 1-NeSeNo X-NeSoSeNo Y-No
+4-Sw 1-NeSeNo Y-No X-NeSoSeNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      X     -     -       : Solutions (4 Moves, 10 Steps) .. 3
+   -     -     -     -    : Other solutions (4 Moves) ...... 18
+1     -     -     -     - : Positions evaluated ............ 101,416
+   -     -     -     4    :
+      -     -     -       :
+         3     Y          :
+            -             :
+ 
+1-NeSeNo 4-Nw X-NeSoNe Y-NoSwNo
+1-NeSeNo 4-Nw Y-NoSwNo X-NeSoNe
+2-SwSe 3-NeNw X-SwSeNeNw Y-NeNw
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      X     -     -       : Solutions (5 Moves, 5 Steps) ... 2
+   -     -     -     -    : Other solutions (5 Moves) ...... 8
+1     -     -     -     - : Positions evaluated ............ 29,271
+   -     -     -     4    :
+      -     -     Y       :
+         3     -          :
+            -             :
+ 
+X-Se 1-Ne 3-No X-Nw Y-Nw - Not Sig (4)
+2-Sw X-Se 3-No X-Nw Y-Nw - Not Sig (1,4)
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      X     -     -       : Solutions (5 Moves, 14 Steps) .. 1
+   -     -     -     -    : Other solutions (5 Moves) ...... 0
+1     -     -     -     Y : Positions evaluated ............ 71,264
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+1-SeNo X-NeSeSwNo 4-Nw X-SwSoNe Y-NwSwSoNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         X     -          :
+      -     -     -       : Solutions (5 Moves, 9 Steps) ... 1
+   -     -     -     -    : Other solutions (5 Moves) ...... 4
+1     -     -     -     - : Positions evaluated ............ 14,738
+   Y     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-So 1-NeSeSwNo 4-Nw X-Ne Y-SeNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         X     -          :
+      -     -     -       : Solutions (5 Moves, 10 Steps) .. 2
+   -     -     -     -    : Other solutions (5 Moves) ...... 12
+1     Y     -     -     - : Positions evaluated ............ 6,264
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-Se 1-NeSe X-SwNwNe 4-NwSw Y-SeNe
+X-So 1-NeSeSwNo 4-Nw X-Ne Y-NeSoNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         X     -          :
+      -     -     -       : Solutions (5 Moves, 8 Steps) ... 1
+   -     Y     -     -    : Other solutions (5 Moves) ...... 4
+1     -     -     -     - : Positions evaluated ............ 13,389
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-SeSw 1-NeSe X-NeNw 3-Ne Y-Se
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         X     -          :
+      -     Y     -       : Solutions (5 Moves, 8 Steps) ... 3
+   -     -     -     -    : Other solutions (5 Moves) ...... 5
+1     -     -     -     - : Positions evaluated ............ 13,884
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-So 2-SwSe 4-Nw X-Ne Y-SwSoNe
+X-So 4-Nw 2-SwSe X-Ne Y-SwSoNe
+4-Nw X-So 2-SwSe X-Ne Y-SwSoNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         X     Y          :
+      -     -     -       : Solutions (6 Moves, 8 Steps) ... 1
+   -     -     -     -    : Other solutions (6 Moves) ...... 8
+1     -     -     -     - : Positions evaluated ............ 17,544
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-SeSw 1-Ne 3-No Y-SwSo 4-Nw X-No
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         X     -          :
+      -     -     -       : Solutions (5 Moves, 8 Steps) ... 1
+   -     -     -     -    : Other solutions (5 Moves) ...... 2
+1     -     -     -     - : Positions evaluated ............ 22,471
+   -     -     -     4    :
+      Y     -     -       :
+         3     -          :
+            -             :
+ 
+X-So 1-NeSeSwNo 4-Nw X-Ne Y-Ne
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         X     -          :
+      -     -     -       : Solutions (5 Moves, 9 Steps) ... 3
+   -     -     -     -    : Other solutions (5 Moves) ...... 4
+1     -     -     -     - : Positions evaluated ............ 7,085
+   -     Y     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-Se 1-NeSeSwNo X-SwNo 4-Nw Y-Ne
+X-Se 1-NeSeSwNo X-NwSw 4-Nw Y-Ne - Not Sig (3)
+X-So 1-NeSeSwNo 4-Nw Y-Ne X-SoNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         X     -          :
+      -     -     -       : Solutions (3 Moves, 5 Steps) ... 1
+   -     -     Y     -    : Other solutions (3 Moves) ...... 4
+1     -     -     -     - : Positions evaluated ............ 8,164
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-SoNe 1-NeSo Y-Sw - Not Sig (4)
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         X     -          :
+      -     -     Y       : Solutions (4 Moves, 6 Steps) ... 1
+   -     -     -     -    : Other solutions (4 Moves) ...... 4
+1     -     -     -     - : Positions evaluated ............ 78,981
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-SoNe 1-NeSo X-Sw Y-Sw - Not Sig (4)
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         X     -          :
+      -     -     -       : Solutions (4 Moves, 8 Steps) ... 1
+   -     -     -     -    : Other solutions (4 Moves) ...... 1
+1     -     -     -     - : Positions evaluated ............ 25,177
+   -     -     -     4    :
+      -     Y     -       :
+         3     -          :
+            -             :
+ 
+3-No X-SeSwNw 1-NeSe Y-NeNw
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         X     -          :
+      -     -     -       : Solutions (4 Moves, 8 Steps) ... 3
+   -     -     -     -    : Other solutions (4 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 20,133
+   -     -     Y     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+1-NeSeNo Y-SwNo 4-Nw X-SoNe
+1-NeSeNo 4-Nw X-SoNe Y-SwNo
+1-NeSeNo 4-Nw Y-SwNo X-SoNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         X     -          :
+      -     -     -       : Solutions (4 Moves, 8 Steps) ... 1
+   -     -     -     -    : Other solutions (4 Moves) ...... 2
+1     -     -     Y     - : Positions evaluated ............ 10,665
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-Se 1-NeSe Y-SwNo X-SeSwNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         X     -          :
+      -     -     -       : Solutions (4 Moves, 11 Steps) .. 2
+   -     -     -     Y    : Other solutions (4 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 39,036
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+2-Se 1-SeNeNw X-SoNeSeSwNo Y-SwNo
+2-Se 1-SeNeNw Y-SwNo X-SoNeSeSwNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         X     -          :
+      -     -     -       : Solutions (4 Moves, 7 Steps) ... 4
+   -     -     -     -    : Other solutions (4 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 58,315
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            Y             :
+ 
+2-So 3-No X-SeSwNw Y-NeNw - Not Sig (1)
+2-So 3-No Y-NeNw X-SeSwNw - Not Sig (1)
+3-No 2-So X-SeSwNw Y-NeNw - Not Sig (1)
+3-No 2-So Y-NeNw X-SeSwNw - Not Sig (1)
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         X     -          :
+      -     -     -       : Solutions (4 Moves, 8 Steps) ... 2
+   -     -     -     -    : Other solutions (4 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 72,301
+   -     -     -     4    :
+      -     -     -       :
+         3     Y          :
+            -             :
+ 
+4-Nw X-SoSeNo 1-NeSo Y-NwNo
+4-Nw X-SwSeNo 1-NeSo Y-NwNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         X     -          :
+      -     -     -       : Solutions (4 Moves, 8 Steps) ... 2
+   -     -     -     -    : Other solutions (4 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 9,498
+   -     -     -     4    :
+      -     -     Y       :
+         3     -          :
+            -             :
+ 
+1-NeSeSw 3-No X-SeSwNw Y-Nw - Not Sig (2)
+1-NeSeSw 3-No Y-Nw X-SeSwNw - Not Sig (2)
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         X     -          :
+      -     -     -       : Solutions (6 Moves, 9 Steps) ... 1
+   -     -     -     -    : Other solutions (6 Moves) ...... 6
+1     -     -     -     Y : Positions evaluated ............ 51,847
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-SeSw 1-Ne 3-No Y-NwSwSo 4-Nw X-No
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 10 Steps) .. 2
+   -     -     -     -    : Other solutions (4 Moves) ...... 1
+1     Y     -     -     - : Positions evaluated ............ 845
+   X     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+1-NeSeSwNo 4-Nw X-SeNe Y-NeSoNe
+1-NeSeSwNo 4-Nw Y-NeSoNe X-SeNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 9 Steps) ... 2
+   -     Y     -     -    : Other solutions (4 Moves) ...... 1
+1     -     -     -     - : Positions evaluated ............ 2,521
+   X     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+1-NeSeSwNo 4-Nw X-SeNe Y-SoNe
+1-NeSeSwNo 4-Nw Y-SoNe X-SeNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     Y     -       : Solutions (5 Moves, 9 Steps) ... 6
+   -     -     -     -    : Other solutions (5 Moves) ...... 9
+1     -     -     -     - : Positions evaluated ............ 15,765
+   X     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-NeSo 2-SwSe 4-Nw X-Ne Y-SwSoNe
+X-NeSo 4-Nw 2-SwSe X-Ne Y-SwSoNe
+4-Nw X-NeSo 2-SwSe X-Ne Y-SwSoNe
+4-Nw Y-Sw X-SeNe 1-NeSe Y-NeSoNe
+4-Nw Y-Sw 1-NeSe X-SeNe Y-NeSoNe
+4-Nw Y-Sw 1-NeSe Y-NeSoNe X-SeNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     Y          :
+      -     -     -       : Solutions (5 Moves, 11 Steps) .. 4
+   -     -     -     -    : Other solutions (5 Moves) ...... 1
+1     -     -     -     - : Positions evaluated ............ 12,931
+   X     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+Y-Sw 1-NeSeSwNo 4-Nw X-SeNe Y-NeSoNe
+Y-Sw 1-NeSeSwNo 4-Nw Y-NeSoNe X-SeNe
+1-NeSeSwNo 4-Nw 1-Sw X-SeNe Y-SwSoNe
+1-NeSeSwNo 4-Nw 1-Sw Y-SwSoNe X-SeNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 8 Steps) ... 1
+   -     -     -     -    : Other solutions (4 Moves) ...... 2
+1     -     -     -     - : Positions evaluated ............ 121
+   X     -     -     4    :
+      Y     -     -       :
+         3     -          :
+            -             :
+ 
+1-NeSeSwNo 4-Nw Y-Ne X-SeNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 8 Steps) ... 1
+   -     -     -     -    : Other solutions (4 Moves) ...... 1
+1     -     -     -     - : Positions evaluated ............ 476
+   X     Y     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+1-NeSeSwNo 4-Nw Y-Ne X-SeNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (3 Moves, 5 Steps) ... 1
+   -     -     Y     -    : Other solutions (3 Moves) ...... 7
+1     -     -     -     - : Positions evaluated ............ 2,900
+   X     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-SeNe 1-NeSo Y-Sw - Not Sig (4)
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     Y       : Solutions (4 Moves, 6 Steps) ... 1
+   -     -     -     -    : Other solutions (4 Moves) ...... 3
+1     -     -     -     - : Positions evaluated ............ 59,891
+   X     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-SeNe 1-NeSo X-Sw Y-Sw - Not Sig (4)
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (5 Moves, 8 Steps) ... 3
+   -     -     -     -    : Other solutions (5 Moves) ...... 7
+1     -     -     -     - : Positions evaluated ............ 32,724
+   X     -     -     4    :
+      -     Y     -       :
+         3     -          :
+            -             :
+ 
+1-NeSeSw Y-No X-NeSe 3-Ne Y-So
+1-NeSeSw Y-No X-NeSe 1-Sw Y-So
+1-NeSeSw Y-No 3-Ne X-NeSe Y-So
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 6 Steps) ... 1
+   -     -     -     -    : Other solutions (4 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 36,851
+   X     -     Y     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+1-Ne 4-Nw X-NeSe Y-SwNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (5 Moves, 9 Steps) ... 6
+   -     -     -     -    : Other solutions (5 Moves) ...... 18
+1     -     -     Y     - : Positions evaluated ............ 23,929
+   X     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+1-NeSe X-SeNe Y-SwNo 1-SeSw Y-So
+1-NeSe X-SeNe Y-SwNo 4-NwSw Y-So
+1-NeSe Y-SwNo X-SeNe 1-SeSw Y-So
+1-NeSe Y-SwNo X-SeNe 4-NwSw Y-So
+1-NeSe Y-SwNo 4-NwSw X-SeNe Y-So
+1-NeSe Y-SwNo 4-NwSw Y-So X-SeNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 9 Steps) ... 3
+   -     -     -     Y    : Other solutions (4 Moves) ...... 7
+1     -     -     -     - : Positions evaluated ............ 40,901
+   X     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+1-NeSeSwNo Y-SwNo 4-Nw X-SeNe
+1-NeSeSwNo 4-Nw X-SeNe Y-SwNo
+1-NeSeSwNo 4-Nw Y-SwNo X-SeNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 8 Steps) ... 3
+   -     -     -     -    : Other solutions (4 Moves) ...... 7
+1     -     -     -     - : Positions evaluated ............ 39,267
+   X     -     -     4    :
+      -     -     -       :
+         3     -          :
+            Y             :
+ 
+1-NeSeSwNo Y-No 4-Nw X-SeNe
+1-NeSeSwNo 4-Nw X-SeNe Y-No
+1-NeSeSwNo 4-Nw Y-No X-SeNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 10 Steps) .. 4
+   -     -     -     -    : Other solutions (4 Moves) ...... 8
+1     -     -     -     - : Positions evaluated ............ 8,653
+   X     -     -     4    :
+      -     -     -       :
+         3     Y          :
+            -             :
+ 
+1-NeSeSwNo 4-Nw X-SeNe Y-NoSwNo
+1-NeSeSwNo 4-Nw Y-NoSwNo X-SeNe
+1-NeSoSeNo 4-Nw X-SeNe Y-NoSwNo
+1-NeSoSeNo 4-Nw Y-NoSwNo X-SeNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (5 Moves, 8 Steps) ... 1
+   -     -     -     -    : Other solutions (5 Moves) ...... 3
+1     -     -     -     - : Positions evaluated ............ 4,121
+   X     -     -     4    :
+      -     -     Y       :
+         3     -          :
+            -             :
+ 
+1-Ne 4-Nw X-NeSeSwNo 3-No Y-Nw
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (5 Moves, 12 Steps) .. 4
+   -     -     -     -    : Other solutions (5 Moves) ...... 1
+1     -     -     -     Y : Positions evaluated ............ 21,303
+   X     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+Y-NwSw 1-NeSeSwNo 4-Nw X-SeNe Y-NeSoNe
+Y-NwSw 1-NeSeSwNo 4-Nw Y-NeSoNe X-SeNe
+1-NeSeSwNo 4-Nw 1-Sw X-SeNe Y-NwSwSoNe
+1-NeSeSwNo 4-Nw 1-Sw Y-NwSwSoNe X-SeNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 10 Steps) .. 1
+   -     Y     -     -    : Other solutions (4 Moves) ...... 0
+1     X     -     -     - : Positions evaluated ............ 264
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+1-NeSeSwNo 4-Nw Y-SoNe X-NeSoNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     Y     -       : Solutions (4 Moves, 9 Steps) ... 1
+   -     -     -     -    : Other solutions (4 Moves) ...... 2
+1     X     -     -     - : Positions evaluated ............ 10,146
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+4-Nw Y-SwSoNe 1-NeSe X-NeSoNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     Y          :
+      -     -     -       : Solutions (5 Moves, 11 Steps) .. 2
+   -     -     -     -    : Other solutions (5 Moves) ...... 0
+1     X     -     -     - : Positions evaluated ............ 11,098
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+Y-SwSo 1-NeSeSwNo 4-Nw Y-Ne X-NeSoNe
+Y-Sw 1-NeSeSwNo 4-Nw Y-SoNe X-NeSoNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 9 Steps) ... 2
+   -     -     -     -    : Other solutions (4 Moves) ...... 0
+1     X     -     -     - : Positions evaluated ............ 872
+   -     -     -     4    :
+      Y     -     -       :
+         3     -          :
+            -             :
+ 
+1-NeSeSwNo 4-Nw X-NeSoNe Y-Ne
+1-NeSeSwNo 4-Nw Y-Ne X-NeSoNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 9 Steps) ... 1
+   -     -     -     -    : Other solutions (4 Moves) ...... 0
+1     X     -     -     - : Positions evaluated ............ 106
+   -     Y     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+1-NeSeSwNo 4-Nw Y-Ne X-NeSoNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (3 Moves, 8 Steps) ... 1
+   -     -     Y     -    : Other solutions (3 Moves) ...... 2
+1     X     -     -     - : Positions evaluated ............ 7,470
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+1-NeSe X-NeSoNe Y-SeSwNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     Y       : Solutions (4 Moves, 10 Steps) .. 2
+   -     -     -     -    : Other solutions (4 Moves) ...... 14
+1     X     -     -     - : Positions evaluated ............ 12,850
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+1-SeNe Y-NwSwSoNe 4-NwSw X-SeNe
+1-SeNe 4-NwSw Y-NwSwSoNe X-SeNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 10 Steps) .. 1
+   -     -     -     -    : Other solutions (4 Moves) ...... 0
+1     X     -     -     - : Positions evaluated ............ 7,550
+   -     -     -     4    :
+      -     Y     -       :
+         3     -          :
+            -             :
+ 
+1-NeSeSw Y-NoSwSe 3-NeNo X-NeSe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 6 Steps) ... 1
+   -     -     -     -    : Other solutions (4 Moves) ...... 0
+1     X     -     -     - : Positions evaluated ............ 7,795
+   -     -     Y     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+1-Ne 4-Nw X-NeSe Y-SwNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 9 Steps) ... 1
+   -     -     -     -    : Other solutions (4 Moves) ...... 5
+1     X     -     Y     - : Positions evaluated ............ 4,587
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+1-NeSe Y-SwNwNe 4-NwSw X-SeNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 10 Steps) .. 3
+   -     -     -     Y    : Other solutions (4 Moves) ...... 3
+1     X     -     -     - : Positions evaluated ............ 10,128
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+1-NeSeSwNo Y-SwNo 4-Nw X-NeSoNe
+1-NeSeSwNo 4-Nw X-NeSoNe Y-SwNo
+1-NeSeSwNo 4-Nw Y-SwNo X-NeSoNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 8 Steps) ... 4
+   -     -     -     -    : Other solutions (4 Moves) ...... 7
+1     X     -     -     - : Positions evaluated ............ 13,956
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            Y             :
+ 
+1-NeSeSwNo 4-Sw X-SeNo Y-No
+1-NeSeSwNo 4-Sw Y-No X-SeNo
+4-Sw 1-NeSoSeNo X-SeNo Y-No
+4-Sw 1-NeSoSeNo Y-No X-SeNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 10 Steps) .. 6
+   -     -     -     -    : Other solutions (4 Moves) ...... 16
+1     X     -     -     - : Positions evaluated ............ 26,921
+   -     -     -     4    :
+      -     -     -       :
+         3     Y          :
+            -             :
+ 
+1-NeSeSwNo X-SeNo 4-Nw Y-NoSwNo
+1-NeSeSwNo 4-Nw X-SeNo Y-NoSwNo
+1-NeSeSwNo 4-Nw Y-NwNe X-NeSoNe
+1-NeSoSeNo X-SeNo 4-Nw Y-NoSwNo
+1-NeSoSeNo 4-Nw X-SeNo Y-NoSwNo
+1-NeSoSeNo 4-Nw Y-NwNe X-NeSoNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (5 Moves, 8 Steps) ... 1
+   -     -     -     -    : Other solutions (5 Moves) ...... 3
+1     X     -     -     - : Positions evaluated ............ 4,834
+   -     -     -     4    :
+      -     -     Y       :
+         3     -          :
+            -             :
+ 
+1-Ne 4-Nw X-NeSeSwNo 3-No Y-Nw
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (5 Moves, 12 Steps) .. 2
+   -     -     -     -    : Other solutions (5 Moves) ...... 0
+1     X     -     -     Y : Positions evaluated ............ 5,093
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+Y-NwSwSo 1-NeSeSwNo 4-Nw Y-Ne X-NeSoNe
+Y-NwSw 1-NeSeSwNo 4-Nw Y-SoNe X-NeSoNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     Y     -       : Solutions (5 Moves, 8 Steps) ... 4
+   -     X     -     -    : Other solutions (5 Moves) ...... 4
+1     -     -     -     - : Positions evaluated ............ 8,272
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-So 2-SwSe 4-Nw X-Ne Y-SwSoNe
+X-So 4-Nw 2-SwSe X-Ne Y-SwSoNe
+Y-SeSw 1-NeSe Y-NeNw 3-Ne X-Se
+4-Nw X-So 2-SwSe X-Ne Y-SwSoNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     Y          :
+      -     -     -       : Solutions (5 Moves, 8 Steps) ... 2
+   -     X     -     -    : Other solutions (5 Moves) ...... 13
+1     -     -     -     - : Positions evaluated ............ 20,094
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+1-NeSeSw Y-Sw 4-Nw X-SoNe Y-So
+1-NeSeSw Y-Sw 4-Nw Y-So X-SoNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 8 Steps) ... 2
+   -     X     -     -    : Other solutions (4 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 1,996
+   -     -     -     4    :
+      Y     -     -       :
+         3     -          :
+            -             :
+ 
+1-NeSeSwNo 4-Nw X-SoNe Y-Ne
+1-NeSeSwNo 4-Nw Y-Ne X-SoNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 8 Steps) ... 1
+   -     X     -     -    : Other solutions (4 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 85
+   -     Y     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+1-NeSeSwNo 4-Nw Y-Ne X-SoNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (3 Moves, 5 Steps) ... 1
+   -     X     Y     -    : Other solutions (3 Moves) ...... 5
+1     -     -     -     - : Positions evaluated ............ 2,163
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-SoNe 1-NeSo Y-Sw - Not Sig (4)
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     Y       : Solutions (4 Moves, 6 Steps) ... 1
+   -     X     -     -    : Other solutions (4 Moves) ...... 3
+1     -     -     -     - : Positions evaluated ............ 61,537
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-SoNe 1-NeSo X-Sw Y-Sw - Not Sig (4)
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 6 Steps) ... 1
+   -     X     -     -    : Other solutions (4 Moves) ...... 4
+1     -     -     -     - : Positions evaluated ............ 9,500
+   -     -     -     4    :
+      -     Y     -       :
+         3     -          :
+            -             :
+ 
+1-NeSe Y-NeNw 3-Ne X-Se
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 4 Steps) ... 2
+   -     X     -     -    : Other solutions (4 Moves) ...... 8
+1     -     -     -     - : Positions evaluated ............ 4,288
+   -     -     Y     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-Se 1-Ne 3-No Y-Nw - Not Sig (4)
+1-Ne X-Se 3-No Y-Nw - Not Sig (4)
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (5 Moves, 7 Steps) ... 1
+   -     X     -     -    : Other solutions (5 Moves) ...... 16
+1     -     -     Y     - : Positions evaluated ............ 8,181
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+Y-Sw 1-NeSe Y-NeNw 3-Ne X-Se
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 9 Steps) ... 3
+   -     X     -     Y    : Other solutions (4 Moves) ...... 2
+1     -     -     -     - : Positions evaluated ............ 18,887
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+1-NeSeSwNo Y-SwNo 4-Nw X-SoNe
+1-NeSeSwNo 4-Nw X-SoNe Y-SwNo
+1-NeSeSwNo 4-Nw Y-SwNo X-SoNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 6 Steps) ... 2
+   -     X     -     -    : Other solutions (4 Moves) ...... 7
+1     -     -     -     - : Positions evaluated ............ 17,442
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            Y             :
+ 
+Y-NeNw 1-NeSe 3-Ne X-Se
+1-NeSe Y-NeNw 3-Ne X-Se
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 6 Steps) ... 2
+   -     X     -     -    : Other solutions (4 Moves) ...... 11
+1     -     -     -     - : Positions evaluated ............ 32,825
+   -     -     -     4    :
+      -     -     -       :
+         3     Y          :
+            -             :
+ 
+Y-NeNw 1-NeSe 3-Ne X-Se
+1-NeSe Y-NeNw 3-Ne X-Se
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 5 Steps) ... 2
+   -     X     -     -    : Other solutions (4 Moves) ...... 3
+1     -     -     -     - : Positions evaluated ............ 8,381
+   -     -     -     4    :
+      -     -     Y       :
+         3     -          :
+            -             :
+ 
+Y-Nw 1-NeSe 3-Ne X-Se
+1-NeSe Y-Nw 3-Ne X-Se
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (5 Moves, 9 Steps) ... 2
+   -     X     -     -    : Other solutions (5 Moves) ...... 13
+1     -     -     -     Y : Positions evaluated ............ 22,330
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+1-NeSeSw Y-NwSw 4-Nw X-SoNe Y-So
+1-NeSeSw Y-NwSw 4-Nw Y-So X-SoNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     Y          :
+      -     X     -       : Solutions (6 Moves, 8 Steps) ... 2
+   -     -     -     -    : Other solutions (6 Moves) ...... 15
+1     -     -     -     - : Positions evaluated ............ 10,259
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-SeSw 1-Ne 3-No Y-SwSo 4-Nw X-No
+1-Ne X-SeSw 3-No Y-SwSo 4-Nw X-No
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     X     -       : Solutions (5 Moves, 10 Steps) .. 9
+   -     -     -     -    : Other solutions (5 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 27,097
+   -     -     -     4    :
+      Y     -     -       :
+         3     -          :
+            -             :
+ 
+Y-NwNeSo 2-SwSe 4-Nw Y-Ne X-SwSoNe
+Y-NwNeSo 4-Nw 2-SwSe Y-Ne X-SwSoNe
+2-Sw 1-SeNeSoNw 4-Nw X-SwSoNe Y-Ne
+2-Sw 1-SeNeSoNw 4-Nw Y-Ne X-SwSoNe
+2-Sw 4-Nw 1-SeNeSoNw X-SwSoNe Y-Ne
+2-Sw 4-Nw 1-SeNeSoNw Y-Ne X-SwSoNe
+4-Nw Y-NwNeSo 2-SwSe Y-Ne X-SwSoNe
+4-Nw 2-Sw 1-SeNeSoNw X-SwSoNe Y-Ne
+4-Nw 2-Sw 1-SeNeSoNw Y-Ne X-SwSoNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     X     -       : Solutions (4 Moves, 7 Steps) ... 2
+   -     -     -     -    : Other solutions (4 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 3,778
+   -     Y     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+2-SwSe 4-Nw Y-Ne X-SwSoNe
+4-Nw 2-SwSe Y-Ne X-SwSoNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     X     -       : Solutions (4 Moves, 6 Steps) ... 13
+   -     -     Y     -    : Other solutions (4 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 6,385
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+1-NeSo 4-NwSw X-So Y-Sw
+1-NeSo 4-NwSw Y-Sw X-So
+1-NeSo 4-Nw Y-Sw X-SeSw
+1-Ne 4-NwSw X-So Y-NwSo
+4-NwSw X-So 1-NeSo Y-Sw
+4-NwSw X-So 1-Ne Y-NwSo
+4-NwSw X-So 2-SwSe Y-Sw
+4-NwSw 1-NeSo X-So Y-Sw
+4-NwSw 1-NeSo Y-Sw X-So
+4-NwSw 1-Ne X-So Y-NwSo
+4-NwSw 2-SwSe X-So Y-Sw
+4-NwSw 2-SwSe Y-Sw X-So
+4-Nw 1-NeSo Y-Sw X-SeSw
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     X     Y       : Solutions (5 Moves, 8 Steps) ... 3
+   -     -     -     -    : Other solutions (5 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 58,833
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+2-Sw 1-SeNeSeSw X-So 2-Se Y-Sw
+2-Sw 1-SeNeSeSw 2-Se X-So Y-Sw
+2-Sw 1-SeNeSeSw 2-Se Y-Sw X-So
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     X     -       : Solutions (4 Moves, 4 Steps) ... 2
+   -     -     -     -    : Other solutions (4 Moves) ...... 7
+1     -     -     -     - : Positions evaluated ............ 13,782
+   -     -     -     4    :
+      -     Y     -       :
+         3     -          :
+            -             :
+ 
+X-So 1-Ne 4-Nw Y-No - Not Sig (3)
+1-Ne X-So 4-Nw Y-No - Not Sig (3)
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     X     -       : Solutions (5 Moves, 5 Steps) ... 3
+   -     -     -     -    : Other solutions (5 Moves) ...... 16
+1     -     -     -     - : Positions evaluated ............ 12,178
+   -     -     Y     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+Y-Sw X-So 1-Ne 4-Nw Y-No
+Y-Sw 1-Ne X-So 4-Nw Y-No
+1-Ne Y-Sw X-So 4-Nw Y-No
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     X     -       : Solutions (4 Moves, 8 Steps) ... 1
+   -     -     -     -    : Other solutions (4 Moves) ...... 2
+1     -     -     Y     - : Positions evaluated ............ 9,968
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-Se 1-NeSe Y-SwNo X-SeSwNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     X     -       : Solutions (4 Moves, 8 Steps) ... 1
+   -     -     -     Y    : Other solutions (4 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 27,545
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+2-Se Y-SwNo 1-SeNeSeSw X-So
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     X     -       : Solutions (4 Moves, 5 Steps) ... 1
+   -     -     -     -    : Other solutions (4 Moves) ...... 1
+1     -     -     -     - : Positions evaluated ............ 34,164
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            Y             :
+ 
+4-Sw Y-No 2-SwSe X-So - Not Sig (3)
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     X     -       : Solutions (4 Moves, 7 Steps) ... 4
+   -     -     -     -    : Other solutions (4 Moves) ...... 4
+1     -     -     -     - : Positions evaluated ............ 27,908
+   -     -     -     4    :
+      -     -     -       :
+         3     Y          :
+            -             :
+ 
+2-SwSe 3-NwNe X-So Y-NeNw
+2-SwSe 3-NwNe Y-NeNw X-So
+3-NwNe 2-SwSe X-So Y-NeNw
+3-NwNe 2-SwSe Y-NeNw X-So
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     X     -       : Solutions (6 Moves, 7 Steps) ... 12
+   -     -     -     -    : Other solutions (6 Moves) ...... 16
+1     -     -     -     - : Positions evaluated ............ 6,967
+   -     -     -     4    :
+      -     -     Y       :
+         3     -          :
+            -             :
+ 
+X-SeSw 1-Ne 3-No Y-Nw 4-Nw X-No
+X-SeSw 1-Ne 3-No 4-Nw X-No Y-Nw
+X-SeSw 1-Ne 3-No 4-Nw Y-Nw X-No
+X-SeSw 1-Ne 4-Nw X-No 3-No Y-Nw
+X-SeSw 1-Ne 4-Nw 3-No X-No Y-Nw
+X-SeSw 1-Ne 4-Nw 3-No Y-Nw X-No
+1-Ne X-SeSw 3-No Y-Nw 4-Nw X-No
+1-Ne X-SeSw 3-No 4-Nw X-No Y-Nw
+1-Ne X-SeSw 3-No 4-Nw Y-Nw X-No
+1-Ne X-SeSw 4-Nw X-No 3-No Y-Nw
+1-Ne X-SeSw 4-Nw 3-No X-No Y-Nw
+1-Ne X-SeSw 4-Nw 3-No Y-Nw X-No
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     X     -       : Solutions (6 Moves, 9 Steps) ... 2
+   -     -     -     -    : Other solutions (6 Moves) ...... 12
+1     -     -     -     Y : Positions evaluated ............ 33,742
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-SeSw 1-Ne 3-No Y-NwSwSo 4-Nw X-No
+1-Ne X-SeSw 3-No Y-NwSwSo 4-Nw X-No
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     X          :
+      -     -     -       : Solutions (6 Moves, 10 Steps) .. 1
+   -     -     -     -    : Other solutions (6 Moves) ...... 13
+1     -     -     -     - : Positions evaluated ............ 12,489
+   -     -     -     4    :
+      Y     -     -       :
+         3     -          :
+            -             :
+ 
+Y-NwNeSeSw 1-Ne 3-No X-SwSo 4-Nw Y-No
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     X          :
+      -     -     -       : Solutions (6 Moves, 10 Steps) .. 1
+   -     -     -     -    : Other solutions (6 Moves) ...... 8
+1     -     -     -     - : Positions evaluated ............ 4,295
+   -     Y     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+1-Ne Y-NoNeSeSw 3-No X-SwSo 4-Nw Y-No
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     X          :
+      -     -     -       : Solutions (5 Moves, 7 Steps) ... 4
+   -     -     Y     -    : Other solutions (5 Moves) ...... 10
+1     -     -     -     - : Positions evaluated ............ 15,726
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+1-NeSo 4-Nw Y-Sw 3-Ne X-SoSw
+1-NeSo 4-Nw 3-Ne Y-Sw X-SoSw
+4-Nw 1-NeSo Y-Sw 3-Ne X-SoSw
+4-Nw 1-NeSo 3-Ne Y-Sw X-SoSw
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     X          :
+      -     -     Y       : Solutions (6 Moves, 14 Steps) .. 1
+   -     -     -     -    : Other solutions (6 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 1,727
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+2-Sw 1-SeNeSeSwNw X-SwSoNe 4-NwSwNw X-Sw Y-Sw
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     X          :
+      -     -     -       : Solutions (5 Moves, 6 Steps) ... 1
+   -     -     -     -    : Other solutions (5 Moves) ...... 8
+1     -     -     -     - : Positions evaluated ............ 13,962
+   -     -     -     4    :
+      -     Y     -       :
+         3     -          :
+            -             :
+ 
+1-Ne 3-No X-SwSo 4-Nw Y-No
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     X          :
+      -     -     -       : Solutions (4 Moves, 8 Steps) ... 1
+   -     -     -     -    : Other solutions (4 Moves) ...... 2
+1     -     -     -     - : Positions evaluated ............ 11,892
+   -     -     Y     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-So 1-NeSe Y-SwNo X-SeSwNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     X          :
+      -     -     -       : Solutions (6 Moves, 7 Steps) ... 2
+   -     -     -     -    : Other solutions (6 Moves) ...... 15
+1     -     -     Y     - : Positions evaluated ............ 13,288
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+Y-Sw 1-Ne 3-No X-SwSo 4-Nw Y-No
+1-Ne Y-Sw 3-No X-SwSo 4-Nw Y-No
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     X          :
+      -     -     -       : Solutions (5 Moves, 7 Steps) ... 3
+   -     -     -     Y    : Other solutions (5 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 82,146
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-Se 1-NeSo 2-Se X-Sw Y-NwSw - Not Sig (4)
+1-NeSo X-Se 2-Se X-Sw Y-NwSw - Not Sig (4)
+1-Ne 4-Nw 1-So X-SeSw Y-SwNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     X          :
+      -     -     -       : Solutions (4 Moves, 9 Steps) ... 4
+   -     -     -     -    : Other solutions (4 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 15,561
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            Y             :
+ 
+1-NeSeSwNo 4-Sw X-SoSwNo Y-No
+1-NeSeSwNo 4-Sw Y-No X-SoSwNo
+4-Sw 1-NeSoSeNo X-SoSwNo Y-No
+4-Sw 1-NeSoSeNo Y-No X-SoSwNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     X          :
+      -     -     -       : Solutions (4 Moves, 6 Steps) ... 1
+   -     -     -     -    : Other solutions (4 Moves) ...... 2
+1     -     -     -     - : Positions evaluated ............ 30,686
+   -     -     -     4    :
+      -     -     -       :
+         3     Y          :
+            -             :
+ 
+1-Ne 3-No X-SoNw Y-NeNw
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     X          :
+      -     -     -       : Solutions (8 Moves, 9 Steps) ... 2
+   -     -     -     -    : Other solutions (8 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 296
+   -     -     -     4    :
+      -     -     Y       :
+         3     -          :
+            -             :
+ 
+3-Nw X-Sw 1-Ne 4-Nw X-NeSe 3-Ne X-Nw Y-Nw
+3-Nw 1-Ne X-Sw 4-Nw X-NeSe 3-Ne X-Nw Y-Nw
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     X          :
+      -     -     -       : Solutions (5 Moves, 11 Steps) .. 2
+   -     -     -     -    : Other solutions (5 Moves) ...... 0
+1     -     -     -     Y : Positions evaluated ............ 45,648
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-Se 1-NeSeSwNo 2-Se X-SwNo Y-NwSwNo
+1-NeSeSwNo X-Se 2-Se X-SwNo Y-NwSwNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 7 Steps) ... 1
+   -     -     -     -    : Other solutions (4 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 487
+   -     Y     -     4    :
+      X     -     -       :
+         3     -          :
+            -             :
+ 
+1-NeSeSwNo 4-Nw Y-Ne X-Ne
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (3 Moves, 4 Steps) ... 1
+   -     -     Y     -    : Other solutions (3 Moves) ...... 5
+1     -     -     -     - : Positions evaluated ............ 1,932
+   -     -     -     4    :
+      X     -     -       :
+         3     -          :
+            -             :
+ 
+X-Ne 1-NeSo Y-Sw - Not Sig (4)
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     Y       : Solutions (4 Moves, 5 Steps) ... 1
+   -     -     -     -    : Other solutions (4 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 53,948
+   -     -     -     4    :
+      X     -     -       :
+         3     -          :
+            -             :
+ 
+X-Ne 1-NeSo X-Sw Y-Sw - Not Sig (4)
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (5 Moves, 10 Steps) .. 2
+   -     -     -     -    : Other solutions (5 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 30,918
+   -     -     -     4    :
+      X     Y     -       :
+         3     -          :
+            -             :
+ 
+1-NeSe Y-NoSe X-Ne 1-SwNo Y-SeSwNo
+1-NeSe Y-NoSe 1-SwNo X-Ne Y-SeSwNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (5 Moves, 7 Steps) ... 6
+   -     -     -     -    : Other solutions (5 Moves) ...... 4
+1     -     -     -     - : Positions evaluated ............ 27,004
+   -     -     Y     4    :
+      X     -     -       :
+         3     -          :
+            -             :
+ 
+X-Nw 1-Ne 4-Nw X-NeSe Y-SwNo
+3-NeNo 1-SeNe Y-Nw 4-Nw X-Ne
+3-NeNo 1-SeNe 4-Nw X-Ne Y-Nw
+3-NeNo 1-SeNe 4-Nw Y-Nw X-Ne
+3-NeNo 4-Nw 1-SeNe X-Ne Y-Nw
+3-NeNo 4-Nw 1-SeNe Y-Nw X-Ne
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (5 Moves, 8 Steps) ... 6
+   -     -     -     -    : Other solutions (5 Moves) ...... 0
+1     -     -     Y     - : Positions evaluated ............ 20,552
+   -     -     -     4    :
+      X     -     -       :
+         3     -          :
+            -             :
+ 
+1-NeSe X-Ne Y-SwNo 1-SeSw Y-So
+1-NeSe X-Ne Y-SwNo 4-NwSw Y-So
+1-NeSe Y-SwNo X-Ne 1-SeSw Y-So
+1-NeSe Y-SwNo X-Ne 4-NwSw Y-So
+1-NeSe Y-SwNo 4-NwSw Y-So X-Ne
+1-NeSe Y-SwNo 4-NwSw X-Ne Y-So
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 8 Steps) ... 3
+   -     -     -     Y    : Other solutions (4 Moves) ...... 2
+1     -     -     -     - : Positions evaluated ............ 31,318
+   -     -     -     4    :
+      X     -     -       :
+         3     -          :
+            -             :
+ 
+1-NeSeSwNo Y-SwNo 4-Nw X-Ne
+1-NeSeSwNo 4-Nw X-Ne Y-SwNo
+1-NeSeSwNo 4-Nw Y-SwNo X-Ne
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 7 Steps) ... 3
+   -     -     -     -    : Other solutions (4 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 29,955
+   -     -     -     4    :
+      X     -     -       :
+         3     -          :
+            Y             :
+ 
+1-NeSeSwNo Y-No 4-Nw X-Ne
+1-NeSeSwNo 4-Nw X-Ne Y-No
+1-NeSeSwNo 4-Nw Y-No X-Ne
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 9 Steps) ... 4
+   -     -     -     -    : Other solutions (4 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 8,708
+   -     -     -     4    :
+      X     -     -       :
+         3     Y          :
+            -             :
+ 
+1-NeSeSwNo 4-Nw X-Ne Y-NoSwNo
+1-NeSeSwNo 4-Nw Y-NoSwNo X-Ne
+1-NeSoSeNo 4-Nw X-Ne Y-NoSwNo
+1-NeSoSeNo 4-Nw Y-NoSwNo X-Ne
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (6 Moves, 9 Steps) ... 1
+   -     -     -     -    : Other solutions (6 Moves) ...... 3
+1     -     -     -     - : Positions evaluated ............ 4,121
+   -     -     -     4    :
+      X     -     Y       :
+         3     -          :
+            -             :
+ 
+X-Nw 1-Ne 4-Nw X-NeSeSwNo 3-No Y-Nw
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (6 Moves, 13 Steps) .. 4
+   -     -     -     -    : Other solutions (6 Moves) ...... 1
+1     -     -     -     Y : Positions evaluated ............ 13,483
+   -     -     -     4    :
+      X     -     -       :
+         3     -          :
+            -             :
+ 
+X-Nw Y-NwSw 1-NeSeSwNo 4-Nw X-SeNe Y-NeSoNe
+X-Nw Y-NwSw 1-NeSeSwNo 4-Nw Y-NeSoNe X-SeNe
+X-Nw 1-NeSeSwNo 4-Nw 1-Sw X-SeNe Y-NwSwSoNe
+X-Nw 1-NeSeSwNo 4-Nw 1-Sw Y-NwSwSoNe X-SeNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (3 Moves, 4 Steps) ... 1
+   -     -     Y     -    : Other solutions (3 Moves) ...... 4
+1     -     -     -     - : Positions evaluated ............ 1,590
+   -     X     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-Ne 1-NeSo Y-Sw - Not Sig (4)
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     Y       : Solutions (4 Moves, 5 Steps) ... 1
+   -     -     -     -    : Other solutions (4 Moves) ...... 2
+1     -     -     -     - : Positions evaluated ............ 51,794
+   -     X     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-Ne 1-NeSo X-Sw Y-Sw - Not Sig (4)
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (5 Moves, 8 Steps) ... 2
+   -     -     -     -    : Other solutions (5 Moves) ...... 6
+1     -     -     -     - : Positions evaluated ............ 3,251
+   -     X     -     4    :
+      -     Y     -       :
+         3     -          :
+            -             :
+ 
+Y-No 2-SwSe 4-Nw X-Ne Y-SwSoNe
+Y-No 4-Nw 2-SwSe X-Ne Y-SwSoNe
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 5 Steps) ... 1
+   -     -     -     -    : Other solutions (4 Moves) ...... 5
+1     -     -     -     - : Positions evaluated ............ 3,435
+   -     X     Y     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+1-Ne X-NoSe 3-No Y-Nw - Not Sig (4)
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 8 Steps) ... 2
+   -     -     -     -    : Other solutions (4 Moves) ...... 1
+1     -     -     Y     - : Positions evaluated ............ 3,573
+   -     X     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+1-NeSeSwNo Y-SwNo 4-Nw X-Ne
+1-NeSeSwNo Y-NwSw 4-Nw X-Ne - Not Sig (3)
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 8 Steps) ... 3
+   -     -     -     Y    : Other solutions (4 Moves) ...... 2
+1     -     -     -     - : Positions evaluated ............ 4,756
+   -     X     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+1-NeSeSwNo Y-SwNo 4-Nw X-Ne
+1-NeSeSwNo 4-Nw X-Ne Y-SwNo
+1-NeSeSwNo 4-Nw Y-SwNo X-Ne
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 7 Steps) ... 3
+   -     -     -     -    : Other solutions (4 Moves) ...... 2
+1     -     -     -     - : Positions evaluated ............ 10,217
+   -     X     -     4    :
+      -     -     -       :
+         3     -          :
+            Y             :
+ 
+1-NeSeSwNo Y-No 4-Nw X-Ne
+1-NeSeSwNo 4-Nw X-Ne Y-No
+1-NeSeSwNo 4-Nw Y-No X-Ne
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 8 Steps) ... 2
+   -     -     -     -    : Other solutions (4 Moves) ...... 4
+1     -     -     -     - : Positions evaluated ............ 24,293
+   -     X     -     4    :
+      -     -     -       :
+         3     Y          :
+            -             :
+ 
+1-NeSeSwNo Y-NwNo 4-Nw X-Ne
+1-NeSeSwNo 4-Nw Y-NwNo X-Ne
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (5 Moves, 6 Steps) ... 1
+   -     -     -     -    : Other solutions (5 Moves) ...... 1
+1     -     -     -     - : Positions evaluated ............ 4,350
+   -     X     -     4    :
+      -     -     Y       :
+         3     -          :
+            -             :
+ 
+1-Ne X-NoSe 3-No X-Nw Y-Nw - Not Sig (4)
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (6 Moves, 12 Steps) .. 1
+   -     -     -     -    : Other solutions (6 Moves) ...... 0
+1     -     -     -     Y : Positions evaluated ............ 8,288
+   -     X     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+1-NeSo Y-NwSwSe 3-NeNwNo Y-NwSw 4-Nw X-Ne
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     Y       : Solutions (3 Moves, 4 Steps) ... 1
+   -     -     X     -    : Other solutions (3 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 55,021
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+1-NeSo X-Sw Y-Sw - Not Sig (4)
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (3 Moves, 6 Steps) ... 1
+   -     -     X     -    : Other solutions (3 Moves) ...... 2
+1     -     -     -     - : Positions evaluated ............ 14,382
+   -     -     -     4    :
+      -     Y     -       :
+         3     -          :
+            -             :
+ 
+1-NeSe Y-No X-SeSwNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (3 Moves, 7 Steps) ... 1
+   -     -     X     -    : Other solutions (3 Moves) ...... 2
+1     -     -     -     - : Positions evaluated ............ 9,223
+   -     -     Y     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+1-NeSe Y-SwNo X-SeSwNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (3 Moves, 7 Steps) ... 1
+   -     -     X     -    : Other solutions (3 Moves) ...... 2
+1     -     -     Y     - : Positions evaluated ............ 7,926
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+1-NeSe Y-SwNo X-SeSwNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (3 Moves, 7 Steps) ... 2
+   -     -     X     Y    : Other solutions (3 Moves) ...... 4
+1     -     -     -     - : Positions evaluated ............ 20,559
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+1-NeSe X-SeSwNo Y-SwNo
+1-NeSe Y-SwNo X-SeSwNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (3 Moves, 6 Steps) ... 2
+   -     -     X     -    : Other solutions (3 Moves) ...... 4
+1     -     -     -     - : Positions evaluated ............ 36,278
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            Y             :
+ 
+1-NeSe X-SeSwNo Y-No
+1-NeSe Y-No X-SeSwNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (3 Moves, 8 Steps) ... 1
+   -     -     X     -    : Other solutions (3 Moves) ...... 3
+1     -     -     -     - : Positions evaluated ............ 45,743
+   -     -     -     4    :
+      -     -     -       :
+         3     Y          :
+            -             :
+ 
+1-NeSe Y-NoSwNo X-SeSwNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (5 Moves, 7 Steps) ... 6
+   -     -     X     -    : Other solutions (5 Moves) ...... 4
+1     -     -     -     - : Positions evaluated ............ 11,892
+   -     -     -     4    :
+      -     -     Y       :
+         3     -          :
+            -             :
+ 
+1-Ne 4-NwSw X-NwSo 3-No Y-Nw
+1-Ne 4-NwSw 3-No X-NwSo Y-Nw
+1-Ne 4-NwSw 3-No Y-Nw X-NwSo
+4-NwSw 1-Ne X-NwSo 3-No Y-Nw
+4-NwSw 1-Ne 3-No X-NwSo Y-Nw
+4-NwSw 1-Ne 3-No Y-Nw X-NwSo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (5 Moves, 8 Steps) ... 4
+   -     -     X     -    : Other solutions (5 Moves) ...... 10
+1     -     -     -     Y : Positions evaluated ............ 49,743
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+1-NeSo 4-Nw X-Sw 3-Ne Y-NwSoSw
+1-NeSo 4-Nw 3-Ne X-Sw Y-NwSoSw
+4-Nw 1-NeSo X-Sw 3-Ne Y-NwSoSw
+4-Nw 1-NeSo 3-Ne X-Sw Y-NwSoSw
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     X       : Solutions (5 Moves, 5 Steps) ... 3
+   -     -     -     -    : Other solutions (5 Moves) ...... 10
+1     -     -     -     - : Positions evaluated ............ 44,398
+   -     -     -     4    :
+      -     Y     -       :
+         3     -          :
+            -             :
+ 
+1-Ne 4-Nw Y-No 1-So X-Sw
+1-Ne 4-Nw 1-So X-Sw Y-No
+1-Ne 4-Nw 1-So Y-No X-Sw
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     X       : Solutions (4 Moves, 6 Steps) ... 2
+   -     -     -     -    : Other solutions (4 Moves) ...... 3
+1     -     -     -     - : Positions evaluated ............ 15,274
+   -     -     Y     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+1-NeSo 2-Se X-Sw Y-NoSw - Not Sig (4)
+1-NeSo 2-Se Y-NoSw X-Sw - Not Sig (4)
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     X       : Solutions (6 Moves, 6 Steps) ... 6
+   -     -     -     -    : Other solutions (6 Moves) ...... 23
+1     -     -     Y     - : Positions evaluated ............ 52,097
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+Y-Sw 1-Ne 4-Nw Y-No 1-So X-Sw
+Y-Sw 1-Ne 4-Nw 1-So X-Sw Y-No
+Y-Sw 1-Ne 4-Nw 1-So Y-No X-Sw
+1-Ne Y-Sw 4-Nw Y-No 1-So X-Sw
+1-Ne Y-Sw 4-Nw 1-So X-Sw Y-No
+1-Ne Y-Sw 4-Nw 1-So Y-No X-Sw
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     X       : Solutions (4 Moves, 6 Steps) ... 1
+   -     -     -     Y    : Other solutions (4 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 52,979
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+1-NeSo 2-Se X-Sw Y-NwSw - Not Sig (4)
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     X       : Solutions (4 Moves, 7 Steps) ... 3
+   -     -     -     -    : Other solutions (4 Moves) ...... 12
+1     -     -     -     - : Positions evaluated ............ 48,537
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            Y             :
+ 
+1-NeSo X-Sw 4-SwNwNo Y-No
+1-NeSo 4-SwNwNo X-Sw Y-No
+1-NeSo 4-SwNwNo Y-No X-Sw
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     X       : Solutions (4 Moves, 6 Steps) ... 2
+   -     -     -     -    : Other solutions (4 Moves) ...... 20
+1     -     -     -     - : Positions evaluated ............ 75,261
+   -     -     -     4    :
+      -     -     -       :
+         3     Y          :
+            -             :
+ 
+1-NeSo 2-Se X-Sw Y-NoSw - Not Sig (4)
+1-NeSo 2-Se Y-NoSw X-Sw - Not Sig (4)
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     X       : Solutions (5 Moves, 7 Steps) ... 4
+   -     -     -     -    : Other solutions (5 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 52,077
+   -     -     -     4    :
+      -     -     Y       :
+         3     -          :
+            -             :
+ 
+1-Ne 4-Nw X-SoSwNo 3-No Y-Nw
+1-Ne 4-Nw Y-NoSwNo 1-So X-Sw
+1-Ne 4-Nw 1-So Y-NoSwNo X-Sw
+1-Ne 4-Nw 1-So Y-NoNwSw X-Sw
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     X       : Solutions (4 Moves, 6 Steps) ... 1
+   -     -     -     -    : Other solutions (4 Moves) ...... 0
+1     -     -     -     Y : Positions evaluated ............ 65,026
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+1-NeSo 2-Se X-Sw Y-NwSw - Not Sig (4)
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 5 Steps) ... 1
+   -     -     -     -    : Other solutions (4 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 7,850
+   -     -     Y     4    :
+      -     X     -       :
+         3     -          :
+            -             :
+ 
+1-Ne 4-Nw X-No Y-SwNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 5 Steps) ... 1
+   -     -     -     -    : Other solutions (4 Moves) ...... 3
+1     -     -     Y     - : Positions evaluated ............ 6,018
+   -     -     -     4    :
+      -     X     -       :
+         3     -          :
+            -             :
+ 
+1-Ne Y-NwSo 4-Nw X-No - Not Sig (3)
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 5 Steps) ... 1
+   -     -     -     Y    : Other solutions (4 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 40,519
+   -     -     -     4    :
+      -     X     -       :
+         3     -          :
+            -             :
+ 
+1-Ne 4-Nw X-No Y-SwNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 4 Steps) ... 1
+   -     -     -     -    : Other solutions (4 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 25,151
+   -     -     -     4    :
+      -     X     -       :
+         3     -          :
+            Y             :
+ 
+1-Ne 4-Nw X-No Y-No - Not Sig (3)
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (5 Moves, 6 Steps) ... 3
+   -     -     -     -    : Other solutions (5 Moves) ...... 22
+1     -     -     -     - : Positions evaluated ............ 22,743
+   -     -     -     4    :
+      -     X     -       :
+         3     Y          :
+            -             :
+ 
+1-Ne 3-No Y-NeNw 4-Nw X-No
+1-Ne 4-Nw X-No 1-So Y-NwNo
+1-Ne 4-Nw 1-So X-No Y-NwNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (5 Moves, 5 Steps) ... 6
+   -     -     -     -    : Other solutions (5 Moves) ...... 6
+1     -     -     -     - : Positions evaluated ............ 7,347
+   -     -     -     4    :
+      -     X     Y       :
+         3     -          :
+            -             :
+ 
+1-Ne 3-No Y-Nw 4-Nw X-No
+1-Ne 3-No 4-Nw X-No Y-Nw
+1-Ne 3-No 4-Nw Y-Nw X-No
+1-Ne 4-Nw X-No 3-No Y-Nw
+1-Ne 4-Nw 3-No X-No Y-Nw
+1-Ne 4-Nw 3-No Y-Nw X-No
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (5 Moves, 7 Steps) ... 1
+   -     -     -     -    : Other solutions (5 Moves) ...... 6
+1     -     -     -     Y : Positions evaluated ............ 45,253
+   -     -     -     4    :
+      -     X     -       :
+         3     -          :
+            -             :
+ 
+1-Ne 3-No Y-NwSwSo 4-Nw X-No
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 10 Steps) .. 1
+   -     -     -     -    : Other solutions (4 Moves) ...... 2
+1     -     -     Y     - : Positions evaluated ............ 4,607
+   -     -     X     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-SwNoSe 1-NeSe Y-SwNo X-SeSwNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 6 Steps) ... 1
+   -     -     -     Y    : Other solutions (4 Moves) ...... 3
+1     -     -     -     - : Positions evaluated ............ 43,589
+   -     -     X     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+1-Ne 4-Nw X-SwNo Y-SwNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 5 Steps) ... 3
+   -     -     -     -    : Other solutions (4 Moves) ...... 6
+1     -     -     -     - : Positions evaluated ............ 31,573
+   -     -     X     4    :
+      -     -     -       :
+         3     -          :
+            Y             :
+ 
+1-Ne 3-No X-Nw Y-NeNw
+1-Ne 4-Nw X-SwNo Y-No
+1-Ne 4-Nw Y-No X-SwNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 5 Steps) ... 1
+   -     -     -     -    : Other solutions (4 Moves) ...... 2
+1     -     -     -     - : Positions evaluated ............ 22,156
+   -     -     X     4    :
+      -     -     -       :
+         3     Y          :
+            -             :
+ 
+1-Ne 3-No X-Nw Y-NeNw
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 4 Steps) ... 1
+   -     -     -     -    : Other solutions (4 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 7,595
+   -     -     X     4    :
+      -     -     Y       :
+         3     -          :
+            -             :
+ 
+1-Ne 3-No X-Nw Y-Nw - Not Sig (4)
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 9 Steps) ... 1
+   -     -     -     -    : Other solutions (4 Moves) ...... 2
+1     -     -     -     Y : Positions evaluated ............ 49,978
+   -     -     X     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+Y-NwSo 1-NeSe X-SwNo Y-SeSwNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (5 Moves, 6 Steps) ... 2
+   -     -     -     Y    : Other solutions (5 Moves) ...... 3
+1     -     -     X     - : Positions evaluated ............ 17,710
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-Sw 1-Ne 4-Nw X-No Y-SwNo
+1-Ne X-Sw 4-Nw X-No Y-SwNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 8 Steps) ... 6
+   -     -     -     -    : Other solutions (4 Moves) ...... 11
+1     -     -     X     - : Positions evaluated ............ 30,221
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            Y             :
+ 
+1-NeSo 4-SwNwNo X-SwNo Y-No
+1-NeSo 4-SwNwNo X-NwSw Y-No
+1-NeSo 4-SwNwNo Y-No X-SwNo
+1-NeSo 4-SwNwNo Y-No X-NwSw
+4-Sw 1-NeSoSeNo X-SwNo Y-No
+4-Sw 1-NeSoSeNo Y-No X-SwNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 10 Steps) .. 1
+   -     -     -     -    : Other solutions (4 Moves) ...... 5
+1     -     -     X     - : Positions evaluated ............ 24,212
+   -     -     -     4    :
+      -     -     -       :
+         3     Y          :
+            -             :
+ 
+1-NeSoSeNo X-SwNo 4-Nw Y-NoSwNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (6 Moves, 6 Steps) ... 12
+   -     -     -     -    : Other solutions (6 Moves) ...... 12
+1     -     -     X     - : Positions evaluated ............ 7,528
+   -     -     -     4    :
+      -     -     Y       :
+         3     -          :
+            -             :
+ 
+X-Sw 1-Ne 3-No Y-Nw 4-Nw X-No
+X-Sw 1-Ne 3-No 4-Nw X-No Y-Nw
+X-Sw 1-Ne 3-No 4-Nw Y-Nw X-No
+X-Sw 1-Ne 4-Nw X-No 3-No Y-Nw
+X-Sw 1-Ne 4-Nw 3-No X-No Y-Nw
+X-Sw 1-Ne 4-Nw 3-No Y-Nw X-No
+1-Ne X-Sw 3-No Y-Nw 4-Nw X-No
+1-Ne X-Sw 3-No 4-Nw X-No Y-Nw
+1-Ne X-Sw 3-No 4-Nw Y-Nw X-No
+1-Ne X-Sw 4-Nw X-No 3-No Y-Nw
+1-Ne X-Sw 4-Nw 3-No X-No Y-Nw
+1-Ne X-Sw 4-Nw 3-No Y-Nw X-No
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (6 Moves, 8 Steps) ... 2
+   -     -     -     -    : Other solutions (6 Moves) ...... 12
+1     -     -     X     Y : Positions evaluated ............ 39,116
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+X-Sw 1-Ne 3-No Y-NwSwSo 4-Nw X-No
+1-Ne X-Sw 3-No Y-NwSwSo 4-Nw X-No
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (3 Moves, 7 Steps) ... 2
+   -     -     -     X    : Other solutions (3 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 41,530
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            Y             :
+ 
+1-NeSeSwNo X-SwNo Y-No
+1-NeSeSwNo Y-No X-SwNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 7 Steps) ... 1
+   -     -     -     X    : Other solutions (4 Moves) ...... 12
+1     -     -     -     - : Positions evaluated ............ 49,048
+   -     -     -     4    :
+      -     -     -       :
+         3     Y          :
+            -             :
+ 
+1-Ne 3-No X-NwSoNw Y-NeNw
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 10 Steps) .. 2
+   -     -     -     X    : Other solutions (4 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 9,255
+   -     -     -     4    :
+      -     -     Y       :
+         3     -          :
+            -             :
+ 
+1-NeSeSwNo 2-Se X-SwNo Y-NoSwNo
+1-NeSeSwNo 2-Se Y-NoSwNo X-SwNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 10 Steps) .. 1
+   -     -     -     X    : Other solutions (4 Moves) ...... 0
+1     -     -     -     Y : Positions evaluated ............ 45,512
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            -             :
+ 
+1-NeSeSwNo 2-Se X-SwNo Y-NwSwNo
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 6 Steps) ... 1
+   -     -     -     -    : Other solutions (4 Moves) ...... 6
+1     -     -     -     - : Positions evaluated ............ 27,872
+   -     -     -     4    :
+      -     -     -       :
+         3     Y          :
+            X             :
+ 
+1-Ne 3-No Y-NeNw X-NeNw
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 5 Steps) ... 1
+   -     -     -     -    : Other solutions (4 Moves) ...... 1
+1     -     -     -     - : Positions evaluated ............ 7,664
+   -     -     -     4    :
+      -     -     Y       :
+         3     -          :
+            X             :
+ 
+1-Ne 3-No Y-Nw X-NeNw
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 9 Steps) ... 1
+   -     -     -     -    : Other solutions (4 Moves) ...... 5
+1     -     -     -     Y : Positions evaluated ............ 55,343
+   -     -     -     4    :
+      -     -     -       :
+         3     -          :
+            X             :
+ 
+1-NeSo 4-SwNwNo Y-SwNwNo X-No
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 5 Steps) ... 1
+   -     -     -     -    : Other solutions (4 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 244
+   -     -     -     4    :
+      -     -     Y       :
+         3     X          :
+            -             :
+ 
+1-Ne 3-No Y-Nw X-NeNw
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (4 Moves, 7 Steps) ... 1
+   -     -     -     -    : Other solutions (4 Moves) ...... 2
+1     -     -     -     Y : Positions evaluated ............ 45,615
+   -     -     -     4    :
+      -     -     -       :
+         3     X          :
+            -             :
+ 
+1-Ne 3-No Y-NwSoNw X-NeNw
+---------------------------------------------------------------------------
+            2             : Board (1-159)
+         -     -          :
+      -     -     -       : Solutions (7 Moves, 9 Steps) ... 3
+   -     -     -     -    : Other solutions (7 Moves) ...... 4
+1     -     -     -     Y : Positions evaluated ............ 17,893
+   -     -     -     4    :
+      -     -     X       :
+         3     -          :
+            -             :
+ 
+1-Ne 4-Nw Y-Sw 4-SeSw Y-NwSo 3-No X-Nw
+1-Ne 4-Nw Y-Sw 4-SeSw 3-No X-Nw Y-NwSo
+1-Ne 4-Nw Y-Sw 4-SeSw 3-No Y-NwSo X-Nw
+---------------------------------------------------------------------------

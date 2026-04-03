@@ -1,0 +1,3367 @@
+FLAGUPDATED (if necessary)ORIGINAL
+ /*--------------------------------------------------------*/
+ /* GENERATE UFO CONFIGURATIONS                            */
+ /*                                                        */
+ /* Last Changed 14 FEB 2022                               */
+ /*                                                        */
+ /* by John Rausch, Bexley, Ohio, 2006, 2010, 2019 & 2022  */
+ /*--------------------------------------------------------*/
+
+ CONFIG: /* GENERATE UFO CONFIGURATIONS */
+
+ PROC (PARM_STRING) OPTIONS (MAIN, NOEXECOPS) REORDER;
+
+ /*-------------------------------*/
+ /* Generate Board Configurations */
+ /*-------------------------------*/
+
+ DEFAULT RANGE (*) STATIC;
+
+ DCL MAX_BIN FIXED BIN (32) UNSIGNED VALUE (2147483647);
+
+ DCL CONFIG_SIZE              FIXED BIN (31) VALUE (49);
+ DCL CONFIG_CENTER            FIXED BIN (31) VALUE (25);
+
+ DCL BOARD_SIZE               FIXED BIN (31) VALUE (77);
+ DCL BOARD_CENTER             FIXED BIN (31) VALUE (44);
+ DCL BOARD_BEGIN              FIXED BIN (31) VALUE (11);
+
+ DCL PARM_STRING              CHAR (100) VARYING;
+
+ DCL WORK                     CHAR (102) VARYING INIT ('');
+
+ DCL PARM                     CHAR (100) VARYING INIT ('');
+ DCL ARG                      CHAR (100) VARYING INIT ('');
+
+ DCL REPORT_TITLE             CHAR (100) VARYING INIT ('');
+
+ DCL DRIVE_AND_PATH           CHAR (80)  VARYING INIT ('');
+ DCL FILE_PREFIX              CHAR (80)  VARYING INIT ('');
+ DCL STATISTICS_FILE          CHAR (80)  VARYING INIT ('');
+ DCL CONFIGURATIONS_FILE      CHAR (80)  VARYING INIT ('');
+
+ DCL BOARD                    CHAR (BOARD_SIZE)  INIT ('');
+ DCL B (BOARD_SIZE)           CHAR (1)   DEF BOARD;
+
+ DCL CONFIG                   CHAR (CONFIG_SIZE) INIT ('');
+ DCL C (CONFIG_SIZE)          CHAR (1)   DEF CONFIG;
+
+ %IF TYPE = 'HEX' %THEN %DO;
+ DCL XL (1:15)                CHAR (40) INIT
+       ('                   __                   ',
+        '                __/. \__                ',
+        '             __/. \__/. \__             ',
+        '          __/. \__/. \__/. \__          ',
+        '       __/. \__/. \__/. \__/. \__       ',
+        '    __/. \__/. \__/. \__/. \__/. \__    ',
+        ' __/. \__/. \__/. \__/. \__/. \__/. \__ ',
+        '/. \__/. \__/. \__/. \__/. \__/. \__/. \',
+        '\__/. \__/. \__/. \__/. \__/. \__/. \__/',
+        '   \__/. \__/. \__/. \__/. \__/. \__/   ',
+        '      \__/. \__/. \__/. \__/. \__/      ',
+        '         \__/. \__/. \__/. \__/         ',
+        '            \__/. \__/. \__/            ',
+        '               \__/. \__/               ',
+        '                  \__/                  ');
+ %END;
+ DCL I                        FIXED BIN (31) INIT (0);
+ DCL X                        FIXED BIN (31) INIT (0);
+ DCL Y                        FIXED BIN (31) INIT (0);
+ DCL Z                        FIXED BIN (31) INIT (0);
+ DCL N1                       FIXED BIN (31) INIT (0);
+ DCL N2                       FIXED BIN (31) INIT (0);
+ DCL N3                       FIXED BIN (31) INIT (0);
+ DCL N4                       FIXED BIN (31) INIT (0);
+ DCL N5                       FIXED BIN (31) INIT (0);
+ DCL N6                       FIXED BIN (31) INIT (0);
+ DCL N7                       FIXED BIN (31) INIT (0);
+ DCL N8                       FIXED BIN (31) INIT (0);
+ DCL N9                       FIXED BIN (31) INIT (0);
+
+ DCL ARG_MIN                  FIXED BIN (31) INIT (0);
+ DCL ARG_MAX                  FIXED BIN (31) INIT (0);
+
+ DCL ALREADY_SEEN             FIXED BIN (31) INIT (0);
+ DCL CONFIGURATIONS           FIXED BIN (31) INIT (0);
+ DCL LETTER_PIECES            FIXED BIN (31) INIT (1);
+ DCL LEVEL                    FIXED BIN (31) INIT (0);
+ DCL MAX_CONFIGURATIONS       FIXED BIN (31) INIT (0);
+ DCL NO_MOVES                 FIXED BIN (31) INIT (0);
+ DCL NUMBER_PIECES_BEG        FIXED BIN (31) INIT (1);
+ DCL NUMBER_PIECES_END        FIXED BIN (31) INIT (5);
+ DCL STRANDED                 FIXED BIN (31) INIT (0);
+ DCL WRITTEN                  FIXED BIN (31) INIT (0);
+
+ %IF TYPE = 'STD' %THEN %DO;
+ DCL ROT_TABLE                CHAR (256) INIT ((256)'00'X);
+ DCL ROT (0:255)              CHAR (1)   DEF ROT_TABLE;
+
+ DCL REF_TABLE                CHAR (256) INIT ((256)'00'X);
+ DCL REF (0:255)              CHAR (1)   DEF REF_TABLE;
+ %END;
+ %ELSE %DO;
+ DCL LR_TABLE                 CHAR (256) INIT ((256)'00'X);
+ DCL LR (0:255)               CHAR (1)   DEF LR_TABLE;
+
+ DCL TB_TABLE                 CHAR (256) INIT ((256)'00'X);
+ DCL TB (0:255)               CHAR (1)   DEF TB_TABLE;
+ %END;
+ DCL 1 HIST_TBL (16_000_000)  CONTROLLED,
+       2 NEXT_PTR (0:49)      PTR;
+
+ DCL HIST_TBL_PTR             PTR INIT (SYSNULL);
+
+ DCL HIST_NEXT_PTR (0:49)     PTR BASED (HIST_TBL_PTR);
+
+ DCL HIST_SEEN     (0:49)     FIXED BIN (32) UNSIGNED BASED (HIST_TBL_PTR);
+
+ DCL HIST_TBL_CNT             FIXED BIN (31) INIT (0);
+ DCL HIST_ENT_CNT             FIXED BIN (31) INIT (0);
+
+ DCL HIST_KEY                 CHAR (12) INIT ('');
+
+ DCL HK (12)                  FIXED BIN (8) UNSIGNED BASED (ADDR(HIST_KEY));
+
+ %IF TYPE = 'STD' %THEN %DO;
+ DCL HIST_KEY_TBL (8)         CHAR (12) INIT ((8)(''));
+ %END;
+ %ELSE %DO;
+ DCL HIST_KEY_TBL (4)         CHAR (12) INIT ((4)(''));
+ %END;
+ DCL RUN_DATETIME             CHAR (17)  INIT ('');
+
+ DCL 1 RUN DEF RUN_DATETIME,
+       2 YYYY                 CHAR (4),
+       2 MM                   CHAR (2),
+       2 DD                   CHAR (2),
+       2 HH                   CHAR (2),
+       2 MI                   CHAR (2),
+       2 SS                   CHAR (2),
+       2 MS                   CHAR (3);
+
+ DCL TRUE                     BIT (1) VALUE ('1'B);
+ DCL FALSE                    BIT (1) VALUE ('0'B);
+
+ DCL DEBUGGING                BIT (1) INIT (FALSE);
+ DCL DFAULT_FILE_PRESENT      BIT (1) INIT (TRUE);
+ DCL INVALID_PARAMETERS       BIT (1) INIT (FALSE);
+ DCL SWITCH_SETTING           BIT (1) INIT (FALSE);
+
+ DCL ADDR       BUILTIN;
+ DCL COPY       BUILTIN;
+ DCL DATETIME   BUILTIN;
+ DCL HBOUND     BUILTIN;
+ DCL HEX        BUILTIN;
+ DCL INDEX      BUILTIN;
+ DCL LENGTH     BUILTIN;
+ DCL SUBSTR     BUILTIN;
+ DCL SYSNULL    BUILTIN;
+ DCL TRANSLATE  BUILTIN;
+ DCL UPPERCASE  BUILTIN;
+ DCL VERIFY     BUILTIN;
+
+ DCL DFAULT   FILE STREAM INPUT;
+
+ DCL CFGTXT   FILE RECORD OUTPUT;
+
+ DCL STATS    FILE STREAM OUTPUT;
+
+ DCL SYSPRINT FILE;
+
+ /*----------------*/
+ /* Initialization */
+ /*----------------*/
+
+ ALLOCATE HIST_TBL;
+
+ HIST_TBL_CNT = 1;
+ HIST_ENT_CNT = 0;
+
+ HIST_TBL_PTR = ADDR(HIST_TBL);
+
+ HIST_NEXT_PTR = SYSNULL;
+
+ /*-----------------------------*/
+ /* Load any default parameters */
+ /*-----------------------------*/
+
+ ON UNDEFINEDFILE (DFAULT) DFAULT_FILE_PRESENT = FALSE;
+
+ OPEN FILE (DFAULT) TITLE('/DEFAULT.CONFIG.TXT');
+
+ IF DFAULT_FILE_PRESENT THEN DO;
+   GET FILE (DFAULT) EDIT (WORK) (L);
+
+   CLOSE FILE (DFAULT);
+
+   IF WORK ^= '' THEN
+     WORK = WORK || ',';
+ END;
+
+ IF PARM_STRING ^= '' THEN
+   WORK = WORK || PARM_STRING || ',';
+
+ WORK = UPPERCASE(WORK);
+
+ /*--------------------------*/
+ /* Parse the parameter list */
+ /*--------------------------*/
+
+ DO WHILE (LENGTH(WORK) > 0);
+
+   /*-----------------------*/
+   /* Extract one parameter */
+   /*-----------------------*/
+
+   DO I = 1 TO LENGTH(WORK) UNTIL (SUBSTR(WORK,I,1) = ',');
+   END;
+
+   PARM = SUBSTR(WORK,1,I-1);
+
+   IF I = LENGTH(WORK) THEN
+     WORK = '';
+   ELSE
+     WORK = SUBSTR(WORK,I+1);
+
+   /*-------------------------------*/
+   /* Extract argument when present */
+   /*-------------------------------*/
+
+   DO I = 1 TO LENGTH(PARM) UNTIL (SUBSTR(PARM,I,1) = '(');
+   END;
+
+   IF I < LENGTH(PARM) THEN DO;
+     ARG = SUBSTR(PARM,I+1);
+
+     IF SUBSTR(ARG,LENGTH(ARG),1) = ')' THEN DO;
+       ARG = SUBSTR(ARG,1,LENGTH(ARG)-1);
+       PARM = SUBSTR(PARM,1,I-1);
+     END;
+   END;
+
+   /*--------------------------------------------------*/
+   /* Extract "NO" prefix and establish switch setting */
+   /*--------------------------------------------------*/
+
+   IF LENGTH(PARM) > 2 & SUBSTR(PARM,1,2) = 'NO' THEN DO;
+     PARM = SUBSTR(PARM,3);
+     SWITCH_SETTING = FALSE;
+   END;
+   ELSE
+     SWITCH_SETTING = TRUE;
+
+   /*-------------------------*/
+   /* Deal with the parameter */
+   /*-------------------------*/
+
+   SELECT (PARM);
+     WHEN ('?') DO;
+       PUT EDIT
+         ('D .......... Debug Mode <NO>',
+          'RT(x) ...... Title For Printed Output <None',
+          'DP(x) ...... Drive and Path <None>',
+          'FP(x) ...... File Prefix <none>',
+          'MAXC(n) .... Maximum Configurations <None>',
+          'LP(n) ...... Letter Pieces <1>',
+          'NP(n-n) .... Number Pieces <1-5>')
+         (SKIP, A);
+       RETURN;
+     END;
+
+     WHEN ('D')
+       DEBUGGING = SWITCH_SETTING;
+
+     WHEN ('RT')
+       REPORT_TITLE = ARG;
+
+     WHEN ('DP')
+       DRIVE_AND_PATH = ARG || '\';
+
+     WHEN ('FP')
+       FILE_PREFIX = ARG || '.';
+
+     WHEN ('MAXC')
+       MAX_CONFIGURATIONS = NUMERIC_VALUE(ARG, 1, MAX_BIN);
+
+     WHEN ('LP')
+       LETTER_PIECES = NUMERIC_VALUE(ARG, 1, 3);
+
+     WHEN ('NP') DO;
+       CALL RANGE(ARG, 1, 9);
+
+       NUMBER_PIECES_BEG = ARG_MIN;
+       NUMBER_PIECES_END = ARG_MAX;
+     END;
+
+     OTHERWISE DO;
+       DISPLAY ('Unknown parameter "' || PARM || '"');
+       INVALID_PARAMETERS = TRUE;
+     END;
+   END;
+ END;
+
+ IF INVALID_PARAMETERS THEN DO;
+   DISPLAY ('Invalid parameters - Terminating');
+   STOP;
+ END;
+
+ /*----------------------------------------------*/
+ /* Numeric value function for parameter parsing */
+ /*----------------------------------------------*/
+
+ NUMERIC_VALUE: PROC (ARG, MIN, MAX) RETURNS (FIXED BIN (31));
+
+ DCL ARG                      CHAR (100) VARYING;
+
+ DCL (MIN,MAX)                FIXED BIN (31);
+
+ DCL VAL                      FIXED BIN (31) INIT (0);
+
+ IF VERIFY(ARG, '0123456789') = 0 THEN DO;
+   VAL = ARG;
+
+   IF VAL < MIN THEN DO;
+     DISPLAY ('Value for "' || PARM || '" < ' || NUMSTR(MIN));
+     INVALID_PARAMETERS = TRUE;
+     RETURN (0);
+   END;
+   ELSE
+     IF VAL > MAX THEN DO;
+       DISPLAY ('Value for "' || PARM || '" > ' || NUMSTR(MAX));
+       INVALID_PARAMETERS = TRUE;
+       RETURN (0);
+     END;
+     ELSE
+       RETURN (VAL);
+ END;
+ ELSE DO;
+   DISPLAY ('Invalid value for "' || PARM || '"');
+   INVALID_PARAMETERS = TRUE;
+ END;
+
+ END NUMERIC_VALUE;
+
+ /*----------------------------------------*/
+ /* Range subroutine for parameter parsing */
+ /*----------------------------------------*/
+
+ RANGE: PROC (ARG, MIN, MAX);
+
+ DCL ARG                      CHAR (100) VARYING;
+
+ DCL WRK                      CHAR (100) VARYING;
+
+ DCL (MIN,MAX)                FIXED BIN (31);
+
+ DCL I                        FIXED BIN (31) INIT (0);
+
+ I = INDEX(ARG,'-');
+
+ IF I = 0 THEN DO;
+   IF ARG = 'N' THEN
+     ARG_MIN, ARG_MAX = MAX;
+   ELSE
+     ARG_MIN, ARG_MAX = NUMERIC_VALUE(ARG, MIN, MAX);
+ END;
+ ELSE DO;
+   WRK = SUBSTR(ARG,1,I-1);
+
+   IF WRK = 'N' THEN
+     ARG_MIN = MIN;
+   ELSE
+     ARG_MIN = NUMERIC_VALUE(WRK, MIN, MAX);
+
+   WRK = SUBSTR(ARG,I+1);
+
+   IF WRK = 'N' THEN
+     ARG_MAX = MAX;
+   ELSE
+     ARG_MAX = NUMERIC_VALUE(WRK, MIN, MAX);
+ END;
+
+ IF ^ INVALID_PARAMETERS & ARG_MAX < ARG_MIN THEN DO;
+   DISPLAY ('Invalid range for "' || PARM || '"');
+   INVALID_PARAMETERS = TRUE;
+ END;
+
+ RETURN;
+
+ END RANGE;
+
+ IF MAX_CONFIGURATIONS = 0 THEN
+   MAX_CONFIGURATIONS = MAX_BIN;
+
+ /*--------------------------------------------------------------*/
+ /* The top number is the subscript for the board array, the 2nd */
+ /* is for the string representaion position, and the 3rd is the */
+ /* hex value for the 2nd.                                       */
+ /*--------------------------------------------------------------*/
+
+ /*--------------------------------------*/
+ /* +----+----+----+----+----+----+----+ */
+ /* | 11 | 12 | 13 | 14 | 15 | 16 | 17 | */
+ /* | 01 | 02 | 03 | 04 | 05 | 06 | 07 | */
+ /* | 01 | 02 | 03 | 04 | 05 | 06 | 07 | */
+ /* +----+----+----+----+----+----+----+ */
+ /* | 21 | 22 | 23 | 24 | 25 | 26 | 27 | */
+ /* | 08 | 09 | 10 | 11 | 12 | 13 | 14 | */
+ /* | 08 | 09 | 0A | 0B | 0C | 0D | 0E | */
+ /* +----+----+----+----+----+----+----+ */
+ /* | 31 | 32 | 33 | 34 | 35 | 36 | 37 | */
+ /* | 15 | 16 | 17 | 18 | 19 | 20 | 21 | */
+ /* | 0F | 10 | 11 | 12 | 13 | 14 | 15 | */
+ /* +----+----+----+----+----+----+----+ */
+ /* | 41 | 42 | 43 | 44 | 45 | 46 | 47 | */
+ /* | 22 | 23 | 24 | 25 | 26 | 27 | 28 | */
+ /* | 16 | 17 | 18 | 19 | 1A | 1B | 1C | */
+ /* +----+----+----+----+----+----+----+ */
+ /* | 51 | 52 | 53 | 54 | 55 | 56 | 57 | */
+ /* | 29 | 30 | 31 | 32 | 33 | 34 | 35 | */
+ /* | 1D | 1E | 1F | 20 | 21 | 22 | 23 | */
+ /* +----+----+----+----+----+----+----+ */
+ /* | 61 | 62 | 63 | 64 | 65 | 66 | 67 | */
+ /* | 36 | 37 | 38 | 39 | 40 | 41 | 42 | */
+ /* | 24 | 25 | 26 | 27 | 28 | 29 | 2A | */
+ /* +----+----+----+----+----+----+----+ */
+ /* | 71 | 72 | 73 | 74 | 75 | 76 | 77 | */
+ /* | 43 | 44 | 45 | 46 | 47 | 48 | 49 | */
+ /* | 2B | 2C | 2D | 2E | 2F | 30 | 31 | */
+ /* +----+----+----+----+----+----+----+ */
+ /*--------------------------------------*/
+
+ %IF TYPE = 'STD' %THEN %DO;
+ /*------------------------------*/
+ /* Translate table for rotation */
+ /*------------------------------*/
+
+ ROT(01) = '2B'X;
+ ROT(02) = '24'X;
+ ROT(03) = '1D'X;
+ ROT(04) = '16'X;
+ ROT(05) = '0F'X;
+ ROT(06) = '08'X;
+ ROT(07) = '01'X;
+ ROT(08) = '2C'X;
+ ROT(09) = '25'X;
+ ROT(10) = '1E'X;
+ ROT(11) = '17'X;
+ ROT(12) = '10'X;
+ ROT(13) = '09'X;
+ ROT(14) = '02'X;
+ ROT(15) = '2D'X;
+ ROT(16) = '26'X;
+ ROT(17) = '1F'X;
+ ROT(18) = '18'X;
+ ROT(19) = '11'X;
+ ROT(20) = '0A'X;
+ ROT(21) = '03'X;
+ ROT(22) = '2E'X;
+ ROT(23) = '27'X;
+ ROT(24) = '20'X;
+ ROT(25) = '19'X;
+ ROT(26) = '12'X;
+ ROT(27) = '0B'X;
+ ROT(28) = '04'X;
+ ROT(29) = '2F'X;
+ ROT(30) = '28'X;
+ ROT(31) = '21'X;
+ ROT(32) = '1A'X;
+ ROT(33) = '13'X;
+ ROT(34) = '0C'X;
+ ROT(35) = '05'X;
+ ROT(36) = '30'X;
+ ROT(37) = '29'X;
+ ROT(38) = '22'X;
+ ROT(39) = '1B'X;
+ ROT(40) = '14'X;
+ ROT(41) = '0D'X;
+ ROT(42) = '06'X;
+ ROT(43) = '31'X;
+ ROT(44) = '2A'X;
+ ROT(45) = '23'X;
+ ROT(46) = '1C'X;
+ ROT(47) = '15'X;
+ ROT(48) = '0E'X;
+ ROT(49) = '07'X;
+
+ /*--------------------------------*/
+ /* Translate table for reflection */
+ /*--------------------------------*/
+
+ REF(01) = '2B'X;
+ REF(02) = '2C'X;
+ REF(03) = '2D'X;
+ REF(04) = '2E'X;
+ REF(05) = '2F'X;
+ REF(06) = '30'X;
+ REF(07) = '31'X;
+ REF(08) = '24'X;
+ REF(09) = '25'X;
+ REF(10) = '26'X;
+ REF(11) = '27'X;
+ REF(12) = '28'X;
+ REF(13) = '29'X;
+ REF(14) = '2A'X;
+ REF(15) = '1D'X;
+ REF(16) = '1E'X;
+ REF(17) = '1F'X;
+ REF(18) = '20'X;
+ REF(19) = '21'X;
+ REF(20) = '22'X;
+ REF(21) = '23'X;
+ REF(22) = '16'X;
+ REF(23) = '17'X;
+ REF(24) = '18'X;
+ REF(25) = '19'X;
+ REF(26) = '1A'X;
+ REF(27) = '1B'X;
+ REF(28) = '1C'X;
+ REF(29) = '0F'X;
+ REF(30) = '10'X;
+ REF(31) = '11'X;
+ REF(32) = '12'X;
+ REF(33) = '13'X;
+ REF(34) = '14'X;
+ REF(35) = '15'X;
+ REF(36) = '08'X;
+ REF(37) = '09'X;
+ REF(38) = '0A'X;
+ REF(39) = '0B'X;
+ REF(40) = '0C'X;
+ REF(41) = '0D'X;
+ REF(42) = '0E'X;
+ REF(43) = '01'X;
+ REF(44) = '02'X;
+ REF(45) = '03'X;
+ REF(46) = '04'X;
+ REF(47) = '05'X;
+ REF(48) = '06'X;
+ REF(49) = '07'X;
+ %END;
+ %ELSE %DO;
+ /*-------------------------------------------*/
+ /* Translate table for left-right reflection */
+ /*------------------------------------------*/
+
+ LR(01) = '07'X;
+ LR(02) = '06'X;
+ LR(03) = '05'X;
+ LR(04) = '04'X;
+ LR(05) = '03'X;
+ LR(06) = '02'X;
+ LR(07) = '01'X;
+ LR(08) = '0E'X;
+ LR(09) = '0D'X;
+ LR(10) = '0C'X;
+ LR(11) = '0B'X;
+ LR(12) = '0A'X;
+ LR(13) = '09'X;
+ LR(14) = '08'X;
+ LR(15) = '15'X;
+ LR(16) = '14'X;
+ LR(17) = '13'X;
+ LR(18) = '12'X;
+ LR(19) = '11'X;
+ LR(20) = '10'X;
+ LR(21) = '0F'X;
+ LR(22) = '1C'X;
+ LR(23) = '1B'X;
+ LR(24) = '1A'X;
+ LR(25) = '19'X;
+ LR(26) = '18'X;
+ LR(27) = '17'X;
+ LR(28) = '16'X;
+ LR(29) = '23'X;
+ LR(30) = '22'X;
+ LR(31) = '21'X;
+ LR(32) = '20'X;
+ LR(33) = '1F'X;
+ LR(34) = '1E'X;
+ LR(35) = '1D'X;
+ LR(36) = '2A'X;
+ LR(37) = '29'X;
+ LR(38) = '28'X;
+ LR(39) = '27'X;
+ LR(40) = '26'X;
+ LR(41) = '25'X;
+ LR(42) = '24'X;
+ LR(43) = '31'X;
+ LR(44) = '30'X;
+ LR(45) = '2F'X;
+ LR(46) = '2E'X;
+ LR(47) = '2D'X;
+ LR(48) = '2C'X;
+ LR(49) = '2B'X;
+
+ /*------------------------------------------*/
+ /* Translate table for top-botom reflection */
+ /*------------------------------------------*/
+
+ TB(01) = '07'X;
+ TB(02) = '06'X;
+ TB(03) = '05'X;
+ TB(04) = '04'X;
+ TB(05) = '03'X;
+ TB(06) = '02'X;
+ TB(07) = '01'X;
+ TB(08) = '0E'X;
+ TB(09) = '0D'X;
+ TB(10) = '0C'X;
+ TB(11) = '0B'X;
+ TB(12) = '0A'X;
+ TB(13) = '09'X;
+ TB(14) = '08'X;
+ TB(15) = '15'X;
+ TB(16) = '14'X;
+ TB(17) = '13'X;
+ TB(18) = '12'X;
+ TB(19) = '11'X;
+ TB(20) = '10'X;
+ TB(21) = '0F'X;
+ TB(22) = '1C'X;
+ TB(23) = '1B'X;
+ TB(24) = '1A'X;
+ TB(25) = '19'X;
+ TB(26) = '18'X;
+ TB(27) = '17'X;
+ TB(28) = '16'X;
+ TB(29) = '23'X;
+ TB(30) = '22'X;
+ TB(31) = '21'X;
+ TB(32) = '20'X;
+ TB(33) = '1F'X;
+ TB(34) = '1E'X;
+ TB(35) = '1D'X;
+ TB(36) = '2A'X;
+ TB(37) = '29'X;
+ TB(38) = '28'X;
+ TB(39) = '27'X;
+ TB(40) = '26'X;
+ TB(41) = '25'X;
+ TB(42) = '24'X;
+ TB(43) = '31'X;
+ TB(44) = '30'X;
+ TB(45) = '2F'X;
+ TB(46) = '2E'X;
+ TB(47) = '2D'X;
+ TB(48) = '2C'X;
+ TB(49) = '2B'X;
+ %END;
+ CONFIGURATIONS_FILE = DRIVE_AND_PATH || FILE_PREFIX || 'CONFIGURATIONS';
+ STATISTICS_FILE     = DRIVE_AND_PATH || FILE_PREFIX || 'CONFIGURATIONS.STATISTICS';
+
+ OPEN FILE (CFGTXT)TITLE ('/' || CONFIGURATIONS_FILE || '.TXT,APPEND(N)');
+ OPEN FILE (STATS) TITLE ('/' || STATISTICS_FILE     || '.TXT,APPEND(N)');
+
+ CONFIG = COPY('-', CONFIG_SIZE);
+
+ DO X = 1, 2, 3, 4, 9, 10, 11, 17, 18;
+   C(X) = 'X';
+
+   IF LETTER_PIECES = 1 THEN
+     CALL LETTER_PIECES_1;
+   ELSE
+     IF LETTER_PIECES = 2 THEN
+       CALL LETTER_PIECES_2;
+     ELSE
+       CALL LETTER_PIECES_3;
+
+   C(X) = '-';
+
+   Y, Z, N1, N2, N3, N4, N5, N6, N7, N8, N9 = 0;
+ END;
+
+ /*----------------*/
+ /* 1 Letter Piece */
+ /*----------------*/
+
+ LETTER_PIECES_1: PROC;
+
+ LEVEL = 1;
+
+ IF NUMBER_PIECES_BEG <=1 THEN
+   DO N1 = 1 TO CONFIG_SIZE;
+   IF C(N1) ^= '-' THEN GO TO LP1_LVL1_N1;
+   C(N1) = '1';
+   CALL CHECK_CONFIG;
+   C(N1) = '-'; LP1_LVL1_N1: END;
+
+ LEVEL = 2;
+
+ IF NUMBER_PIECES_BEG <= 2 & NUMBER_PIECES_END >= 2 THEN
+   DO N1 = 1 TO CONFIG_SIZE;
+   IF C(N1) ^= '-' THEN GO TO LP1_LVL2_N1;
+   C(N1) = '1';
+   DO N2 = (N1 + 1) TO CONFIG_SIZE;
+   IF C(N2) ^= '-' THEN GO TO LP1_LVL2_N2;
+   C(N2) = '2';
+   CALL CHECK_CONFIG;
+   C(N2) = '-'; LP1_LVL2_N2: END;
+   C(N1) = '-'; LP1_LVL2_N1: END;
+
+ LEVEL = 3;
+
+ IF NUMBER_PIECES_BEG <= 3 & NUMBER_PIECES_END >= 3 THEN
+   DO N1 = 1 TO CONFIG_SIZE;
+   IF C(N1) ^= '-' THEN GO TO LP1_LVL3_N1;
+   C(N1) = '1';
+   DO N2 = (N1 + 1) TO CONFIG_SIZE;
+   IF C(N2) ^= '-' THEN GO TO LP1_LVL3_N2;
+   C(N2) = '2';
+   DO N3 = (N2 + 1) TO CONFIG_SIZE;
+   IF C(N3) ^= '-' THEN GO TO LP1_LVL3_N3;
+   C(N3) = '3';
+   CALL CHECK_CONFIG;
+   C(N3) = '-'; LP1_LVL3_N3: END;
+   C(N2) = '-'; LP1_LVL3_N2: END;
+   C(N1) = '-'; LP1_LVL3_N1: END;
+
+ LEVEL = 4;
+
+ IF NUMBER_PIECES_BEG <= 4 & NUMBER_PIECES_END >= 4 THEN
+   DO N1 = 1 TO CONFIG_SIZE;
+   IF C(N1) ^= '-' THEN GO TO LP1_LVL4_N1;
+   C(N1) = '1';
+   DO N2 = (N1 + 1) TO CONFIG_SIZE;
+   IF C(N2) ^= '-' THEN GO TO LP1_LVL4_N2;
+   C(N2) = '2';
+   DO N3 = (N2 + 1) TO CONFIG_SIZE;
+   IF C(N3) ^= '-' THEN GO TO LP1_LVL4_N3;
+   C(N3) = '3';
+   DO N4 = (N3 + 1) TO CONFIG_SIZE;
+   IF C(N4) ^= '-' THEN GO TO LP1_LVL4_N4;
+   C(N4) = '4';
+   CALL CHECK_CONFIG;
+   C(N4) = '-'; LP1_LVL4_N4: END;
+   C(N3) = '-'; LP1_LVL4_N3: END;
+   C(N2) = '-'; LP1_LVL4_N2: END;
+   C(N1) = '-'; LP1_LVL4_N1: END;
+
+ LEVEL = 5;
+
+ IF NUMBER_PIECES_END <= 5 & NUMBER_PIECES_END >= 5 THEN
+   DO N1 = 1 TO CONFIG_SIZE;
+   IF C(N1) ^= '-' THEN GO TO LP1_LVL5_N1;
+   C(N1) = '1';
+   DO N2 = (N1 + 1) TO CONFIG_SIZE;
+   IF C(N2) ^= '-' THEN GO TO LP1_LVL5_N2;
+   C(N2) = '2';
+   DO N3 = (N2 + 1) TO CONFIG_SIZE;
+   IF C(N3) ^= '-' THEN GO TO LP1_LVL5_N3;
+   C(N3) = '3';
+   DO N4 = (N3 + 1) TO CONFIG_SIZE;
+   IF C(N4) ^= '-' THEN GO TO LP1_LVL5_N4;
+   C(N4) = '4';
+   DO N5 = (N4 + 1) TO CONFIG_SIZE;
+   IF C(N5) ^= '-' THEN GO TO LP1_LVL5_N5;
+   C(N5) = '5';
+   CALL CHECK_CONFIG;
+   C(N5) = '-'; LP1_LVL5_N5: END;
+   C(N4) = '-'; LP1_LVL5_N4: END;
+   C(N3) = '-'; LP1_LVL5_N3: END;
+   C(N2) = '-'; LP1_LVL5_N2: END;
+   C(N1) = '-'; LP1_LVL5_N1: END;
+
+ LEVEL = 6;
+
+ IF NUMBER_PIECES_BEG <= 6 & NUMBER_PIECES_END >= 6 THEN
+   DO N1 = 1 TO CONFIG_SIZE;
+   IF C(N1) ^= '-' THEN GO TO LVL6_N1;
+   C(N1) = '1';
+   DO N2 = (N1 + 1) TO CONFIG_SIZE;
+   IF C(N2) ^= '-' THEN GO TO LVL6_N2;
+   C(N2) = '2';
+   DO N3 = (N2 + 1) TO CONFIG_SIZE;
+   IF C(N3) ^= '-' THEN GO TO LVL6_N3;
+   C(N3) = '3';
+   DO N4 = (N3 + 1) TO CONFIG_SIZE;
+   IF C(N4) ^= '-' THEN GO TO LVL6_N4;
+   C(N4) = '4';
+   DO N5 = (N4 + 1) TO CONFIG_SIZE;
+   IF C(N5) ^= '-' THEN GO TO LVL6_N5;
+   C(N5) = '5';
+   DO N6 = (N5 + 1) TO CONFIG_SIZE;
+   IF C(N6) ^= '-' THEN GO TO LVL6_N6;
+   C(N6) = '6';
+   CALL CHECK_CONFIG;
+   C(N6) = '-'; LVL6_N6: END;
+   C(N5) = '-'; LVL6_N5: END;
+   C(N4) = '-'; LVL6_N4: END;
+   C(N3) = '-'; LVL6_N3: END;
+   C(N2) = '-'; LVL6_N2: END;
+   C(N1) = '-'; LVL6_N1: END;
+
+ LEVEL = 7;
+
+ IF NUMBER_PIECES_BEG <= 7 & NUMBER_PIECES_END >= 7 THEN
+   DO N1 = 1 TO CONFIG_SIZE;
+   IF C(N1) ^= '-' THEN GO TO LVL7_N1;
+   C(N1) = '1';
+   DO N2 = (N1 + 1) TO CONFIG_SIZE;
+   IF C(N2) ^= '-' THEN GO TO LVL7_N2;
+   C(N2) = '2';
+   DO N3 = (N2 + 1) TO CONFIG_SIZE;
+   IF C(N3) ^= '-' THEN GO TO LVL7_N3;
+   C(N3) = '3';
+   DO N4 = (N3 + 1) TO CONFIG_SIZE;
+   IF C(N4) ^= '-' THEN GO TO LVL7_N4;
+   C(N4) = '4';
+   DO N5 = (N4 + 1) TO CONFIG_SIZE;
+   IF C(N5) ^= '-' THEN GO TO LVL7_N5;
+   C(N5) = '5';
+   DO N6 = (N5 + 1) TO CONFIG_SIZE;
+   IF C(N6) ^= '-' THEN GO TO LVL7_N6;
+   C(N6) = '6';
+   DO N7 = (N6 + 1) TO CONFIG_SIZE;
+   IF C(N7) ^= '-' THEN GO TO LVL7_N7;
+   C(N7) = '7';
+   CALL CHECK_CONFIG;
+   C(N7) = '-'; LVL7_N7: END;
+   C(N6) = '-'; LVL7_N6: END;
+   C(N5) = '-'; LVL7_N5: END;
+   C(N4) = '-'; LVL7_N4: END;
+   C(N3) = '-'; LVL7_N3: END;
+   C(N2) = '-'; LVL7_N2: END;
+   C(N1) = '-'; LVL7_N1: END;
+
+ LEVEL = 8;
+
+ IF NUMBER_PIECES_BEG <= 8 & NUMBER_PIECES_END >= 8 THEN
+   DO N1 = 1 TO CONFIG_SIZE;
+   IF C(N1) ^= '-' THEN GO TO LVL8_N1;
+   C(N1) = '1';
+   DO N2 = (N1 + 1) TO CONFIG_SIZE;
+   IF C(N2) ^= '-' THEN GO TO LVL8_N2;
+   C(N2) = '2';
+   DO N3 = (N2 + 1) TO CONFIG_SIZE;
+   IF C(N3) ^= '-' THEN GO TO LVL8_N3;
+   C(N3) = '3';
+   DO N4 = (N3 + 1) TO CONFIG_SIZE;
+   IF C(N4) ^= '-' THEN GO TO LVL8_N4;
+   C(N4) = '4';
+   DO N5 = (N4 + 1) TO CONFIG_SIZE;
+   IF C(N5) ^= '-' THEN GO TO LVL8_N5;
+   C(N5) = '5';
+   DO N6 = (N5 + 1) TO CONFIG_SIZE;
+   IF C(N6) ^= '-' THEN GO TO LVL8_N6;
+   C(N6) = '6';
+   DO N7 = (N6 + 1) TO CONFIG_SIZE;
+   IF C(N7) ^= '-' THEN GO TO LVL8_N7;
+   C(N7) = '7';
+   DO N8 = (N7 + 1) TO CONFIG_SIZE;
+   IF C(N8) ^= '-' THEN GO TO LVL8_N8;
+   C(N8) = '8';
+   CALL CHECK_CONFIG;
+   C(N8) = '-'; LVL8_N8: END;
+   C(N7) = '-'; LVL8_N7: END;
+   C(N6) = '-'; LVL8_N6: END;
+   C(N5) = '-'; LVL8_N5: END;
+   C(N4) = '-'; LVL8_N4: END;
+   C(N3) = '-'; LVL8_N3: END;
+   C(N2) = '-'; LVL8_N2: END;
+   C(N1) = '-'; LVL8_N1: END;
+
+ LEVEL = 9;
+
+ IF NUMBER_PIECES_BEG >= 9 THEN
+   DO N1 = 1 TO CONFIG_SIZE;
+   IF C(N1) ^= '-' THEN GO TO LVL9_N1;
+   C(N1) = '1';
+   DO N2 = (N1 + 1) TO CONFIG_SIZE;
+   IF C(N2) ^= '-' THEN GO TO LVL9_N2;
+   C(N2) = '2';
+   DO N3 = (N2 + 1) TO CONFIG_SIZE;
+   IF C(N3) ^= '-' THEN GO TO LVL9_N3;
+   C(N3) = '3';
+   DO N4 = (N3 + 1) TO CONFIG_SIZE;
+   IF C(N4) ^= '-' THEN GO TO LVL9_N4;
+   C(N4) = '4';
+   DO N5 = (N4 + 1) TO CONFIG_SIZE;
+   IF C(N5) ^= '-' THEN GO TO LVL9_N5;
+   C(N5) = '5';
+   DO N6 = (N5 + 1) TO CONFIG_SIZE;
+   IF C(N6) ^= '-' THEN GO TO LVL9_N6;
+   C(N6) = '6';
+   DO N7 = (N6 + 1) TO CONFIG_SIZE;
+   IF C(N7) ^= '-' THEN GO TO LVL9_N7;
+   C(N7) = '7';
+   DO N8 = (N7 + 1) TO CONFIG_SIZE;
+   IF C(N8) ^= '-' THEN GO TO LVL9_N8;
+   C(N8) = '8';
+   DO N9 = (N8 + 1) TO CONFIG_SIZE;
+   IF C(N9) ^= '-' THEN GO TO LVL9_N9;
+   C(N9) = '9';
+   CALL CHECK_CONFIG;
+   C(N9) = '-'; LVL9_N9: END;
+   C(N8) = '-'; LVL9_N8: END;
+   C(N7) = '-'; LVL9_N7: END;
+   C(N6) = '-'; LVL9_N6: END;
+   C(N5) = '-'; LVL9_N5: END;
+   C(N4) = '-'; LVL9_N4: END;
+   C(N3) = '-'; LVL9_N3: END;
+   C(N2) = '-'; LVL9_N2: END;
+   C(N1) = '-'; LVL9_N1: END;
+
+ END LETTER_PIECES_1;
+
+ /*-----------------*/
+ /* 2 Letter Pieces */
+ /*-----------------*/
+
+ LETTER_PIECES_2: PROC;
+
+ LEVEL = 1;
+
+ IF NUMBER_PIECES_BEG <=1 THEN
+   DO Y = 2 TO CONFIG_SIZE;
+   IF Y = CONFIG_CENTER | C(Y) ^= '-' THEN GO TO LP2_LVL1_Y;
+   C(Y) = 'Y';
+   DO N1 = 1 TO CONFIG_SIZE;
+   IF C(N1) ^= '-' THEN GO TO LP2_LVL1_N1;
+   C(N1) = '1';
+   CALL CHECK_CONFIG;
+   C(N1) = '-'; LP2_LVL1_N1: END;
+   C(Y)  = '-'; LP2_LVL1_Y:  END;
+
+ LEVEL = 2;
+
+ IF NUMBER_PIECES_BEG <= 2 & NUMBER_PIECES_END >= 2 THEN
+   DO Y = 2 TO CONFIG_SIZE;
+   IF Y = CONFIG_CENTER | C(Y) ^= '-' THEN GO TO LP2_LVL2_Y;
+   C(Y) = 'Y';
+   DO N1 = 1 TO CONFIG_SIZE;
+   IF C(N1) ^= '-' THEN GO TO LP2_LVL2_N1;
+   C(N1) = '1';
+   DO N2 = (N1 + 1) TO CONFIG_SIZE;
+   IF C(N2) ^= '-' THEN GO TO LP2_LVL2_N2;
+   C(N2) = '2';
+   CALL CHECK_CONFIG;
+   C(N2) = '-'; LP2_LVL2_N2: END;
+   C(N1) = '-'; LP2_LVL2_N1: END;
+   C(Y)  = '-'; LP2_LVL2_Y:  END;
+
+ LEVEL = 3;
+
+ IF NUMBER_PIECES_BEG <= 3 & NUMBER_PIECES_END >= 3 THEN
+   DO Y = 2 TO CONFIG_SIZE;
+   IF Y = CONFIG_CENTER | C(Y) ^= '-' THEN GO TO LP2_LVL3_Y;
+   C(Y) = 'Y';
+   DO N1 = 1 TO CONFIG_SIZE;
+   IF C(N1) ^= '-' THEN GO TO LP2_LVL3_N1;
+   C(N1) = '1';
+   DO N2 = (N1 + 1) TO CONFIG_SIZE;
+   IF C(N2) ^= '-' THEN GO TO LP2_LVL3_N2;
+   C(N2) = '2';
+   DO N3 = (N2 + 1) TO CONFIG_SIZE;
+   IF C(N3) ^= '-' THEN GO TO LP2_LVL3_N3;
+   C(N3) = '3';
+   CALL CHECK_CONFIG;
+   C(N3) = '-'; LP2_LVL3_N3: END;
+   C(N2) = '-'; LP2_LVL3_N2: END;
+   C(N1) = '-'; LP2_LVL3_N1: END;
+   C(Y)  = '-'; LP2_LVL3_Y:  END;
+
+ LEVEL = 4;
+
+ IF NUMBER_PIECES_BEG <= 4 & NUMBER_PIECES_END >= 4 THEN
+   DO Y = 2 TO CONFIG_SIZE;
+   IF Y = CONFIG_CENTER | C(Y) ^= '-' THEN GO TO LP2_LVL4_Y;
+   C(Y) = 'Y';
+   DO N1 = 1 TO CONFIG_SIZE;
+   IF C(N1) ^= '-' THEN GO TO LP2_LVL4_N1;
+   C(N1) = '1';
+   DO N2 = (N1 + 1) TO CONFIG_SIZE;
+   IF C(N2) ^= '-' THEN GO TO LP2_LVL4_N2;
+   C(N2) = '2';
+   DO N3 = (N2 + 1) TO CONFIG_SIZE;
+   IF C(N3) ^= '-' THEN GO TO LP2_LVL4_N3;
+   C(N3) = '3';
+   DO N4 = (N3 + 1) TO CONFIG_SIZE;
+   IF C(N4) ^= '-' THEN GO TO LP2_LVL4_N4;
+   C(N4) = '4';
+   CALL CHECK_CONFIG;
+   C(N4) = '-'; LP2_LVL4_N4: END;
+   C(N3) = '-'; LP2_LVL4_N3: END;
+   C(N2) = '-'; LP2_LVL4_N2: END;
+   C(N1) = '-'; LP2_LVL4_N1: END;
+   C(Y)  = '-'; LP2_LVL4_Y:  END;
+
+ LEVEL = 5;
+
+ IF NUMBER_PIECES_END <= 5 & NUMBER_PIECES_END >= 5 THEN
+   DO Y = 2 TO CONFIG_SIZE;
+   IF Y = CONFIG_CENTER | C(Y) ^= '-' THEN GO TO LP2_LVL5_Y;
+   C(Y) = 'Y';
+   DO N1 = 1 TO CONFIG_SIZE;
+   IF C(N1) ^= '-' THEN GO TO LP2_LVL5_N1;
+   C(N1) = '1';
+   DO N2 = (N1 + 1) TO CONFIG_SIZE;
+   IF C(N2) ^= '-' THEN GO TO LP2_LVL5_N2;
+   C(N2) = '2';
+   DO N3 = (N2 + 1) TO CONFIG_SIZE;
+   IF C(N3) ^= '-' THEN GO TO LP2_LVL5_N3;
+   C(N3) = '3';
+   DO N4 = (N3 + 1) TO CONFIG_SIZE;
+   IF C(N4) ^= '-' THEN GO TO LP2_LVL5_N4;
+   C(N4) = '4';
+   DO N5 = (N4 + 1) TO CONFIG_SIZE;
+   IF C(N5) ^= '-' THEN GO TO LP2_LVL5_N5;
+   C(N5) = '5';
+   CALL CHECK_CONFIG;
+   C(N5) = '-'; LP2_LVL5_N5: END;
+   C(N4) = '-'; LP2_LVL5_N4: END;
+   C(N3) = '-'; LP2_LVL5_N3: END;
+   C(N2) = '-'; LP2_LVL5_N2: END;
+   C(N1) = '-'; LP2_LVL5_N1: END;
+   C(Y)  = '-'; LP2_LVL5_Y:  END;
+
+ LEVEL = 6;
+
+ IF NUMBER_PIECES_BEG <= 6 & NUMBER_PIECES_END >= 6 THEN
+   DO Y = 2 TO CONFIG_SIZE;
+   IF Y = CONFIG_CENTER | C(Y) ^= '-' THEN GO TO LP2_LVL6_Y;
+   C(Y) = 'Y';
+   DO N1 = 1 TO CONFIG_SIZE;
+   IF C(N1) ^= '-' THEN GO TO LVL6_N1;
+   C(N1) = '1';
+   DO N2 = (N1 + 1) TO CONFIG_SIZE;
+   IF C(N2) ^= '-' THEN GO TO LVL6_N2;
+   C(N2) = '2';
+   DO N3 = (N2 + 1) TO CONFIG_SIZE;
+   IF C(N3) ^= '-' THEN GO TO LVL6_N3;
+   C(N3) = '3';
+   DO N4 = (N3 + 1) TO CONFIG_SIZE;
+   IF C(N4) ^= '-' THEN GO TO LVL6_N4;
+   C(N4) = '4';
+   DO N5 = (N4 + 1) TO CONFIG_SIZE;
+   IF C(N5) ^= '-' THEN GO TO LVL6_N5;
+   C(N5) = '5';
+   DO N6 = (N5 + 1) TO CONFIG_SIZE;
+   IF C(N6) ^= '-' THEN GO TO LVL6_N6;
+   C(N6) = '6';
+   CALL CHECK_CONFIG;
+   C(N6) = '-'; LVL6_N6: END;
+   C(N5) = '-'; LVL6_N5: END;
+   C(N4) = '-'; LVL6_N4: END;
+   C(N3) = '-'; LVL6_N3: END;
+   C(N2) = '-'; LVL6_N2: END;
+   C(N1) = '-'; LVL6_N1: END;
+   C(Y)  = '-'; LP2_LVL6_Y:  END;
+
+ LEVEL = 7;
+
+ IF NUMBER_PIECES_BEG <= 7 & NUMBER_PIECES_END >= 7 THEN
+   DO Y = 2 TO CONFIG_SIZE;
+   IF Y = CONFIG_CENTER | C(Y) ^= '-' THEN GO TO LP2_LVL7_Y;
+   C(Y) = 'Y';
+   DO N1 = 1 TO CONFIG_SIZE;
+   IF C(N1) ^= '-' THEN GO TO LVL7_N1;
+   C(N1) = '1';
+   DO N2 = (N1 + 1) TO CONFIG_SIZE;
+   IF C(N2) ^= '-' THEN GO TO LVL7_N2;
+   C(N2) = '2';
+   DO N3 = (N2 + 1) TO CONFIG_SIZE;
+   IF C(N3) ^= '-' THEN GO TO LVL7_N3;
+   C(N3) = '3';
+   DO N4 = (N3 + 1) TO CONFIG_SIZE;
+   IF C(N4) ^= '-' THEN GO TO LVL7_N4;
+   C(N4) = '4';
+   DO N5 = (N4 + 1) TO CONFIG_SIZE;
+   IF C(N5) ^= '-' THEN GO TO LVL7_N5;
+   C(N5) = '5';
+   DO N6 = (N5 + 1) TO CONFIG_SIZE;
+   IF C(N6) ^= '-' THEN GO TO LVL7_N6;
+   C(N6) = '6';
+   DO N7 = (N6 + 1) TO CONFIG_SIZE;
+   IF C(N7) ^= '-' THEN GO TO LVL7_N7;
+   C(N7) = '7';
+   CALL CHECK_CONFIG;
+   C(N7) = '-'; LVL7_N7: END;
+   C(N6) = '-'; LVL7_N6: END;
+   C(N5) = '-'; LVL7_N5: END;
+   C(N4) = '-'; LVL7_N4: END;
+   C(N3) = '-'; LVL7_N3: END;
+   C(N2) = '-'; LVL7_N2: END;
+   C(N1) = '-'; LVL7_N1: END;
+   C(Y)  = '-'; LP2_LVL7_Y:  END;
+
+ LEVEL = 8;
+
+ IF NUMBER_PIECES_BEG <= 8 & NUMBER_PIECES_END >= 8 THEN
+   DO Y = 2 TO CONFIG_SIZE;
+   IF Y = CONFIG_CENTER | C(Y) ^= '-' THEN GO TO LP2_LVL8_Y;
+   C(Y) = 'Y';
+   DO N1 = 1 TO CONFIG_SIZE;
+   IF C(N1) ^= '-' THEN GO TO LVL8_N1;
+   C(N1) = '1';
+   DO N2 = (N1 + 1) TO CONFIG_SIZE;
+   IF C(N2) ^= '-' THEN GO TO LVL8_N2;
+   C(N2) = '2';
+   DO N3 = (N2 + 1) TO CONFIG_SIZE;
+   IF C(N3) ^= '-' THEN GO TO LVL8_N3;
+   C(N3) = '3';
+   DO N4 = (N3 + 1) TO CONFIG_SIZE;
+   IF C(N4) ^= '-' THEN GO TO LVL8_N4;
+   C(N4) = '4';
+   DO N5 = (N4 + 1) TO CONFIG_SIZE;
+   IF C(N5) ^= '-' THEN GO TO LVL8_N5;
+   C(N5) = '5';
+   DO N6 = (N5 + 1) TO CONFIG_SIZE;
+   IF C(N6) ^= '-' THEN GO TO LVL8_N6;
+   C(N6) = '6';
+   DO N7 = (N6 + 1) TO CONFIG_SIZE;
+   IF C(N7) ^= '-' THEN GO TO LVL8_N7;
+   C(N7) = '7';
+   DO N8 = (N7 + 1) TO CONFIG_SIZE;
+   IF C(N8) ^= '-' THEN GO TO LVL8_N8;
+   C(N8) = '8';
+   CALL CHECK_CONFIG;
+   C(N8) = '-'; LVL8_N8: END;
+   C(N7) = '-'; LVL8_N7: END;
+   C(N6) = '-'; LVL8_N6: END;
+   C(N5) = '-'; LVL8_N5: END;
+   C(N4) = '-'; LVL8_N4: END;
+   C(N3) = '-'; LVL8_N3: END;
+   C(N2) = '-'; LVL8_N2: END;
+   C(N1) = '-'; LVL8_N1: END;
+   C(Y)  = '-'; LP2_LVL8_Y:  END;
+
+ LEVEL = 9;
+
+ IF NUMBER_PIECES_BEG >= 9 THEN
+   DO Y = 2 TO CONFIG_SIZE;
+   IF Y = CONFIG_CENTER | C(Y) ^= '-' THEN GO TO LP2_LVL9_Y;
+   C(Y) = 'Y';
+   DO N1 = 1 TO CONFIG_SIZE;
+   IF C(N1) ^= '-' THEN GO TO LVL9_N1;
+   C(N1) = '1';
+   DO N2 = (N1 + 1) TO CONFIG_SIZE;
+   IF C(N2) ^= '-' THEN GO TO LVL9_N2;
+   C(N2) = '2';
+   DO N3 = (N2 + 1) TO CONFIG_SIZE;
+   IF C(N3) ^= '-' THEN GO TO LVL9_N3;
+   C(N3) = '3';
+   DO N4 = (N3 + 1) TO CONFIG_SIZE;
+   IF C(N4) ^= '-' THEN GO TO LVL9_N4;
+   C(N4) = '4';
+   DO N5 = (N4 + 1) TO CONFIG_SIZE;
+   IF C(N5) ^= '-' THEN GO TO LVL9_N5;
+   C(N5) = '5';
+   DO N6 = (N5 + 1) TO CONFIG_SIZE;
+   IF C(N6) ^= '-' THEN GO TO LVL9_N6;
+   C(N6) = '6';
+   DO N7 = (N6 + 1) TO CONFIG_SIZE;
+   IF C(N7) ^= '-' THEN GO TO LVL9_N7;
+   C(N7) = '7';
+   DO N8 = (N7 + 1) TO CONFIG_SIZE;
+   IF C(N8) ^= '-' THEN GO TO LVL9_N8;
+   C(N8) = '8';
+   DO N9 = (N8 + 1) TO CONFIG_SIZE;
+   IF C(N9) ^= '-' THEN GO TO LVL9_N9;
+   C(N9) = '9';
+   CALL CHECK_CONFIG;
+   C(N9) = '-'; LVL9_N9: END;
+   C(N8) = '-'; LVL9_N8: END;
+   C(N7) = '-'; LVL9_N7: END;
+   C(N6) = '-'; LVL9_N6: END;
+   C(N5) = '-'; LVL9_N5: END;
+   C(N4) = '-'; LVL9_N4: END;
+   C(N3) = '-'; LVL9_N3: END;
+   C(N2) = '-'; LVL9_N2: END;
+   C(N1) = '-'; LVL9_N1: END;
+   C(Y)  = '-'; LP2_LVL9_Y:  END;
+
+ END LETTER_PIECES_2;
+
+ /*-----------------*/
+ /* 3 Letter Pieces */
+ /*-----------------*/
+
+ LETTER_PIECES_3: PROC;
+
+ LEVEL = 1;
+
+ IF NUMBER_PIECES_BEG <=1 THEN
+   DO Y = 2 TO CONFIG_SIZE;
+   IF Y = CONFIG_CENTER | C(Y) ^= '-' THEN GO TO LP3_LVL1_Y;
+   C(Y) = 'Y';
+   DO Z = 3 TO CONFIG_SIZE;
+   IF Z = CONFIG_CENTER | C(Z) ^= '-' THEN GO TO LP3_LVL1_Z;
+   C(Z) = 'Z';
+   DO N1 = 1 TO CONFIG_SIZE;
+   IF C(N1) ^= '-' THEN GO TO LP3_LVL1_N1;
+   C(N1) = '1';
+   CALL CHECK_CONFIG;
+   C(N1) = '-'; LP3_LVL1_N1: END;
+   C(Z)  = '-'; LP3_LVL1_Z:  END;
+   C(Y)  = '-'; LP3_LVL1_Y:  END;
+
+ LEVEL = 2;
+
+ IF NUMBER_PIECES_BEG <= 2 & NUMBER_PIECES_END >= 2 THEN
+   DO Y = 2 TO CONFIG_SIZE;
+   IF Y = CONFIG_CENTER | C(Y) ^= '-' THEN GO TO LP3_LVL2_Y;
+   C(Y) = 'Y';
+   DO Z = 3 TO CONFIG_SIZE;
+   IF Z = CONFIG_CENTER | C(Z) ^= '-' THEN GO TO LP3_LVL2_Z;
+   C(Z) = 'Z';
+   DO N1 = 1 TO CONFIG_SIZE;
+   IF C(N1) ^= '-' THEN GO TO LP3_LVL2_N1;
+   C(N1) = '1';
+   DO N2 = (N1 + 1) TO CONFIG_SIZE;
+   IF C(N2) ^= '-' THEN GO TO LP3_LVL2_N2;
+   C(N2) = '2';
+   CALL CHECK_CONFIG;
+   C(N2) = '-'; LP3_LVL2_N2: END;
+   C(N1) = '-'; LP3_LVL2_N1: END;
+   C(Z)  = '-'; LP3_LVL2_Z:  END;
+   C(Y)  = '-'; LP3_LVL2_Y:  END;
+
+ LEVEL = 3;
+
+ IF NUMBER_PIECES_BEG <= 3 & NUMBER_PIECES_END >= 3 THEN
+   DO Y = 2 TO CONFIG_SIZE;
+   IF Y = CONFIG_CENTER | C(Y) ^= '-' THEN GO TO LP3_LVL3_Y;
+   C(Y) = 'Y';
+   DO Z = 3 TO CONFIG_SIZE;
+   IF Z = CONFIG_CENTER | C(Z) ^= '-' THEN GO TO LP3_LVL3_Z;
+   C(Z) = 'Z';
+   DO N1 = 1 TO CONFIG_SIZE;
+   IF C(N1) ^= '-' THEN GO TO LP3_LVL3_N1;
+   C(N1) = '1';
+   DO N2 = (N1 + 1) TO CONFIG_SIZE;
+   IF C(N2) ^= '-' THEN GO TO LP3_LVL3_N2;
+   C(N2) = '2';
+   DO N3 = (N2 + 1) TO CONFIG_SIZE;
+   IF C(N3) ^= '-' THEN GO TO LP3_LVL3_N3;
+   C(N3) = '3';
+   CALL CHECK_CONFIG;
+   C(N3) = '-'; LP3_LVL3_N3: END;
+   C(N2) = '-'; LP3_LVL3_N2: END;
+   C(N1) = '-'; LP3_LVL3_N1: END;
+   C(Z)  = '-'; LP3_LVL3_Z:  END;
+   C(Y)  = '-'; LP3_LVL3_Y:  END;
+
+ LEVEL = 4;
+
+ IF NUMBER_PIECES_BEG <= 4 & NUMBER_PIECES_END >= 4 THEN
+   DO Y = 2 TO CONFIG_SIZE;
+   IF Y = CONFIG_CENTER | C(Y) ^= '-' THEN GO TO LP3_LVL4_Y;
+   C(Y) = 'Y';
+   DO Z = 3 TO CONFIG_SIZE;
+   IF Z = CONFIG_CENTER | C(Z) ^= '-' THEN GO TO LP3_LVL4_Z;
+   C(Z) = 'Z';
+   DO N1 = 1 TO CONFIG_SIZE;
+   IF C(N1) ^= '-' THEN GO TO LP3_LVL4_N1;
+   C(N1) = '1';
+   DO N2 = (N1 + 1) TO CONFIG_SIZE;
+   IF C(N2) ^= '-' THEN GO TO LP3_LVL4_N2;
+   C(N2) = '2';
+   DO N3 = (N2 + 1) TO CONFIG_SIZE;
+   IF C(N3) ^= '-' THEN GO TO LP3_LVL4_N3;
+   C(N3) = '3';
+   DO N4 = (N3 + 1) TO CONFIG_SIZE;
+   IF C(N4) ^= '-' THEN GO TO LP3_LVL4_N4;
+   C(N4) = '4';
+   CALL CHECK_CONFIG;
+   C(N4) = '-'; LP3_LVL4_N4: END;
+   C(N3) = '-'; LP3_LVL4_N3: END;
+   C(N2) = '-'; LP3_LVL4_N2: END;
+   C(N1) = '-'; LP3_LVL4_N1: END;
+   C(Z)  = '-'; LP3_LVL4_Z:  END;
+   C(Y)  = '-'; LP3_LVL4_Y:  END;
+
+ LEVEL = 5;
+
+ IF NUMBER_PIECES_END <= 5 & NUMBER_PIECES_END >= 5 THEN
+   DO Y = 2 TO CONFIG_SIZE;
+   IF Y = CONFIG_CENTER | C(Y) ^= '-' THEN GO TO LP3_LVL5_Y;
+   C(Y) = 'Y';
+   DO Z = 3 TO CONFIG_SIZE;
+   IF Z = CONFIG_CENTER | C(Z) ^= '-' THEN GO TO LP3_LVL5_Z;
+   C(Z) = 'Z';
+   DO N1 = 1 TO CONFIG_SIZE;
+   IF C(N1) ^= '-' THEN GO TO LP3_LVL5_N1;
+   C(N1) = '1';
+   DO N2 = (N1 + 1) TO CONFIG_SIZE;
+   IF C(N2) ^= '-' THEN GO TO LP3_LVL5_N2;
+   C(N2) = '2';
+   DO N3 = (N2 + 1) TO CONFIG_SIZE;
+   IF C(N3) ^= '-' THEN GO TO LP3_LVL5_N3;
+   C(N3) = '3';
+   DO N4 = (N3 + 1) TO CONFIG_SIZE;
+   IF C(N4) ^= '-' THEN GO TO LP3_LVL5_N4;
+   C(N4) = '4';
+   DO N5 = (N4 + 1) TO CONFIG_SIZE;
+   IF C(N5) ^= '-' THEN GO TO LP3_LVL5_N5;
+   C(N5) = '5';
+   CALL CHECK_CONFIG;
+   C(N5) = '-'; LP3_LVL5_N5: END;
+   C(N4) = '-'; LP3_LVL5_N4: END;
+   C(N3) = '-'; LP3_LVL5_N3: END;
+   C(N2) = '-'; LP3_LVL5_N2: END;
+   C(N1) = '-'; LP3_LVL5_N1: END;
+   C(Z)  = '-'; LP3_LVL5_Z:  END;
+   C(Y)  = '-'; LP3_LVL5_Y:  END;
+
+ LEVEL = 6;
+
+ IF NUMBER_PIECES_BEG <= 6 & NUMBER_PIECES_END >= 6 THEN
+   DO Y = 2 TO CONFIG_SIZE;
+   IF Y = CONFIG_CENTER | C(Y) ^= '-' THEN GO TO LP3_LVL6_Y;
+   C(Y) = 'Y';
+   DO Z = 3 TO CONFIG_SIZE;
+   IF Z = CONFIG_CENTER | C(Z) ^= '-' THEN GO TO LP3_LVL6_Z;
+   C(Z) = 'Z';
+   DO N1 = 1 TO CONFIG_SIZE;
+   IF C(N1) ^= '-' THEN GO TO LVL6_N1;
+   C(N1) = '1';
+   DO N2 = (N1 + 1) TO CONFIG_SIZE;
+   IF C(N2) ^= '-' THEN GO TO LVL6_N2;
+   C(N2) = '2';
+   DO N3 = (N2 + 1) TO CONFIG_SIZE;
+   IF C(N3) ^= '-' THEN GO TO LVL6_N3;
+   C(N3) = '3';
+   DO N4 = (N3 + 1) TO CONFIG_SIZE;
+   IF C(N4) ^= '-' THEN GO TO LVL6_N4;
+   C(N4) = '4';
+   DO N5 = (N4 + 1) TO CONFIG_SIZE;
+   IF C(N5) ^= '-' THEN GO TO LVL6_N5;
+   C(N5) = '5';
+   DO N6 = (N5 + 1) TO CONFIG_SIZE;
+   IF C(N6) ^= '-' THEN GO TO LVL6_N6;
+   C(N6) = '6';
+   CALL CHECK_CONFIG;
+   C(N6) = '-'; LVL6_N6: END;
+   C(N5) = '-'; LVL6_N5: END;
+   C(N4) = '-'; LVL6_N4: END;
+   C(N3) = '-'; LVL6_N3: END;
+   C(N2) = '-'; LVL6_N2: END;
+   C(N1) = '-'; LVL6_N1: END;
+   C(Z)  = '-'; LP3_LVL6_Z:  END;
+   C(Y)  = '-'; LP3_LVL6_Y:  END;
+
+ LEVEL = 7;
+
+ IF NUMBER_PIECES_BEG <= 7 & NUMBER_PIECES_END >= 7 THEN
+   DO Y = 2 TO CONFIG_SIZE;
+   IF Y = CONFIG_CENTER | C(Y) ^= '-' THEN GO TO LP3_LVL7_Y;
+   C(Y) = 'Y';
+   DO Z = 3 TO CONFIG_SIZE;
+   IF Z = CONFIG_CENTER | C(Z) ^= '-' THEN GO TO LP3_LVL7_Z;
+   C(Z) = 'Z';
+   DO N1 = 1 TO CONFIG_SIZE;
+   IF C(N1) ^= '-' THEN GO TO LVL7_N1;
+   C(N1) = '1';
+   DO N2 = (N1 + 1) TO CONFIG_SIZE;
+   IF C(N2) ^= '-' THEN GO TO LVL7_N2;
+   C(N2) = '2';
+   DO N3 = (N2 + 1) TO CONFIG_SIZE;
+   IF C(N3) ^= '-' THEN GO TO LVL7_N3;
+   C(N3) = '3';
+   DO N4 = (N3 + 1) TO CONFIG_SIZE;
+   IF C(N4) ^= '-' THEN GO TO LVL7_N4;
+   C(N4) = '4';
+   DO N5 = (N4 + 1) TO CONFIG_SIZE;
+   IF C(N5) ^= '-' THEN GO TO LVL7_N5;
+   C(N5) = '5';
+   DO N6 = (N5 + 1) TO CONFIG_SIZE;
+   IF C(N6) ^= '-' THEN GO TO LVL7_N6;
+   C(N6) = '6';
+   DO N7 = (N6 + 1) TO CONFIG_SIZE;
+   IF C(N7) ^= '-' THEN GO TO LVL7_N7;
+   C(N7) = '7';
+   CALL CHECK_CONFIG;
+   C(N7) = '-'; LVL7_N7: END;
+   C(N6) = '-'; LVL7_N6: END;
+   C(N5) = '-'; LVL7_N5: END;
+   C(N4) = '-'; LVL7_N4: END;
+   C(N3) = '-'; LVL7_N3: END;
+   C(N2) = '-'; LVL7_N2: END;
+   C(N1) = '-'; LVL7_N1: END;
+   C(Z)  = '-'; LP3_LVL7_Z:  END;
+   C(Y)  = '-'; LP3_LVL7_Y:  END;
+
+ LEVEL = 8;
+
+ IF NUMBER_PIECES_BEG <= 8 & NUMBER_PIECES_END >= 8 THEN
+   DO Y = 2 TO CONFIG_SIZE;
+   IF Y = CONFIG_CENTER | C(Y) ^= '-' THEN GO TO LP3_LVL8_Y;
+   C(Y) = 'Y';
+   DO Z = 3 TO CONFIG_SIZE;
+   IF Z = CONFIG_CENTER | C(Z) ^= '-' THEN GO TO LP3_LVL8_Z;
+   C(Z) = 'Z';
+   DO N1 = 1 TO CONFIG_SIZE;
+   IF C(N1) ^= '-' THEN GO TO LVL8_N1;
+   C(N1) = '1';
+   DO N2 = (N1 + 1) TO CONFIG_SIZE;
+   IF C(N2) ^= '-' THEN GO TO LVL8_N2;
+   C(N2) = '2';
+   DO N3 = (N2 + 1) TO CONFIG_SIZE;
+   IF C(N3) ^= '-' THEN GO TO LVL8_N3;
+   C(N3) = '3';
+   DO N4 = (N3 + 1) TO CONFIG_SIZE;
+   IF C(N4) ^= '-' THEN GO TO LVL8_N4;
+   C(N4) = '4';
+   DO N5 = (N4 + 1) TO CONFIG_SIZE;
+   IF C(N5) ^= '-' THEN GO TO LVL8_N5;
+   C(N5) = '5';
+   DO N6 = (N5 + 1) TO CONFIG_SIZE;
+   IF C(N6) ^= '-' THEN GO TO LVL8_N6;
+   C(N6) = '6';
+   DO N7 = (N6 + 1) TO CONFIG_SIZE;
+   IF C(N7) ^= '-' THEN GO TO LVL8_N7;
+   C(N7) = '7';
+   DO N8 = (N7 + 1) TO CONFIG_SIZE;
+   IF C(N8) ^= '-' THEN GO TO LVL8_N8;
+   C(N8) = '8';
+   CALL CHECK_CONFIG;
+   C(N8) = '-'; LVL8_N8: END;
+   C(N7) = '-'; LVL8_N7: END;
+   C(N6) = '-'; LVL8_N6: END;
+   C(N5) = '-'; LVL8_N5: END;
+   C(N4) = '-'; LVL8_N4: END;
+   C(N3) = '-'; LVL8_N3: END;
+   C(N2) = '-'; LVL8_N2: END;
+   C(N1) = '-'; LVL8_N1: END;
+   C(Z)  = '-'; LP3_LVL8_Z:  END;
+   C(Y)  = '-'; LP3_LVL8_Y:  END;
+
+ LEVEL = 9;
+
+ IF NUMBER_PIECES_BEG >= 9 THEN
+   DO Y = 2 TO CONFIG_SIZE;
+   IF Y = CONFIG_CENTER | C(Y) ^= '-' THEN GO TO LP3_LVL9_Y;
+   C(Y) = 'Y';
+   DO Z = 3 TO CONFIG_SIZE;
+   IF Z = CONFIG_CENTER | C(Z) ^= '-' THEN GO TO LP3_LVL9_Z;
+   C(Z) = 'Z';
+   DO N1 = 1 TO CONFIG_SIZE;
+   IF C(N1) ^= '-' THEN GO TO LVL9_N1;
+   C(N1) = '1';
+   DO N2 = (N1 + 1) TO CONFIG_SIZE;
+   IF C(N2) ^= '-' THEN GO TO LVL9_N2;
+   C(N2) = '2';
+   DO N3 = (N2 + 1) TO CONFIG_SIZE;
+   IF C(N3) ^= '-' THEN GO TO LVL9_N3;
+   C(N3) = '3';
+   DO N4 = (N3 + 1) TO CONFIG_SIZE;
+   IF C(N4) ^= '-' THEN GO TO LVL9_N4;
+   C(N4) = '4';
+   DO N5 = (N4 + 1) TO CONFIG_SIZE;
+   IF C(N5) ^= '-' THEN GO TO LVL9_N5;
+   C(N5) = '5';
+   DO N6 = (N5 + 1) TO CONFIG_SIZE;
+   IF C(N6) ^= '-' THEN GO TO LVL9_N6;
+   C(N6) = '6';
+   DO N7 = (N6 + 1) TO CONFIG_SIZE;
+   IF C(N7) ^= '-' THEN GO TO LVL9_N7;
+   C(N7) = '7';
+   DO N8 = (N7 + 1) TO CONFIG_SIZE;
+   IF C(N8) ^= '-' THEN GO TO LVL9_N8;
+   C(N8) = '8';
+   DO N9 = (N8 + 1) TO CONFIG_SIZE;
+   IF C(N9) ^= '-' THEN GO TO LVL9_N9;
+   C(N9) = '9';
+   CALL CHECK_CONFIG;
+   C(N9) = '-'; LVL9_N9: END;
+   C(N8) = '-'; LVL9_N8: END;
+   C(N7) = '-'; LVL9_N7: END;
+   C(N6) = '-'; LVL9_N6: END;
+   C(N5) = '-'; LVL9_N5: END;
+   C(N4) = '-'; LVL9_N4: END;
+   C(N3) = '-'; LVL9_N3: END;
+   C(N2) = '-'; LVL9_N2: END;
+   C(N1) = '-'; LVL9_N1: END;
+   C(Z)  = '-'; LP3_LVL9_Z:  END;
+   C(Y)  = '-'; LP3_LVL9_Y:  END;
+
+ END LETTER_PIECES_3;
+
+ CALL WRAP_UP;
+
+ /*---------------------*/
+ /* Check configuration */
+ /*---------------------*/
+
+ CHECK_CONFIG: PROC;
+
+ DCL I                        FIXED BIN (31) INIT (0);
+
+ DCL (ROW,COL)                FIXED BIN (31) INIT (0);
+
+ DCL CUR_POS                  FIXED BIN (31) INIT (0);
+
+ DCL LETTER_PIECES            FIXED BIN (31) AUTO INIT (0);
+ DCL LETTER_PIECES_CHECKED    FIXED BIN (31) AUTO INIT (0);
+
+ CONFIGURATIONS = CONFIGURATIONS + 1;
+
+ %IF TYPE = 'STD' %THEN %DO;
+ IF DEBUGGING THEN
+   PUT FILE (STATS) EDIT
+     (SUBSTR(CONFIG,01,7), X, Y, Z, N1, N2, N3, N4, N5, N6, N7, N8, N9,
+      SUBSTR(CONFIG,08,7),
+      SUBSTR(CONFIG,15,7),
+      SUBSTR(CONFIG,22,7),
+      SUBSTR(CONFIG,29,7),
+      SUBSTR(CONFIG,36,7),
+      SUBSTR(CONFIG,43,7))
+     (SKIP, A, 12 (P'Z99'), 4 (SKIP, A));
+
+ SUBSTR(BOARD,11,7) = SUBSTR(CONFIG,01,7);
+ SUBSTR(BOARD,21,7) = SUBSTR(CONFIG,08,7);
+ SUBSTR(BOARD,31,7) = SUBSTR(CONFIG,15,7);
+ SUBSTR(BOARD,41,7) = SUBSTR(CONFIG,22,7);
+ SUBSTR(BOARD,51,7) = SUBSTR(CONFIG,29,7);
+ SUBSTR(BOARD,61,7) = SUBSTR(CONFIG,36,7);
+ SUBSTR(BOARD,71,7) = SUBSTR(CONFIG,43,7);
+ %END;
+ %ELSE %DO;
+ IF DEBUGGING THEN DO;
+   CALL MAKE_HEX_BOARD(CONFIG);
+
+   PUT FILE (STATS) EDIT
+     (XL(1), X, Y, Z, N1, N2, N3, N4, N5, N6, N7, N8, N9,
+      XL(2),
+      XL(3),
+      XL(4),
+      XL(5),
+      XL(6),
+      XL(7),
+      XL(8),
+      XL(9),
+      XL(10),
+      XL(11))
+     (SKIP, A, 10 (P'Z99'), 12 (SKIP, A));
+ END;
+
+ SUBSTR(BOARD,11,7) = SUBSTR(CONFIG,01,7);
+ SUBSTR(BOARD,21,7) = SUBSTR(CONFIG,08,7);
+ SUBSTR(BOARD,31,7) = SUBSTR(CONFIG,15,7);
+ SUBSTR(BOARD,41,7) = SUBSTR(CONFIG,22,7);
+ SUBSTR(BOARD,51,7) = SUBSTR(CONFIG,29,7);
+ SUBSTR(BOARD,61,7) = SUBSTR(CONFIG,36,7);
+ SUBSTR(BOARD,71,7) = SUBSTR(CONFIG,43,7);
+ %END;
+ DO I = BOARD_BEGIN TO BOARD_SIZE;
+   IF B(I) >= 'X' & B(I) <= 'Z' THEN DO;
+     LETTER_PIECES = LETTER_PIECES + 1;
+     B(I) = 'L';
+   END;
+   ELSE
+     IF B(I) >= '1' & B(I) <= '9' THEN
+       B(I) = 'N';
+ END;
+
+ %IF TYPE = 'STD' %THEN %DO;
+ /*----------------------------------*/
+ /* Check for stranded letter pieces */
+ /*----------------------------------*/
+
+ /*---------------------------------*/
+ /* L - Letter Piece                */
+ /* N - Number Piece                */
+ /* v - Vacant                      */
+ /* a - Vacant                      */
+ /* b - Vacant                      */
+ /* c - Vacant                      */
+ /* - - Vacant but Not Significant  */
+ /*---------------------------------*/
+
+ /*---------------------------------------*/
+ /*   a+b   |   a+b   |   a+b   |   a+b   */
+ /*   a+c   |   a+c   |   a+c   |   a+c   */
+ /*---------------------------------------*/
+ /* bbbaccc | ---bbbb | ------- | bbbb--- */
+ /* bbbaccc | ---bbbb | ------- | bbbb--- */
+ /* bbbaccc | ---bbbb | ------- | bbbb--- */
+ /* bbb-ccc | ----aaa | bbb-ccc | aaa---- */
+ /* ------- | ---cccc | bbbaccc | cccc--- */
+ /* ------- | ---cccc | bbbaccc | cccc--- */
+ /* ------- | ---cccc | bbbaccc | cccc--- */
+ /*---------------------------------------*/
+ /*
+ IF (B(14) = '-' & B(24) = '-' & B(34) = '-') THEN
+   IF ( B(11) = '-' & B(12) = '-' & B(13) = '-'
+      & B(21) = '-' & B(22) = '-' & B(23) = '-'
+      & B(31) = '-' & B(32) = '-' & B(33) = '-'
+      & B(41) = '-' & B(42) = '-' & B(43) = '-' )
+    | ( B(15) = '-' & B(16) = '-' & B(17) = '-'
+      & B(25) = '-' & B(26) = '-' & B(27) = '-'
+      & B(35) = '-' & B(36) = '-' & B(37) = '-'
+      & B(45) = '-' & B(46) = '-' & B(47) = '-' ) THEN GO TO STRANDED_POSITION;
+
+ IF (B(45) = '-' & B(46) = '-' & B(47) = '-') THEN
+   IF ( B(14) = '-' & B(15) = '-' & B(16) = '-' & B(17) = '-'
+      & B(24) = '-' & B(25) = '-' & B(26) = '-' & B(27) = '-'
+      & B(34) = '-' & B(35) = '-' & B(36) = '-' & B(37) = '-' )
+    | ( B(54) = '-' & B(55) = '-' & B(56) = '-' & B(57) = '-'
+      & B(64) = '-' & B(65) = '-' & B(66) = '-' & B(67) = '-'
+      & B(74) = '-' & B(75) = '-' & B(76) = '-' & B(77) = '-' ) THEN GO TO STRANDED_POSITION;
+
+ IF (B(54) = '-' & B(64) = '-' & B(74) = '-') THEN
+   IF ( B(41) = '-' & B(42) = '-' & B(43) = '-'
+      & B(51) = '-' & B(52) = '-' & B(53) = '-'
+      & B(61) = '-' & B(62) = '-' & B(63) = '-'
+      & B(71) = '-' & B(72) = '-' & B(73) = '-' )
+    | ( B(45) = '-' & B(46) = '-' & B(47) = '-'
+      & B(55) = '-' & B(56) = '-' & B(57) = '-'
+      & B(65) = '-' & B(66) = '-' & B(67) = '-'
+      & B(75) = '-' & B(76) = '-' & B(77) = '-' ) THEN GO TO STRANDED_POSITION;
+
+ IF (B(41) = '-' & B(42) = '-' & B(43) = '-') THEN
+   IF ( B(11) = '-' & B(12) = '-' & B(13) = '-' & B(14) = '-'
+      & B(21) = '-' & B(22) = '-' & B(23) = '-' & B(24) = '-'
+      & B(31) = '-' & B(32) = '-' & B(33) = '-' & B(34) = '-' )
+    | ( B(51) = '-' & B(52) = '-' & B(53) = '-' & B(54) = '-' 
+      & B(61) = '-' & B(62) = '-' & B(63) = '-' & B(64) = '-'
+      & B(71) = '-' & B(72) = '-' & B(73) = '-' & B(74) = '-' ) THEN GO TO STRANDED_POSITION;
+ */
+ /*---------------------------------------*/
+ /* L-vvvvv | vvvvv-L | v------ | ------v */
+ /* ------- | ------- | v------ | ------v */
+ /* v------ | ------v | v------ | ------v */
+ /* v------ | ------v | v------ | ------v */
+ /* v------ | ------v | v------ | ------v */
+ /* v------ | ------v | ------- | ------- */
+ /* v------ | ------v | L-vvvvv | vvvvv-L */
+ /*---------------------------------------*/
+
+ IF B(11) = 'L' THEN DO;
+   IF B(13) = '-' & B(14) = '-' & B(15) = '-' & B(16) = '-' & B(17) = '-'
+    & B(31) = '-' & B(41) = '-' & B(51) = '-' & B(61) = '-' & B(71) = '-' THEN GO TO STRANDED_POSITION;
+
+   LETTER_PIECES_CHECKED = LETTER_PIECES_CHECKED + 1;
+
+   IF LETTER_PIECES_CHECKED = LETTER_PIECES THEN GO TO STRANDED_CHECK_COMPLETE;
+ END;
+
+ IF B(17) = 'L' THEN DO;
+   IF B(11) = '-' & B(12) = '-' & B(13) = '-' & B(14) = '-' & B(15) = '-'
+    & B(37) = '-' & B(47) = '-' & B(57) = '-' & B(67) = '-' & B(77) = '-' THEN GO TO STRANDED_POSITION;
+
+   LETTER_PIECES_CHECKED = LETTER_PIECES_CHECKED + 1;
+
+   IF LETTER_PIECES_CHECKED = LETTER_PIECES THEN GO TO STRANDED_CHECK_COMPLETE;
+ END;
+
+ IF B(71) = 'L' THEN DO;
+   IF B(11) = '-' & B(21) = '-' & B(31) = '-' & B(41) = '-' & B(51) = '-'
+    & B(73) = '-' & B(74) = '-' & B(75) = '-' & B(76) = '-' & B(77) = '-' THEN GO TO STRANDED_POSITION;
+
+   LETTER_PIECES_CHECKED = LETTER_PIECES_CHECKED + 1;
+
+   IF LETTER_PIECES_CHECKED = LETTER_PIECES THEN GO TO STRANDED_CHECK_COMPLETE;
+ END;
+
+ IF B(77) = 'L' THEN DO;
+   IF B(17) = '-' & B(27) = '-' & B(37) = '-' & B(47) = '-' & B(57) = '-'
+    & B(71) = '-' & B(72) = '-' & B(73) = '-' & B(74) = '-' & B(75) = '-'THEN GO TO STRANDED_POSITION;
+
+   LETTER_PIECES_CHECKED = LETTER_PIECES_CHECKED + 1;
+
+   IF LETTER_PIECES_CHECKED = LETTER_PIECES THEN GO TO STRANDED_CHECK_COMPLETE;
+ END;
+
+ /*-------------------------------------------------------------------------------*/
+ /* -L-vvvv | vvvv-L- | --vvvvv | vvvvv-- | v------ | ------v | vv----- | -----vv */
+ /* ------- | ------- | L-vvvvv | vvvvv-L | v------ | ------v | vv----- | -----vv */
+ /* vv----- | -----vv | ------- | ------- | v------ | ------v | vv----- | -----vv */
+ /* vv----- | -----vv | v------ | ------v | v------ | ------v | vv----- | -----vv */
+ /* vv----- | -----vv | v------ | ------v | ------- | ------- | vv----- | -----vv */
+ /* vv----- | -----vv | v------ | ------v | L-vvvvv | vvvvv-L | ------- | ------- */
+ /* vv----- | -----vv | v------ | ------v | --vvvvv | vvvvv-- | -L-vvvv | vvvv-L- */
+ /*-------------------------------------------------------------------------------*/
+
+ IF B(12) = 'L' THEN DO;
+   IF B(14) = '-' & B(15) = '-' & B(16) = '-' & B(17) = '-'
+    & B(31) = '-' & B(32) = '-'
+    & B(41) = '-' & B(42) = '-'
+    & B(51) = '-' & B(52) = '-'
+    & B(61) = '-' & B(62) = '-'
+    & B(71) = '-' & B(72) = '-' THEN GO TO STRANDED_POSITION;
+
+   LETTER_PIECES_CHECKED = LETTER_PIECES_CHECKED + 1;
+
+   IF LETTER_PIECES_CHECKED = LETTER_PIECES THEN GO TO STRANDED_CHECK_COMPLETE;
+ END;
+
+ IF B(16) = 'L' THEN DO;
+   IF B(11) = '-' & B(12) = '-' & B(13) = '-' & B(14) = '-'
+    & B(36) = '-' & B(37) = '-'
+    & B(46) = '-' & B(47) = '-'
+    & B(56) = '-' & B(57) = '-'
+    & B(66) = '-' & B(67) = '-'
+    & B(76) = '-' & B(77) = '-' THEN GO TO STRANDED_POSITION;
+
+   LETTER_PIECES_CHECKED = LETTER_PIECES_CHECKED + 1;
+
+   IF LETTER_PIECES_CHECKED = LETTER_PIECES THEN GO TO STRANDED_CHECK_COMPLETE;
+ END;
+
+ IF B(21) = 'L' THEN DO;
+   IF B(13) = '-' & B(14) = '-' & B(15) = '-' & B(16) = '-' & B(17) = '-'
+    & B(23) = '-' & B(24) = '-' & B(25) = '-' & B(26) = '-' & B(27) = '-'
+    & B(41) = '-' & B(51) = '-' & B(61) = '-' & B(71) = '-' THEN GO TO STRANDED_POSITION;
+
+   LETTER_PIECES_CHECKED = LETTER_PIECES_CHECKED + 1;
+
+   IF LETTER_PIECES_CHECKED = LETTER_PIECES THEN GO TO STRANDED_CHECK_COMPLETE;
+ END;
+
+ IF B(27) = 'L' THEN DO;
+   IF B(11) = '-' & B(12) = '-' & B(13) = '-' & B(14) = '-' & B(15) = '-'
+    & B(21) = '-' & B(22) = '-' & B(23) = '-' & B(24) = '-' & B(25) = '-'
+    & B(47) = '-' & B(57) = '-' & B(67) = '-' & B(77) = '-' THEN GO TO STRANDED_POSITION;
+
+   LETTER_PIECES_CHECKED = LETTER_PIECES_CHECKED + 1;
+
+   IF LETTER_PIECES_CHECKED = LETTER_PIECES THEN GO TO STRANDED_CHECK_COMPLETE;
+ END;
+
+ IF B(61) = 'L' THEN DO;
+   IF B(11) = '-' & B(21) = '-' & B(31) = '-' & B(41) = '-'
+    & B(63) = '-' & B(64) = '-' & B(65) = '-' & B(66) = '-' & B(67) = '-'
+    & B(73) = '-' & B(74) = '-' & B(75) = '-' & B(76) = '-' & B(77) = '-' THEN GO TO STRANDED_POSITION;
+
+   LETTER_PIECES_CHECKED = LETTER_PIECES_CHECKED + 1;
+
+   IF LETTER_PIECES_CHECKED = LETTER_PIECES THEN GO TO STRANDED_CHECK_COMPLETE;
+ END;
+
+ IF B(67) = 'L' THEN DO;
+dddd   IF B(15) = '-' & B(25) = '-'
+    & B(41) = '-' & B(42) = '-'
+    & B(43) = '-' & B(51) = '-'
+    & B(52) = '-' & B(53) = '-' THEN GO TO STRANDED_POSITION;
+
+   LETTER_PIECES_CHECKED = LETTER_PIECES_CHECKED + 1;
+
+   IF LETTER_PIECES_CHECKED = LETTER_PIECES THEN GO TO STRANDED_CHECK_COMPLETE;
+ END;
+
+ IF B(52) = 'L' THEN DO;
+   IF B(11) = '-' & B(12) = '-'
+    & B(21) = '-' & B(22) = '-'
+    & B(31) = '-' & B(32) = '-'
+    & B(54) = '-' & B(55) = '-' THEN GO TO STRANDED_POSITION;
+
+   LETTER_PIECES_CHECKED = LETTER_PIECES_CHECKED + 1;
+
+   IF LETTER_PIECES_CHECKED = LETTER_PIECES THEN GO TO STRANDED_CHECK_COMPLETE;
+ END;
+
+ IF B(54) = 'L' THEN DO;
+   IF B(14) = '-' & B(15) = '-'
+    & B(24) = '-' & B(25) = '-'
+    & B(34) = '-' & B(35) = '-'
+    & B(51) = '-' & B(52) = '-' THEN GO TO STRANDED_POSITION;
+
+   LETTER_PIECES_CHECKED = LETTER_PIECES_CHECKED + 1;
+
+   IF LETTER_PIECES_CHECKED = LETTER_PIECES THEN GO TO STRANDED_CHECK_COMPLETE;
+ END;
+
+ /*-------------------------------*/
+ /* ---vv | ---vv | vv--- | vv--- */
+ /* -L-vv | ---vv | vv-L- | vv--- */
+ /* ----- | ----- | ----- | ----- */
+ /* vv--- | vv-L- | ---vv | -L-vv */
+ /* vv--- | vv--- | ---vv | ---vv */
+ /*-------------------------------*/
+
+ IF B(22) = 'L' | B(44) = 'L' THEN DO;
+   IF B(14) = '-' & B(15) = '-'
+    & B(24) = '-' & B(25) = '-'
+    & B(41) = '-' & B(42) = '-'
+    & B(51) = '-' & B(52) = '-' THEN GO TO STRANDED_POSITION;
+
+   LETTER_PIECES_CHECKED = LETTER_PIECES_CHECKED + 1;
+
+   IF LETTER_PIECES_CHECKED = LETTER_PIECES THEN GO TO STRANDED_CHECK_COMPLETE;
+ END;
+
+ IF B(24) = 'L' | B(42) = 'L' THEN DO;
+   IF B(11) = '-' & B(12) = '-'
+    & B(21) = '-' & B(22) = '-'
+    & B(44) = '-' & B(45) = '-'
+    & B(54) = '-' & B(55) = '-' THEN GO TO STRANDED_POSITION;
+
+   LETTER_PIECES_CHECKED = LETTER_PIECES_CHECKED + 1;
+
+   IF LETTER_PIECES_CHECKED = LETTER_PIECES THEN GO TO STRANDED_CHECK_COMPLETE;
+ END;
+
+???? /*-------------------------------*/
+ /* L+a+b | L+a+b | L+a+b | L+a+b */
+ /* L+a+c | L+a+c | L+a+c | L+a+c */
+ /*-------------------------------*/
+ /* a---a | aa-cc | bbacc | cc-aa */
+ /* a-L-a | ---cc | bbacc | cc--- */
+ /* ----- | -L-aa | ----- | aa-L- */
+ /* bbacc | ---bb | a-L-a | bb--- */
+ /* bbacc | aa-bb | a---a | bb-aa */
+ /*-------------------------------*/
+
+ IF B(23) = 'L' THEN DO;
+   IF B(11) = '-' & B(15) = '-'
+    & B(21) = '-' & B(25) = '-'
+    & B(43) = '-' & B(53) = '-' THEN
+     IF ( B(41) = '-' & B(42) = '-'
+        & B(51) = '-' & B(52) = '-' )
+      | ( B(44) = '-' & B(45) = '-'
+        & B(54) = '-' & B(55) = '-' ) THEN GO TO STRANDED_POSITION;
+
+   LETTER_PIECES_CHECKED = LETTER_PIECES_CHECKED + 1;
+
+   IF LETTER_PIECES_CHECKED = LETTER_PIECES THEN GO TO STRANDED_CHECK_COMPLETE;
+ END;
+
+ IF B(32) = 'L' THEN DO;
+   IF B(11) = '-' & B(12) = '-'
+    & B(34) = '-' & B(35) = '-'
+    & B(51) = '-' & B(52) = '-' THEN
+     IF ( B(14) = '-' & B(15) = '-'
+        & B(24) = '-' & B(25) = '-' )
+      | ( B(44) = '-' & B(45) = '-'
+        & B(54) = '-' & B(55) = '-' ) THEN GO TO STRANDED_POSITION;
+
+   LETTER_PIECES_CHECKED = LETTER_PIECES_CHECKED + 1;
+
+   IF LETTER_PIECES_CHECKED = LETTER_PIECES THEN GO TO STRANDED_CHECK_COMPLETE;
+ END;
+
+ IF B(43) = 'L' THEN DO;
+   IF B(13) = '-' & B(23) = '-'
+    & B(41) = '-' & B(45) = '-'
+    & B(51) = '-' & B(55) = '-' THEN
+     IF ( B(11) = '-' & B(12) = '-'
+        & B(21) = '-' & B(22) = '-' )
+      | ( B(14) = '-' & B(15) = '-'
+        & B(24) = '-' & B(25) = '-' ) THEN GO TO STRANDED_POSITION;
+
+   LETTER_PIECES_CHECKED = LETTER_PIECES_CHECKED + 1;
+
+   IF LETTER_PIECES_CHECKED = LETTER_PIECES THEN GO TO STRANDED_CHECK_COMPLETE;
+ END;
+
+ IF B(34) = 'L' THEN
+   IF B(14) = '-' & B(15) = '-'
+    & B(31) = '-' & B(32) = '-'
+    & B(54) = '-' & B(55) = '-' THEN
+     IF ( B(41) = '-' & B(42) = '-'
+        & B(51) = '-' & B(52) = '-' )
+      | ( B(11) = '-' & B(12) = '-'
+        & B(21) = '-' & B(22) = '-' ) THEN GO TO STRANDED_POSITION;
+
+ GO TO STRANDED_CHECK_COMPLETE;
+
+ /*-------------------------------------------------*/
+ /* It's not possible for the letter pieces to exit */
+ /*-------------------------------------------------*/
+
+ STRANDED_POSITION:
+
+ STRANDED = STRANDED + 1;
+
+ IF DEBUGGING THEN
+   PUT FILE (STATS) EDIT (' - Stranded') (A);
+
+ RETURN;
+
+ STRANDED_CHECK_COMPLETE:
+
+ /*--------------------------------------*/
+ /* Check for at least one possible move */
+ /*--------------------------------------*/
+
+ DO ROW = 1 TO 5;
+   DO COL = 1 TO 5;
+     CUR_POS = ROW * 10 + COL;
+     IF B(CUR_POS) ^= '-' THEN
+       SELECT (ROW);
+         /*-------*/
+         /* Row 1 */
+         /*-------*/
+         WHEN (1) DO;
+           SELECT (COL);
+             /*------------------*/
+             /* Row 1 - Column 1 */
+             /*------------------*/
+             WHEN (1) DO;
+               IF B(12) = '-' THEN
+                 IF B(13) ^= '-' | B(14) ^= '-' | B(15) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+               IF B(21) = '-' THEN
+                 IF B(31) ^= '-' | B(41) ^= '-' | B(51) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+             END;
+             /*------------------*/
+             /* Row 1 - Column 2 */
+             /*------------------*/
+             WHEN (2) DO;
+               IF B(13) = '-' THEN
+                 IF B(14) ^= '-' | B(15) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+               IF B(22) = '-' THEN
+                 IF B(32) ^= '-' | B(42) ^= '-' | B(52) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+             END;
+             /*------------------*/
+             /* Row 1 - Column 3 */
+             /*------------------*/
+             WHEN (3) DO;
+               IF B(12) = '-' & B(11) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+               IF B(14) = '-' & B(15) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+               IF B(23) = '-' THEN
+                 IF B(33) ^= '-' | B(43) ^= '-' | B(53) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+             END;
+             /*------------------*/
+             /* Row 1 - Column 4 */
+             /*------------------*/
+             WHEN (4) DO;
+               IF B(13) = '-' THEN
+                 IF B(12) ^= '-' | B(11) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+               IF B(24) = '-' THEN
+                 IF B(34) ^= '-' | B(44) ^= '-' | B(54) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+             END;
+             /*------------------*/
+             /* Row 1 - Column 5 */
+             /*------------------*/
+             WHEN (5) DO;
+               IF B(14) = '-' THEN
+                 IF B(13) ^= '-' | B(12) ^= '-' | B(11) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+               IF B(25) = '-' THEN
+                 IF B(35) ^= '-' | B(45) ^= '-' | B(55) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+             END;
+             OTHERWISE;
+           END;
+         END;
+         /*-------*/
+         /* Row 2 */
+         /*-------*/
+         WHEN (2) DO;
+           SELECT (COL);
+             /*------------------*/
+             /* Row 2 - Column 1 */
+             /*------------------*/
+             WHEN (1) DO;
+               IF B(22) = '-' THEN
+                 IF B(23) ^= '-' | B(24) ^= '-' | B(25) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+               IF B(31) = '-' THEN
+                 IF B(41) ^= '-' | B(51) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+             END;
+             /*------------------*/
+             /* Row 2 - Column 2 */
+             /*------------------*/
+             WHEN (2) DO;
+               IF B(23) = '-' THEN
+                 IF B(24) ^= '-' | B(25) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+               IF B(32) = '-' THEN
+                 IF B(42) ^= '-' | B(52) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+             END;
+             /*------------------*/
+             /* Row 2 - Column 3 */
+             /*------------------*/
+             WHEN (3) DO;
+               IF B(22) = '-' & B(21) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+               IF B(24) = '-' & B(25) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+               IF B(33) = '-' THEN
+                 IF B(43) ^= '-' | B(53) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+             END;
+             /*------------------*/
+             /* Row 2 - Column 4 */
+             /*------------------*/
+             WHEN (4) DO;
+               IF B(23) = '-' THEN
+                 IF B(22) ^= '-' | B(21) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+               IF B(34) = '-' THEN
+                 IF B(44) ^= '-' | B(54) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+             END;
+             /*------------------*/
+             /* Row 2 - Column 5 */
+             /*------------------*/
+             WHEN (5) DO;
+               IF B(24) = '-' THEN
+                 IF B(23) ^= '-' | B(22) ^= '-' | B(21) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+               IF B(35) = '-' THEN
+                 IF B(45) ^= '-' | B(55) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+             END;
+             OTHERWISE;
+           END;
+         END;
+         /*-------*/
+         /* Row 3 */
+         /*-------*/
+         WHEN (3) DO;
+           SELECT (COL);
+             /*------------------*/
+             /* Row 3 - Column 1 */
+             /*------------------*/
+             WHEN (1) DO;
+               IF B(32) = '-' THEN
+                 IF B(33) ^= '-' | B(34) ^= '-' | B(35) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+               IF B(21) = '-' & B(11) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+               IF B(41) = '-' & B(51) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+             END;
+             /*------------------*/
+             /* Row 3 - Column 2 */
+             /*------------------*/
+             WHEN (2) DO;
+               IF B(33) = '-' THEN
+                 IF B(34) ^= '-' | B(35) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+               IF B(22) = '-' & B(12) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+               IF B(42) = '-' & B(52) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+             END;
+             /*------------------*/
+             /* Row 3 - Column 4 */
+             /*------------------*/
+             WHEN (3) DO;
+               IF B(32) = '-' & B(31) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+               IF B(34) = '-' & B(35) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+               IF B(23) = '-' & B(13) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+               IF B(43) = '-' & B(53) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+             END;
+             /*------------------*/
+             /* Row 3 - Column 4 */
+             /*------------------*/
+             WHEN (4) DO;
+               IF B(33) = '-' THEN
+                 IF B(32) ^= '-' | B(31) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+               IF B(24) = '-' & B(14) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+               IF B(44) = '-' & B(54) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+             END;
+             /*------------------*/
+             /* Row 3 - Column 5 */
+             /*------------------*/
+             WHEN (5) DO;
+               IF B(34) = '-' THEN
+                 IF B(33) ^= '-' | B(32) ^= '-' | B(31) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+               IF B(25) = '-' & B(15) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+               IF B(45) = '-' & B(55) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+             END;
+             OTHERWISE;
+           END;
+         END;
+         /*-------*/
+         /* Row 4 */
+         /*-------*/
+         WHEN (4) DO;
+           SELECT (COL);
+             /*------------------*/
+             /* Row 4 - Column 1 */
+             /*------------------*/
+             WHEN (1) DO;
+               IF B(42) = '-' THEN
+                 IF B(43) ^= '-' | B(44) ^= '-' | B(45) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+               IF B(31) = '-' THEN
+                 IF B(21) ^= '-' | B(11) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+             END;
+             /*------------------*/
+             /* Row 4 - Column 2 */
+             /*------------------*/
+             WHEN (2) DO;
+               IF B(43) = '-' THEN
+                 IF B(44) ^= '-' | B(45) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+               IF B(32) = '-' THEN
+                 IF B(22) ^= '-' | B(12) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+             END;
+             /*------------------*/
+             /* Row 4 - Column 3 */
+             /*------------------*/
+             WHEN (3) DO;
+               IF B(42) = '-' & B(41) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+               IF B(44) = '-' & B(45) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+               IF B(33) = '-' THEN
+                 IF B(23) ^= '-' | B(13) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+             END;
+             /*------------------*/
+             /* Row 4 - Column 4 */
+             /*------------------*/
+             WHEN (4) DO;
+               IF B(43) = '-' THEN
+                 IF B(42) ^= '-' | B(41) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+               IF B(34) = '-' THEN
+                 IF B(24) ^= '-' | B(14) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+             END;
+             /*------------------*/
+             /* Row 4 - Column 5 */
+             /*------------------*/
+             WHEN (5) DO;
+               IF B(44) = '-' THEN
+                 IF B(43) ^= '-' | B(42) ^= '-' | B(41) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+               IF B(35) = '-' THEN
+                 IF B(25) ^= '-' | B(15) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+             END;
+             OTHERWISE;
+           END;
+         END;
+         /*-------*/
+         /* Row 5 */
+         /*-------*/
+         WHEN (5) DO;
+           SELECT (COL);
+             /*------------------*/
+             /* Row 5 - Column 1 */
+             /*------------------*/
+             WHEN (1) DO;
+               IF B(52) = '-' THEN
+                 IF B(53) ^= '-' | B(54) ^= '-' | B(55) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+
+               IF B(41) = '-' THEN
+                 IF B(31) ^= '-' | B(21) ^= '-' | B(11) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+             END;
+             /*------------------*/
+             /* Row 5 - Column 2 */
+             /*------------------*/
+             WHEN (2) DO;
+               IF B(53) = '-' THEN
+                 IF B(54) ^= '-' | B(55) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+               IF B(42) = '-' THEN
+                 IF B(32) ^= '-' | B(22) ^= '-' | B(12) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+             END;
+             /*------------------*/
+             /* Row 5 - Column 3 */
+             /*------------------*/
+             WHEN (3) DO;
+               IF B(52) = '-' & B(51) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+               IF B(54) = '-' & B(55) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+               IF B(43) = '-' THEN
+                 IF B(33) ^= '-' | B(23) ^= '-' | B(13) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+             END;
+             /*------------------*/
+             /* Row 5 - Column 4 */
+             /*------------------*/
+             WHEN (4) DO;
+               IF B(53) = '-' THEN
+                 IF B(52) ^= '-' | B(51) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+               IF B(44) = '-' THEN
+                 IF B(34) ^= '-' | B(24) ^= '-' | B(14) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+             END; /* Column 4 */
+             /*------------------*/
+             /* Row 5 - Column 5 */
+             /*------------------*/
+             WHEN (5) DO;
+               IF B(54) = '-' THEN
+                 IF B(53) ^= '-' | B(52) ^= '-' | B(51) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+               IF B(45) = '-' THEN
+                 IF B(35) ^= '-' | B(25) ^= '-' | B(15) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+             END;
+             OTHERWISE;
+           END;
+         END;
+         OTHERWISE;
+       END;
+   END;
+ END;
+ %END;
+ %ELSE %DO;
+ /*--------------------------------------*/
+ /* Check for at least one possible move */
+ /*--------------------------------------*/
+
+ DO ROW = 1 TO 5;
+   DO COL = 1 TO 5;
+     CUR_POS = ROW * 10 + COL;
+
+     IF B(CUR_POS) ^= '-' THEN
+       SELECT (ROW);
+
+         /*-------*/
+         /* Row 1 */
+         /*-------*/
+
+         WHEN (1) DO;
+           SELECT (COL);
+
+             /*------------------*/
+             /* Row 1 - Column 1 */
+             /*------------------*/
+
+             WHEN (1) DO;
+               IF B(12) = '-' THEN
+                 IF B(13) ^= '-' | B(14) ^= '-' | B(15) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+
+               IF B(21) = '-' THEN
+                 IF B(31) ^= '-' | B(41) ^= '-' | B(51) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+             END;
+
+             /*------------------*/
+             /* Row 1 - Column 2 */
+             /*------------------*/
+
+             WHEN (2) DO;
+               IF B(13) = '-' THEN
+                 IF B(14) ^= '-' | B(15) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+
+               IF B(22) = '-' THEN
+                 IF B(32) ^= '-' | B(42) ^= '-' | B(52) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+             END;
+
+             /*------------------*/
+             /* Row 1 - Column 3 */
+             /*------------------*/
+
+             WHEN (3) DO;
+               IF B(14) = '-' & B(15) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+
+               IF B(23) = '-' THEN
+                 IF B(33) ^= '-' | B(43) ^= '-' | B(53) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+
+               IF B(22) = '-' & B(31) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+
+               IF B(12) = '-' & B(11) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+             END;
+
+             /*------------------*/
+             /* Row 1 - Column 4 */
+             /*------------------*/
+
+             WHEN (4) DO;
+               IF B(24) = '-' THEN
+                 IF B(34) ^= '-' | B(44) ^= '-' | B(54) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+
+               IF B(23) = '-' THEN
+                 IF B(32) ^= '-' | B(41) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+
+               IF B(13) = '-' THEN
+                 IF B(12) ^= '-' | B(11) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+             END;
+
+             /*------------------*/
+             /* Row 1 - Column 5 */
+             /*------------------*/
+
+             WHEN (5) DO;
+               IF B(25) = '-' THEN
+                 IF B(35) ^= '-' | B(45) ^= '-' | B(55) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+
+               IF B(24) = '-' THEN
+                 IF B(33) ^= '-' | B(42) ^= '-' | B(51) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+
+               IF B(14) = '-' THEN
+                 IF B(13) ^= '-' | B(12) ^= '-' | B(11) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+             END;
+             OTHERWISE;
+           END;
+         END;
+
+         /*-------*/
+         /* Row 2 */
+         /*-------*/
+
+         WHEN (2) DO;
+           SELECT (COL);
+
+             /*------------------*/
+             /* Row 2 - Column 1 */
+             /*------------------*/
+
+             WHEN (1) DO;
+               IF B(22) = '-' THEN
+                 IF B(23) ^= '-' | B(24) ^= '-' | B(25) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+
+               IF B(31) = '-' THEN
+                 IF B(41) ^= '-' | B(51) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+             END;
+
+             /*------------------*/
+             /* Row 2 - Column 2 */
+             /*------------------*/
+
+             WHEN (2) DO;
+               IF B(23) = '-' THEN
+                 IF B(24) ^= '-' | B(25) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+
+               IF B(32) = '-' THEN
+                 IF B(42) ^= '-' | B(52) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+             END;
+
+             /*------------------*/
+             /* Row 2 - Column 3 */
+             /*------------------*/
+
+             WHEN (3) DO;
+               IF B(24) = '-' & B(25) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+
+               IF B(33) = '-' THEN
+                 IF B(43) ^= '-' | B(53) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+
+               IF B(32) = '-' & B(41) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+
+               IF B(22) = '-' & B(21) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+             END;
+
+             /*------------------*/
+             /* Row 2 - Column 4 */
+             /*------------------*/
+
+             WHEN (4) DO;
+               IF B(34) = '-' THEN
+                 IF B(44) ^= '-' | B(54) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+
+               IF B(23) = '-' THEN
+                 IF B(22) ^= '-' | B(21) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+
+               IF B(33) = '-' THEN
+                 IF B(42) ^= '-' | B(51) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+             END;
+
+             /*------------------*/
+             /* Row 2 - Column 5 */
+             /*------------------*/
+
+             WHEN (5) DO;
+               IF B(35) = '-' THEN
+                 IF B(45) ^= '-' | B(55) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+
+               IF B(34) = '-' THEN
+                 IF B(43) ^= '-' | B(52) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+
+               IF B(24) = '-' THEN
+                 IF B(23) ^= '-' | B(22) ^= '-' | B(21) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+             END;
+             OTHERWISE;
+           END;
+         END;
+
+         /*-------*/
+         /* Row 3 */
+         /*-------*/
+
+         WHEN (3) DO;
+           SELECT (COL);
+
+             /*------------------*/
+             /* Row 3 - Column 1 */
+             /*------------------*/
+
+             WHEN (1) DO;
+               IF B(32) = '-' THEN
+                 IF B(33) ^= '-' | B(34) ^= '-' | B(35) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+
+               IF B(41) = '-' & B(51) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+
+               IF B(21) = '-' & B(11) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+
+               IF B(22) = '-' & B(13) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+             END;
+
+             /*------------------*/
+             /* Row 3 - Column 2 */
+             /*------------------*/
+
+             WHEN (2) DO;
+               IF B(33) = '-' THEN
+                 IF B(34) ^= '-' | B(35) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+
+               IF B(42) = '-' & B(52) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+
+               IF B(22) = '-' & B(12) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+
+               IF B(23) = '-' & B(14) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+             END;
+
+             /*------------------*/
+             /* Row 3 - Column 4 */
+             /*------------------*/
+
+             WHEN (3) DO;
+               IF B(34) = '-' & B(35) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+
+               IF B(43) = '-' & B(53) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+
+               IF B(42) = '-' & B(51) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+
+               IF B(32) = '-' & B(31) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+
+               IF B(23) = '-' & B(13) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+
+               IF B(24) = '-' & B(15) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+             END;
+
+             /*------------------*/
+             /* Row 3 - Column 4 */
+             /*------------------*/
+
+             WHEN (4) DO;
+               IF B(44) = '-' & B(54) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+
+               IF B(43) = '-' & B(52) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+
+               IF B(33) = '-' THEN
+                 IF B(32) ^= '-' | B(31) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+
+               IF B(24) = '-' & B(14) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+             END;
+
+             /*------------------*/
+             /* Row 3 - Column 5 */
+             /*------------------*/
+
+             WHEN (5) DO;
+               IF B(45) = '-' & B(55) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+
+               IF B(44) = '-' & B(53) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+
+               IF B(34) = '-' THEN
+                 IF B(33) ^= '-' | B(32) ^= '-' | B(31) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+
+               IF B(25) = '-' & B(15) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+             END;
+             OTHERWISE;
+           END;
+         END;
+
+         /*-------*/
+         /* Row 4 */
+         /*-------*/
+
+         WHEN (4) DO;
+           SELECT (COL);
+
+             /*------------------*/
+             /* Row 4 - Column 1 */
+             /*------------------*/
+
+             WHEN (1) DO;
+               IF B(42) = '-' THEN
+                 IF B(43) ^= '-' | B(44) ^= '-' | B(45) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+
+               IF B(31) = '-' THEN
+                 IF B(21) ^= '-' | B(11) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+
+               IF B(32) = '-' THEN
+                 IF B(23) ^= '-' | B(14) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+             END;
+
+             /*------------------*/
+             /* Row 4 - Column 2 */
+             /*------------------*/
+
+             WHEN (2) DO;
+               IF B(43) = '-' THEN
+                 IF B(44) ^= '-' | B(45) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+
+               IF B(32) = '-' THEN
+                 IF B(22) ^= '-' | B(12) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+
+               IF B(33) = '-' THEN
+                 IF B(24) ^= '-' | B(15) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+             END;
+
+             /*------------------*/
+             /* Row 4 - Column 3 */
+             /*------------------*/
+
+             WHEN (3) DO;
+               IF B(44) = '-' & B(45) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+
+               IF B(42) = '-' & B(41) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+
+               IF B(33) = '-' THEN
+                 IF B(23) ^= '-' | B(13) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+
+               IF B(34) = '-' & B(25) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+             END;
+
+             /*------------------*/
+             /* Row 4 - Column 4 */
+             /*------------------*/
+
+             WHEN (4) DO;
+               IF B(43) = '-' THEN
+                 IF B(42) ^= '-' | B(41) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+
+               IF B(34) = '-' THEN
+                 IF B(24) ^= '-' | B(14) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+             END;
+
+             /*------------------*/
+             /* Row 4 - Column 5 */
+             /*------------------*/
+
+             WHEN (5) DO;
+               IF B(44) = '-' THEN
+                 IF B(43) ^= '-' | B(42) ^= '-' | B(41) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+
+               IF B(35) = '-' THEN
+                 IF B(25) ^= '-' | B(15) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+             END;
+             OTHERWISE;
+           END;
+         END;
+
+         /*-------*/
+         /* Row 5 */
+         /*-------*/
+
+         WHEN (5) DO;
+           SELECT (COL);
+
+             /*------------------*/
+             /* Row 5 - Column 1 */
+             /*------------------*/
+
+             WHEN (1) DO;
+               IF B(52) = '-' THEN
+                 IF B(53) ^= '-' | B(54) ^= '-' | B(55) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+
+               IF B(41) = '-' THEN
+                 IF B(31) ^= '-' | B(21) ^= '-' | B(11) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+
+               IF B(42) = '-' THEN
+                 IF B(33) ^= '-' | B(24) ^= '-' | B(15) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+             END;
+
+             /*------------------*/
+             /* Row 5 - Column 2 */
+             /*------------------*/
+
+             WHEN (2) DO;
+               IF B(53) = '-' THEN
+                 IF B(54) ^= '-' | B(55) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+
+               IF B(42) = '-' THEN
+                 IF B(32) ^= '-' | B(22) ^= '-' | B(12) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+
+               IF B(43) = '-' THEN
+                 IF B(34) ^= '-' | B(25) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+             END;
+
+             /*------------------*/
+             /* Row 5 - Column 3 */
+             /*------------------*/
+
+             WHEN (3) DO;
+               IF B(54) = '-' & B(55) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+
+               IF B(52) = '-' & B(51) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+
+               IF B(43) = '-' THEN
+                 IF B(33) ^= '-' | B(23) ^= '-' | B(13) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+
+               IF B(44) = '-' & B(35) ^= '-' THEN
+                 GO TO MOVE_POSSIBLE;
+             END;
+
+             /*------------------*/
+             /* Row 5 - Column 4 */
+             /*------------------*/
+
+             WHEN (4) DO;
+               IF B(53) = '-' THEN
+                 IF B(52) ^= '-' | B(51) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+
+               IF B(44) = '-' THEN
+                 IF B(34) ^= '-' | B(24) ^= '-' | B(14) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+             END;
+
+             /*------------------*/
+             /* Row 5 - Column 5 */
+             /*------------------*/
+
+             WHEN (5) DO;
+               IF B(54) = '-' THEN
+                 IF B(53) ^= '-' | B(52) ^= '-' | B(51) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+
+               IF B(45) = '-' THEN
+                 IF B(35) ^= '-' | B(25) ^= '-' | B(15) ^= '-' THEN
+                   GO TO MOVE_POSSIBLE;
+             END;
+             OTHERWISE;
+           END;
+         END;
+         OTHERWISE;
+       END;
+     END;
+   END;
+ %END;
+ NO_MOVES = NO_MOVES + 1;
+
+ IF DEBUGGING THEN
+   PUT FILE (STATS) EDIT (' - No moves') (A);
+
+ RETURN;
+
+ MOVE_POSSIBLE:
+
+ IF ^ UNSEEN() THEN
+   RETURN;
+
+ IF WRITTEN = MAX_CONFIGURATIONS THEN DO;
+   PUT FILE (STATS) SKIP EDIT
+     (' ',
+      'Maximum configurations (', NUMSTR(MAX_CONFIGURATIONS),
+      ') exceeded - Terminating')
+     (A, SKIP, 3 A);
+
+   CALL WRAP_UP;
+   STOP;
+ END;
+
+ WRITTEN = WRITTEN + 1;
+
+ WRITE FILE (CFGTXT) FROM (CONFIG);
+
+ END CHECK_CONFIG;
+
+ %IF TYPE = 'STD' %THEN %DO;
+  /*-----------------------------------------------*/
+ /* Try to find a version, including rotations or */
+ /* reflections, of the board in history table    */
+ /*-----------------------------------------------*/
+ %END;
+ %ELSE %DO;
+ /*-----------------------------------------------*/
+ /* Try to find a version, including reflections, */
+ /* of the board in history table                 */
+ /*-----------------------------------------------*/
+ %END;
+ UNSEEN: PROC RETURNS(BIT (1));
+
+ %DCL DEBUG_UNSEEN CHAR;
+
+ %DEBUG_UNSEEN = 'N';
+
+ DCL (I,J,K)                  FIXED BIN (31) INIT (0);
+
+ DCL (LP_CNT,NP_CNT)          FIXED BIN (31) INIT (0);
+
+ DCL SORTED                   BIT (1) INIT (FALSE);
+
+ /*-------------------------*/
+ /* Build history table key */
+ /*-------------------------*/
+
+ LP_CNT = 0;
+ NP_CNT = 3;
+
+ HIST_KEY = (12)'00'X;
+
+ DO I = 1 TO CONFIG_SIZE;
+   IF C(I) ^= '-' THEN
+     IF C(I) >= 'X' & C(I) <= 'Z' THEN DO;
+       LP_CNT = LP_CNT + 1;
+       HK(LP_CNT) = I;
+     END;
+     ELSE DO;
+       NP_CNT = NP_CNT + 1;
+       HK(NP_CNT) = I;
+     END;
+ END;
+
+ %IF TYPE = 'STD' %THEN %DO;
+ /*------------------------------------------*/
+ /* Search for all rotations and reflections */
+ /*------------------------------------------*/
+
+ HIST_KEY_TBL(1) = HIST_KEY;
+
+ HIST_KEY_TBL(2) = TRANSLATE(HIST_KEY_TBL(1), ROT_TABLE);
+ HIST_KEY_TBL(3) = TRANSLATE(HIST_KEY_TBL(2), ROT_TABLE);
+ HIST_KEY_TBL(4) = TRANSLATE(HIST_KEY_TBL(3), ROT_TABLE);
+ HIST_KEY_TBL(5) = TRANSLATE(HIST_KEY_TBL(1), REF_TABLE);
+ HIST_KEY_TBL(6) = TRANSLATE(HIST_KEY_TBL(2), REF_TABLE);
+ HIST_KEY_TBL(7) = TRANSLATE(HIST_KEY_TBL(3), REF_TABLE);
+ HIST_KEY_TBL(8) = TRANSLATE(HIST_KEY_TBL(4), REF_TABLE);
+
+ DO I = 1 TO 8;
+   HIST_KEY = HIST_KEY_TBL(I);
+
+   /*------------------------------------------------------*/
+   /* Sort the key because rotations and reflections cause */
+   /* the board positions in the key to be out of order.   */
+   /*------------------------------------------------------*/
+ %END;
+ %ELSE %DO;
+ /*----------------------------*/
+ /* Search for all reflections */
+ /*----------------------------*/
+
+ HIST_KEY_TBL(1) = HIST_KEY;
+
+ HIST_KEY_TBL(2) = TRANSLATE(HIST_KEY_TBL(1), LR_TABLE);
+ HIST_KEY_TBL(3) = TRANSLATE(HIST_KEY_TBL(1), TB_TABLE);
+ HIST_KEY_TBL(4) = TRANSLATE(HIST_KEY_TBL(2), TB_TABLE);
+
+ DO I = 1 TO 4;
+   HIST_KEY = HIST_KEY_TBL(I);
+
+   /*--------------------------------------------------*/
+   /* Sort the key because reflections cause the board */
+   /* positions in the key to be out of order.         */
+   /*--------------------------------------------------*/
+ %END;
+   %IF DEBUG_UNSEEN = 'Y' %THEN %DO;
+   PUT FILE (STATS) SKIP EDIT ('KEY ', HEX(HIST_KEY)) (2 A);
+   %END;
+   /*--------------------*/
+   /* Sort letter pieces */
+   /*--------------------*/
+
+   IF LP_CNT > 1 THEN
+     IF LP_CNT = 2 THEN
+       IF HK(1) > HK(2) THEN DO;
+         /*----*/
+         /* 21 */
+         /*----*/
+         K     = HK(1);
+         HK(1) = HK(2);
+         HK(2) = K;
+       END;
+       ELSE;
+     ELSE
+       IF HK(1) > HK(2) THEN
+         IF HK(1) > HK(3) THEN
+           IF HK(2) > HK(3) THEN DO;
+             /*-----*/
+             /* 321 */
+             /*-----*/
+             K     = HK(1);
+             HK(1) = HK(3);
+             HK(3) = K;
+           END;
+           ELSE DO;
+             /*-----*/
+             /* 312 */
+             /*-----*/
+             K     = HK(1);
+             HK(1) = HK(2);
+             HK(2) = HK(3);
+             HK(3) = K;
+           END;
+         ELSE DO;
+           /*-----*/
+           /* 213 */
+           /*-----*/
+           K     = HK(1);
+           HK(1) = HK(2);
+           HK(2) = K;
+         END;
+       ELSE
+         IF HK(1) > HK(3) THEN DO;
+           /*-----*/
+           /* 231 */
+           /*-----*/
+           K     = HK(3);
+           HK(3) = HK(2);
+           HK(2) = HK(1);
+           HK(1) = K;
+         END;
+         ELSE
+           IF HK(2) > HK(3) THEN DO;
+             /*-----*/
+             /* 132 */
+             /*-----*/
+             K     = HK(2);
+             HK(2) = HK(3);
+             HK(3) = K;
+           END;
+           ELSE;
+             /*-----*/
+             /* 123 */
+             /*-----*/
+
+   /*-------------------*/
+   /* Sort other pieces */
+   /*-------------------*/
+
+   IF NP_CNT > 4 THEN
+     DO UNTIL (SORTED);
+       SORTED = TRUE;
+       DO J = 4 TO (NP_CNT - 1);
+         IF HK(J) > HK(J+1) THEN DO;
+           SORTED = FALSE;
+           K       = HK(J);
+           HK(J)   = HK(J+1);
+           HK(J+1) = K;
+         END;
+       END;
+     END;
+
+   %IF DEBUG_UNSEEN = 'Y' %THEN %DO;
+   PUT FILE (STATS) SKIP EDIT ('SRT ', HEX(HIST_KEY)) (2 A);
+   %END;
+   /*-------------------------------------------*/
+   /* Search for configuration in history table */
+   /*-------------------------------------------*/
+
+   HIST_TBL_PTR = ADDR(HIST_TBL);
+
+   DO J = 1 TO (NUMBER_PIECES_END + 2);
+     IF HIST_NEXT_PTR(HK(J)) = SYSNULL THEN DO;
+       HIST_TBL_CNT = HIST_TBL_CNT + 1;
+
+       IF HIST_TBL_CNT > HBOUND(HIST_TBL) THEN DO;
+         DISPLAY ('Number of history table entries exceeds maximum');
+         DISPLAY ('Enlarge HIST_TBL to remedy');
+         DISPLAY ('Terminating');
+         STOP;
+       END;
+
+       HIST_NEXT_PTR(HK(J)) = ADDR(HIST_TBL(HIST_TBL_CNT));
+
+       %IF DEBUG_UNSEEN = 'Y' %THEN %DO;
+       PUT FILE (STATS) SKIP EDIT ('LINK') (A);
+       PUT FILE (STATS) SKIP EDIT (HEX(HIST_TBL_PTR)) (A);
+       PUT FILE (STATS) SKIP;
+       DO K = 0 TO 25;
+         PUT FILE (STATS) EDIT (HEX(HIST_NEXT_PTR(K))) (A(9));
+       END;
+       %END;
+       HIST_TBL_PTR = ADDR(HIST_TBL(HIST_TBL_CNT));
+
+       HIST_NEXT_PTR = SYSNULL;
+     END;
+     ELSE DO;
+
+       %IF DEBUG_UNSEEN = 'Y' %THEN %DO;
+       PUT FILE (STATS) SKIP EDIT ('LINK') (A);
+       PUT FILE (STATS) SKIP EDIT (HEX(HIST_TBL_PTR)) (A);
+       PUT FILE (STATS) SKIP;
+       DO K = 0 TO 25;
+         PUT FILE (STATS) EDIT (HEX(HIST_NEXT_PTR(K))) (A(9));
+       END;
+       %END;
+       HIST_TBL_PTR = HIST_NEXT_PTR(HK(J));
+     END;
+   END;
+
+   %IF DEBUG_UNSEEN = 'Y' %THEN %DO;
+   PUT FILE (STATS) SKIP EDIT ('LAST') (A);
+   PUT FILE (STATS) SKIP EDIT (HEX(HIST_TBL_PTR)) (A);
+   PUT FILE (STATS) SKIP;
+   DO K = 0 TO 25;
+     PUT FILE (STATS) EDIT (HEX(HIST_NEXT_PTR(K))) (A(9));
+   END;
+   %END;
+   /*-----------------------------*/
+   /* If vacant, it doesn't exist */
+   /*-----------------------------*/
+
+   IF HIST_SEEN(HK(J)) = 0 THEN DO;
+
+     /*----------------------------*/
+     /* Add board to history table */
+     /*----------------------------*/
+
+     HIST_ENT_CNT = HIST_ENT_CNT + 1;
+
+     %IF DEBUG_UNSEEN = 'Y' %THEN %DO;
+     IF MOD(HIST_ENT_CNT,1000) = 0 THEN
+       DISPLAY ('History Table Entries = ' || NUMSTR(HIST_ENT_CNT));
+     %END;
+     HIST_SEEN(HK(J)) = CONFIGURATIONS;
+
+     %IF DEBUG_UNSEEN = 'Y' %THEN %DO;
+     PUT FILE (STATS) SKIP EDIT ('NEW') (A);
+     %END;
+   END;
+   ELSE
+     IF HIST_SEEN(HK(J)) ^= CONFIGURATIONS THEN DO;
+
+     /*------------------------------*/
+     /* Existing board configuration */
+     /*------------------------------*/
+
+     ALREADY_SEEN = ALREADY_SEEN + 1;
+
+     %IF DEBUG_UNSEEN = 'Y' %THEN %DO;
+     PUT FILE (STATS) EDIT
+       (' - Old (', HEX(SUBSTR(HIST_KEY,1,NP_CNT)), ')') (3 A);
+
+     IF I > 1 THEN DO;
+       %IF TYPE = 'HEX' %THEN %DO;
+       PUT FILE (STATS) EDIT (' - Reflection') (A);
+       %END;
+       %ELSE %DO;
+       PUT FILE (STATS) EDIT (' - Rotation or reflection') (A);
+       %END;
+     END;
+     %END;
+     RETURN (FALSE);
+   END;
+ END;
+
+ RETURN (TRUE);
+
+ END UNSEEN;
+
+ WRAP_UP: PROC;
+
+ IF REPORT_TITLE ^= '' THEN
+   PUT FILE (STATS) EDIT (REPORT_TITLE, ' ') (SKIP, A);
+
+ RUN_DATETIME = DATETIME;
+
+ PUT FILE (STATS) EDIT
+   ('CONFIG - Run on ',
+    RUN.MM, '-', RUN.DD, '-', RUN.YYYY,
+    ' at ',
+    RUN.HH, ':', RUN.MI, ':', RUN.SS,
+    ' ')
+   (SKIP, 12 A, SKIP, A);
+
+ PUT FILE (STATS) SKIP EDIT
+   ('Letter pieces .................. ', NUMSTR(LETTER_PIECES)) (2 A);
+
+ PUT FILE (STATS) SKIP EDIT
+   ('Number pieces .................. ', NUMSTR(NUMBER_PIECES_END)) (2 A);
+
+ IF MAX_CONFIGURATIONS ^= MAX_BIN THEN
+   PUT FILE (STATS) SKIP EDIT
+     ('Maximum configurations ......... ', NUMSTR(MAX_CONFIGURATIONS))
+     (2 A);
+
+ PUT FILE (STATS) EDIT
+   ('Configurations checked ......... ', NUMSTR(CONFIGURATIONS),
+    'Already seen ................... ', NUMSTR(ALREADY_SEEN),
+    'Stranded configurations ........ ', NUMSTR(STRANDED),
+    'No-move configurations ......... ', NUMSTR(NO_MOVES),
+    'Configurations written ......... ', NUMSTR(WRITTEN))
+  (SKIP, 2 A);
+
+ END WRAP_UP;
+
+ /*----------------------------------------*/
+ /* Convert an integer to a numeric string */
+ /*----------------------------------------*/
+
+ DCL NUMSTR GENERIC (NUMSTR_8     WHEN (FIXED BIN (8) UNSIGNED),
+                     NUMSTR_31    WHEN (FIXED BIN (31)),
+                     NUMSTR_ERROR OTHERWISE);
+
+ NUMSTR_8: PROC (NUM) RETURNS (CHAR (13) VARYING) REORDER;
+
+ DCL NUM                      FIXED BIN (8) UNSIGNED;
+
+ DCL I                        FIXED BIN (31) INIT (0);
+
+ DCL CHR                      CHAR (3)  INIT ((3)' ');
+ DCL PIC                      PIC 'ZZ9' BASED(ADDR(CHR));
+
+ PIC = NUM;
+
+ DO I = 1 TO 2 WHILE (SUBSTR(CHR,I,1) = ' ');
+ END;
+
+ RETURN (SUBSTR(CHR,I));
+
+ END NUMSTR_8;
+
+ NUMSTR_31: PROC (NUM) RETURNS (CHAR (13) VARYING) REORDER;
+
+ DCL NUM                      FIXED BIN (31);
+
+ DCL I                        FIXED BIN (31) INIT (0);
+
+ DCL CHR                      CHAR (13)           INIT ((13)' ');
+ DCL PIC                      PIC 'Z,ZZZ,ZZZ,ZZ9' BASED(ADDR(CHR));
+
+ PIC = NUM;
+
+ DO I = 1 TO 12 WHILE (SUBSTR(CHR,I,1) = ' ');
+ END;
+
+ RETURN (SUBSTR(CHR,I));
+
+ END NUMSTR_31;
+
+ NUMSTR_ERROR: PROC;
+
+ DISPLAY ('NUMSTR received invalid value');
+
+ STOP;
+
+ END NUMSTR_ERROR;
+
+ %IF TYPE = 'HEX' THEN %DO;
+ /*------------------------------*/
+ /* Make a displayable hex board */
+ /*------------------------------*/
+
+ MAKE_HEX_BOARD: PROC (CONFIG);
+
+ DCL CONFIG                   CHAR (CONFIG_SIZE);
+
+ IF SUBSTR(CONFIG,07,1) ^= '-' THEN
+   SUBSTR(XL(02),20,1) = SUBSTR(CONFIG,07,1);
+ ELSE
+   SUBSTR(XL(02),20,1) = ' ';
+
+ IF SUBSTR(CONFIG,06,1) ^= '-' THEN
+   SUBSTR(XL(03),17,1) = SUBSTR(CONFIG,06,1);
+ ELSE
+   SUBSTR(XL(03),17,1) = ' ';
+
+ IF SUBSTR(CONFIG,14,1) ^= '-' THEN
+   SUBSTR(XL(03),23,1) = SUBSTR(CONFIG,14,1);
+ ELSE
+   SUBSTR(XL(03),23,1) = ' ';
+
+ IF SUBSTR(CONFIG,05,1) ^= '-' THEN
+   SUBSTR(XL(04),14,1) = SUBSTR(CONFIG,05,1);
+ ELSE
+   SUBSTR(XL(04),14,1) = ' ';
+
+ IF SUBSTR(CONFIG,13,1) ^= '-' THEN
+   SUBSTR(XL(04),20,1) = SUBSTR(CONFIG,13,1);
+ ELSE
+   SUBSTR(XL(04),20,1) = ' ';
+
+ IF SUBSTR(CONFIG,21,1) ^= '-' THEN
+   SUBSTR(XL(04),26,1) = SUBSTR(CONFIG,21,1);
+ ELSE
+   SUBSTR(XL(04),26,1) = ' ';
+
+ IF SUBSTR(CONFIG,04,1) ^= '-' THEN
+   SUBSTR(XL(05),11,1) = SUBSTR(CONFIG,04,1);
+ ELSE
+   SUBSTR(XL(05),11,1) = ' ';
+
+ IF SUBSTR(CONFIG,12,1) ^= '-' THEN
+   SUBSTR(XL(05),17,1) = SUBSTR(CONFIG,12,1);
+ ELSE
+   SUBSTR(XL(05),17,1) = ' ';
+
+ IF SUBSTR(CONFIG,20,1) ^= '-' THEN
+   SUBSTR(XL(05),23,1) = SUBSTR(CONFIG,20,1);
+ ELSE
+   SUBSTR(XL(05),23,1) = ' ';
+
+ IF SUBSTR(CONFIG,28,1) ^= '-' THEN
+   SUBSTR(XL(05),29,1) = SUBSTR(CONFIG,28,1);
+ ELSE
+   SUBSTR(XL(05),29,1) = ' ';
+
+ IF SUBSTR(CONFIG,03,1) ^= '-' THEN
+   SUBSTR(XL(06),08,1) = SUBSTR(CONFIG,03,1);
+ ELSE
+   SUBSTR(XL(06),08,1) = ' ';
+
+ IF SUBSTR(CONFIG,11,1) ^= '-' THEN
+   SUBSTR(XL(06),14,1) = SUBSTR(CONFIG,11,1);
+ ELSE
+   SUBSTR(XL(06),14,1) = ' ';
+
+ IF SUBSTR(CONFIG,19,1) ^= '-' THEN
+   SUBSTR(XL(06),20,1) = SUBSTR(CONFIG,19,1);
+ ELSE
+   SUBSTR(XL(06),20,1) = ' ';
+
+ IF SUBSTR(CONFIG,27,1) ^= '-' THEN
+   SUBSTR(XL(06),26,1) = SUBSTR(CONFIG,27,1);
+ ELSE
+   SUBSTR(XL(06),26,1) = ' ';
+
+ IF SUBSTR(CONFIG,35,1) ^= '-' THEN
+   SUBSTR(XL(06),32,1) = SUBSTR(CONFIG,35,1);
+ ELSE
+   SUBSTR(XL(06),32,1) = ' ';
+
+ IF SUBSTR(CONFIG,02,1) ^= '-' THEN
+   SUBSTR(XL(07),05,1) = SUBSTR(CONFIG,02,1);
+ ELSE
+   SUBSTR(XL(07),05,1) = ' ';
+
+ IF SUBSTR(CONFIG,10,1) ^= '-' THEN
+   SUBSTR(XL(07),11,1) = SUBSTR(CONFIG,10,1);
+ ELSE
+   SUBSTR(XL(07),11,1) = ' ';
+
+ IF SUBSTR(CONFIG,18,1) ^= '-' THEN
+   SUBSTR(XL(07),17,1) = SUBSTR(CONFIG,18,1);
+ ELSE
+   SUBSTR(XL(07),17,1) = ' ';
+
+ IF SUBSTR(CONFIG,26,1) ^= '-' THEN
+   SUBSTR(XL(07),23,1) = SUBSTR(CONFIG,26,1);
+ ELSE
+   SUBSTR(XL(07),23,1) = ' ';
+
+ IF SUBSTR(CONFIG,34,1) ^= '-' THEN
+   SUBSTR(XL(07),29,1) = SUBSTR(CONFIG,34,1);
+ ELSE
+   SUBSTR(XL(07),29,1) = ' ';
+
+ IF SUBSTR(CONFIG,42,1) ^= '-' THEN
+   SUBSTR(XL(07),35,1) = SUBSTR(CONFIG,42,1);
+ ELSE
+   SUBSTR(XL(07),35,1) = ' ';
+
+ IF SUBSTR(CONFIG,01,1) ^= '-' THEN
+   SUBSTR(XL(08),02,1) = SUBSTR(CONFIG,01,1);
+ ELSE
+   SUBSTR(XL(08),02,1) = ' ';
+
+ IF SUBSTR(CONFIG,09,1) ^= '-' THEN
+   SUBSTR(XL(08),08,1) = SUBSTR(CONFIG,09,1);
+ ELSE
+   SUBSTR(XL(08),08,1) = ' ';
+
+ IF SUBSTR(CONFIG,17,1) ^= '-' THEN
+   SUBSTR(XL(08),14,1) = SUBSTR(CONFIG,17,1);
+ ELSE
+   SUBSTR(XL(08),14,1) = ' ';
+
+ IF SUBSTR(CONFIG,25,1) ^= '-' THEN
+   SUBSTR(XL(08),20,1) = SUBSTR(CONFIG,25,1);
+ ELSE
+   SUBSTR(XL(08),20,1) = ' ';
+
+ IF SUBSTR(CONFIG,33,1) ^= '-' THEN
+   SUBSTR(XL(08),26,1) = SUBSTR(CONFIG,33,1);
+ ELSE
+   SUBSTR(XL(08),26,1) = ' ';
+
+ IF SUBSTR(CONFIG,41,1) ^= '-' THEN
+   SUBSTR(XL(08),32,1) = SUBSTR(CONFIG,41,1);
+ ELSE
+   SUBSTR(XL(08),32,1) = ' ';
+
+ IF SUBSTR(CONFIG,49,1) ^= '-' THEN
+   SUBSTR(XL(08),38,1) = SUBSTR(CONFIG,49,1);
+ ELSE
+   SUBSTR(XL(08),38,1) = ' ';
+
+ IF SUBSTR(CONFIG,08,1) ^= '-' THEN
+   SUBSTR(XL(09),05,1) = SUBSTR(CONFIG,08,1);
+ ELSE
+   SUBSTR(XL(09),05,1) = ' ';
+
+ IF SUBSTR(CONFIG,16,1) ^= '-' THEN
+   SUBSTR(XL(09),11,1) = SUBSTR(CONFIG,16,1);
+ ELSE
+   SUBSTR(XL(09),11,1) = ' ';
+
+ IF SUBSTR(CONFIG,24,1) ^= '-' THEN
+   SUBSTR(XL(09),17,1) = SUBSTR(CONFIG,24,1);
+ ELSE
+   SUBSTR(XL(09),17,1) = ' ';
+
+ IF SUBSTR(CONFIG,32,1) ^= '-' THEN
+   SUBSTR(XL(09),23,1) = SUBSTR(CONFIG,32,1);
+ ELSE
+   SUBSTR(XL(09),23,1) = ' ';
+
+ IF SUBSTR(CONFIG,40,1) ^= '-' THEN
+   SUBSTR(XL(09),29,1) = SUBSTR(CONFIG,40,1);
+ ELSE
+   SUBSTR(XL(09),29,1) = ' ';
+
+ IF SUBSTR(CONFIG,48,1) ^= '-' THEN
+   SUBSTR(XL(09),35,1) = SUBSTR(CONFIG,48,1);
+ ELSE
+   SUBSTR(XL(09),35,1) = ' ';
+
+ IF SUBSTR(CONFIG,15,1) ^= '-' THEN
+   SUBSTR(XL(10),08,1) = SUBSTR(CONFIG,15,1);
+ ELSE
+   SUBSTR(XL(10),08,1) = ' ';
+
+ IF SUBSTR(CONFIG,23,1) ^= '-' THEN
+   SUBSTR(XL(10),14,1) = SUBSTR(CONFIG,23,1);
+ ELSE
+   SUBSTR(XL(10),14,1) = ' ';
+
+ IF SUBSTR(CONFIG,31,1) ^= '-' THEN
+   SUBSTR(XL(10),20,1) = SUBSTR(CONFIG,31,1);
+ ELSE
+   SUBSTR(XL(10),20,1) = ' ';
+
+ IF SUBSTR(CONFIG,39,1) ^= '-' THEN
+   SUBSTR(XL(10),26,1) = SUBSTR(CONFIG,39,1);
+ ELSE
+   SUBSTR(XL(10),26,1) = ' ';
+
+ IF SUBSTR(CONFIG,47,1) ^= '-' THEN
+   SUBSTR(XL(10),32,1) = SUBSTR(CONFIG,47,1);
+ ELSE
+   SUBSTR(XL(10),32,1) = ' ';
+
+ IF SUBSTR(CONFIG,22,1) ^= '-' THEN
+   SUBSTR(XL(11),11,1) = SUBSTR(CONFIG,22,1);
+ ELSE
+   SUBSTR(XL(11),11,1) = ' ';
+
+ IF SUBSTR(CONFIG,30,1) ^= '-' THEN
+   SUBSTR(XL(11),17,1) = SUBSTR(CONFIG,30,1);
+ ELSE
+   SUBSTR(XL(11),17,1) = ' ';
+
+ IF SUBSTR(CONFIG,38,1) ^= '-' THEN
+   SUBSTR(XL(11),23,1) = SUBSTR(CONFIG,38,1);
+ ELSE
+   SUBSTR(XL(11),23,1) = ' ';
+
+ IF SUBSTR(CONFIG,46,1) ^= '-' THEN
+   SUBSTR(XL(11),26,1) = SUBSTR(CONFIG,46,1);
+ ELSE
+   SUBSTR(XL(11),26,1) = ' ';
+
+ IF SUBSTR(CONFIG,29,1) ^= '-' THEN
+   SUBSTR(XL(12),14,1) = SUBSTR(CONFIG,29,1);
+ ELSE
+   SUBSTR(XL(12),14,1) = ' ';
+
+ IF SUBSTR(CONFIG,37,1) ^= '-' THEN
+   SUBSTR(XL(12),20,1) = SUBSTR(CONFIG,37,1);
+ ELSE
+   SUBSTR(XL(12),20,1) = ' ';
+
+ IF SUBSTR(CONFIG,45,1) ^= '-' THEN
+   SUBSTR(XL(12),26,1) = SUBSTR(CONFIG,45,1);
+ ELSE
+   SUBSTR(XL(12),26,1) = ' ';
+
+ IF SUBSTR(CONFIG,36,1) ^= '-' THEN
+   SUBSTR(XL(13),17,1) = SUBSTR(CONFIG,36,1);
+ ELSE
+   SUBSTR(XL(13),17,1) = ' ';
+
+ IF SUBSTR(CONFIG,44,1) ^= '-' THEN
+   SUBSTR(XL(13),23,1) = SUBSTR(CONFIG,44,1);
+ ELSE
+   SUBSTR(XL(13),23,1) = ' ';
+
+ IF SUBSTR(CONFIG,43,1) ^= '-' THEN
+   SUBSTR(XL(14),20,1) = SUBSTR(CONFIG,43,1);
+ ELSE
+   SUBSTR(XL(14),20,1) = ' ';
+
+ END MAKE_HEX_BOARD;
+ %END;

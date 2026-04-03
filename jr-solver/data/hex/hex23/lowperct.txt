@@ -1,0 +1,644 @@
+LOWEST PERCENT : MOVES X 100 / STEPS
+ 
+SOLVE - Run on 01-23-2000 at 20:56:36
+ 
+Letter pieces .......................... 2
+Number pieces .......................... 3
+Statistics ............................. No
+Show zero solutions .................... No
+Maximum depth .......................... 99
+Maximum configurations ................. None
+Maximum solutions ...................... None
+Maximum solutions shown ................ 500
+ 
+Configurations ......................... 50
+Configurations with solutions .......... 50
+  With all pieces significant .......... 50
+  With insignificant pieces ............ 0
+Total solutions ........................ 64
+ 
+Most moves for minimum solution ........ 3      (X41:Y11:21:71:82)
+Most steps for minimum solution ........ 10     (X41:Y11:21:71:82)
+Most solutions ......................... 2      (X41:Y44:21:22:72)
+ 
+                  Steps...
+Moves  Count....  Min  Max
+-----  ---------  ---  ---
+    2         32    7    9
+    3         18    9   10
+
+---------------------------------------------------------------------------
+            -             : Board (X51:Y31:32:81:73)
+         -     -          :
+      Y     1     -       : Solutions (2 Moves, 9 Steps) ... 1
+   -     -     -     -    : Other solutions (2 Moves) ...... 0
+X     -     -     -     - : Positions evaluated ............ 281
+   -     -     -     -    :
+      -     -     3       :
+         2     -          :
+            -             :
+ 
+X-SeNoNeSeSwNo Y-SeSwNo
+---------------------------------------------------------------------------
+            -             : Board (X51:Y71:21:33:72)
+         1     -          :
+      -     -     2       : Solutions (2 Moves, 9 Steps) ... 1
+   -     -     -     -    : Other solutions (2 Moves) ...... 0
+X     -     -     -     - : Positions evaluated ............ 120
+   -     -     -     -    :
+      Y     3     -       :
+         -     -          :
+            -             :
+ 
+X-NeSoSeNeNwSo Y-NeNwSo
+---------------------------------------------------------------------------
+            -             : Board (X51:Y21:22:62:73)
+         Y     1          :
+      -     -     -       : Solutions (2 Moves, 8 Steps) ... 1
+   -     -     -     -    : Other solutions (2 Moves) ...... 0
+X     -     -     -     - : Positions evaluated ............ 96
+   -     2     -     -    :
+      -     -     3       :
+         -     -          :
+            -             :
+ 
+X-NeSeNoSw Y-SoSeNoSw
+---------------------------------------------------------------------------
+            Y             : Board (X51:Y11:52:43:91)
+         -     -          :
+      -     -     -       : Solutions (2 Moves, 8 Steps) ... 1
+   -     -     2     -    : Other solutions (2 Moves) ...... 0
+X     1     -     -     - : Positions evaluated ............ 82
+   -     -     -     -    :
+      -     -     -       :
+         -     -          :
+            3             :
+ 
+X-NeSeSoNwNe Y-SoNwNe
+---------------------------------------------------------------------------
+            -             : Board (X51:Y81:42:33:82)
+         -     -          :
+      -     -     2       : Solutions (2 Moves, 8 Steps) ... 1
+   -     1     -     -    : Other solutions (2 Moves) ...... 0
+X     -     -     -     - : Positions evaluated ............ 105
+   -     -     -     -    :
+      -     -     -       :
+         Y     3          :
+            -             :
+ 
+X-SeNeSoNw Y-NoNeSoNw
+---------------------------------------------------------------------------
+            1             : Board (X51:Y91:11:52:63)
+         -     -          :
+      -     -     -       : Solutions (2 Moves, 8 Steps) ... 1
+   -     -     -     -    : Other solutions (2 Moves) ...... 0
+X     2     -     -     - : Positions evaluated ............ 114
+   -     -     3     -    :
+      -     -     -       :
+         -     -          :
+            Y             :
+ 
+X-SeNeNoSwSe Y-NoSwSe
+---------------------------------------------------------------------------
+            -             : Board (X41:Y21:22:62:73)
+         Y     1          :
+      -     -     -       : Solutions (2 Moves, 8 Steps) ... 1
+   X     -     -     -    : Other solutions (2 Moves) ...... 0
+-     -     -     -     - : Positions evaluated ............ 183
+   -     2     -     -    :
+      -     -     3       :
+         -     -          :
+            -             :
+ 
+X-NeSeNoSw Y-SoSeNoSw
+---------------------------------------------------------------------------
+            Y             : Board (X41:Y11:52:43:91)
+         -     -          :
+      -     -     -       : Solutions (2 Moves, 8 Steps) ... 1
+   X     -     2     -    : Other solutions (2 Moves) ...... 0
+-     1     -     -     - : Positions evaluated ............ 61
+   -     -     -     -    :
+      -     -     -       :
+         -     -          :
+            3             :
+ 
+X-NeSeSoNwNe Y-SoNwNe
+---------------------------------------------------------------------------
+            -             : Board (X41:Y52:21:33:72)
+         1     -          :
+      -     -     2       : Solutions (2 Moves, 8 Steps) ... 1
+   X     -     -     -    : Other solutions (2 Moves) ...... 0
+-     Y     -     -     - : Positions evaluated ............ 114
+   -     -     -     -    :
+      -     3     -       :
+         -     -          :
+            -             :
+ 
+Y-SeNeNwSo X-SeNeNwSo
+---------------------------------------------------------------------------
+            -             : Board (X41:Y44:21:22:72)
+         1     2          :
+      -     -     -       : Solutions (2 Moves, 8 Steps) ... 2
+   X     -     -     Y    : Other solutions (2 Moves) ...... 0
+-     -     -     -     - : Positions evaluated ............ 216
+   -     -     -     -    :
+      -     3     -       :
+         -     -          :
+            -             :
+ 
+X-SeNoNeSo Y-SwNoNwSo
+Y-SwNoNwSo X-SeNoNeSo
+---------------------------------------------------------------------------
+            Y             : Board (X31:Y11:52:43:91)
+         -     -          :
+      X     -     -       : Solutions (2 Moves, 8 Steps) ... 1
+   -     -     2     -    : Other solutions (2 Moves) ...... 0
+-     1     -     -     - : Positions evaluated ............ 83
+   -     -     -     -    :
+      -     -     -       :
+         -     -          :
+            3             :
+ 
+X-NeSeSoNwNe Y-SoNwNe
+---------------------------------------------------------------------------
+            -             : Board (X31:Y71:21:33:72)
+         1     -          :
+      X     -     2       : Solutions (2 Moves, 8 Steps) ... 1
+   -     -     -     -    : Other solutions (2 Moves) ...... 0
+-     -     -     -     - : Positions evaluated ............ 77
+   -     -     -     -    :
+      Y     3     -       :
+         -     -          :
+            -             :
+ 
+X-SoSeNeNwSo Y-NeNwSo
+---------------------------------------------------------------------------
+            -             : Board (X31:Y71:32:81:73)
+         -     -          :
+      X     1     -       : Solutions (2 Moves, 8 Steps) ... 1
+   -     -     -     -    : Other solutions (2 Moves) ...... 0
+-     -     -     -     - : Positions evaluated ............ 114
+   -     -     -     -    :
+      Y     -     3       :
+         2     -          :
+            -             :
+ 
+Y-NoNeSeSwNo X-SeSwNo
+---------------------------------------------------------------------------
+            -             : Board (X52:Y61:32:81:73)
+         -     -          :
+      -     1     -       : Solutions (2 Moves, 8 Steps) ... 1
+   -     -     -     -    : Other solutions (2 Moves) ...... 0
+-     X     -     -     - : Positions evaluated ............ 114
+   Y     -     -     -    :
+      -     -     3       :
+         2     -          :
+            -             :
+ 
+X-NeSeSwNo Y-NeSeSwNo
+---------------------------------------------------------------------------
+            -             : Board (X51:Y22:42:54:91)
+         -     Y          :
+      -     -     -       : Solutions (2 Moves, 7 Steps) ... 2
+   -     1     -     -    : Other solutions (2 Moves) ...... 0
+X     -     -     2     - : Positions evaluated ............ 141
+   -     -     -     -    :
+      -     -     -       :
+         -     -          :
+            3             :
+ 
+X-SeNeNw Y-SwSoNeNw
+Y-SwSoNeNw X-SeNeNw
+---------------------------------------------------------------------------
+            1             : Board (X51:Y82:11:62:54)
+         -     -          :
+      -     -     -       : Solutions (2 Moves, 7 Steps) ... 2
+   -     -     -     -    : Other solutions (2 Moves) ...... 0
+X     -     -     3     - : Positions evaluated ............ 150
+   -     2     -     -    :
+      -     -     -       :
+         -     Y          :
+            -             :
+ 
+X-NeSeSw Y-NwNoSeSw
+Y-NwNoSeSw X-NeSeSw
+---------------------------------------------------------------------------
+            -             : Board (X41:Y71:21:33:72)
+         1     -          :
+      -     -     2       : Solutions (2 Moves, 7 Steps) ... 2
+   X     -     -     -    : Other solutions (2 Moves) ...... 1
+-     -     -     -     - : Positions evaluated ............ 156
+   -     -     -     -    :
+      Y     3     -       :
+         -     -          :
+            -             :
+ 
+X-SeNeNwSo Y-NeNwSo
+Y-NeNwSo X-SeNeNwSo
+---------------------------------------------------------------------------
+            -             : Board (X41:Y62:21:33:72)
+         1     -          :
+      -     -     2       : Solutions (2 Moves, 7 Steps) ... 1
+   X     -     -     -    : Other solutions (2 Moves) ...... 0
+-     -     -     -     - : Positions evaluated ............ 155
+   -     Y     -     -    :
+      -     3     -       :
+         -     -          :
+            -             :
+ 
+Y-NeNwSo X-SeNeNwSo
+---------------------------------------------------------------------------
+            -             : Board (X41:Y33:21:72:73)
+         1     -          :
+      -     -     Y       : Solutions (2 Moves, 7 Steps) ... 1
+   X     -     -     -    : Other solutions (2 Moves) ...... 0
+-     -     -     -     - : Positions evaluated ............ 381
+   -     -     -     -    :
+      -     2     3       :
+         -     -          :
+            -             :
+ 
+X-SeNeNwSo Y-SoNwSo
+---------------------------------------------------------------------------
+            -             : Board (X41:Y81:21:22:72)
+         1     2          :
+      -     -     -       : Solutions (2 Moves, 7 Steps) ... 2
+   X     -     -     -    : Other solutions (2 Moves) ...... 0
+-     -     -     -     - : Positions evaluated ............ 88
+   -     -     -     -    :
+      -     3     -       :
+         Y     -          :
+            -             :
+ 
+X-SeNoNeSo Y-NoNeSo
+Y-NoNeSo X-SeNoNeSo
+---------------------------------------------------------------------------
+            -             : Board (X41:Y81:22:62:54)
+         -     1          :
+      -     -     -       : Solutions (2 Moves, 7 Steps) ... 2
+   X     -     -     -    : Other solutions (2 Moves) ...... 0
+-     -     -     3     - : Positions evaluated ............ 74
+   -     2     -     -    :
+      -     -     -       :
+         Y     -          :
+            -             :
+ 
+X-SeNeSeSw Y-NeNoSw
+Y-NeNoSw X-SeNeSeSw
+---------------------------------------------------------------------------
+            -             : Board (X41:Y82:21:22:72)
+         1     2          :
+      -     -     -       : Solutions (2 Moves, 7 Steps) ... 2
+   X     -     -     -    : Other solutions (2 Moves) ...... 0
+-     -     -     -     - : Positions evaluated ............ 112
+   -     -     -     -    :
+      -     3     -       :
+         -     Y          :
+            -             :
+ 
+X-SeNoNeSo Y-NoNwSo
+Y-NoNwSo X-SeNoNeSo
+---------------------------------------------------------------------------
+            1             : Board (X41:Y82:11:62:54)
+         -     -          :
+      -     -     -       : Solutions (2 Moves, 7 Steps) ... 2
+   X     -     -     -    : Other solutions (2 Moves) ...... 0
+-     -     -     3     - : Positions evaluated ............ 186
+   -     2     -     -    :
+      -     -     -       :
+         -     Y          :
+            -             :
+ 
+X-NeSeSw Y-NwNoSeSw
+Y-NwNoSeSw X-NeSeSw
+---------------------------------------------------------------------------
+            -             : Board (X41:Y73:21:33:72)
+         1     -          :
+      -     -     2       : Solutions (2 Moves, 7 Steps) ... 2
+   X     -     -     -    : Other solutions (2 Moves) ...... 0
+-     -     -     -     - : Positions evaluated ............ 329
+   -     -     -     -    :
+      -     3     Y       :
+         -     -          :
+            -             :
+ 
+X-SeNeNwSo Y-NoNwSo
+Y-NoNwSo X-SeNeNwSo
+---------------------------------------------------------------------------
+            -             : Board (X31:Y61:32:81:73)
+         -     -          :
+      X     1     -       : Solutions (2 Moves, 7 Steps) ... 2
+   -     -     -     -    : Other solutions (2 Moves) ...... 1
+-     -     -     -     - : Positions evaluated ............ 156
+   Y     -     -     -    :
+      -     -     3       :
+         2     -          :
+            -             :
+ 
+X-SeSwNo Y-NeSeSwNo
+Y-NeSeSwNo X-SeSwNo
+---------------------------------------------------------------------------
+            -             : Board (X31:Y52:32:81:73)
+         -     -          :
+      X     1     -       : Solutions (2 Moves, 7 Steps) ... 2
+   -     -     -     -    : Other solutions (2 Moves) ...... 0
+-     Y     -     -     - : Positions evaluated ............ 99
+   -     -     -     -    :
+      -     -     3       :
+         2     -          :
+            -             :
+ 
+X-SeSwNo Y-NeSeSwNo
+Y-NeSeSwNo X-SeSwNo
+---------------------------------------------------------------------------
+            -             : Board (X52:Y42:32:81:73)
+         -     -          :
+      -     1     -       : Solutions (2 Moves, 7 Steps) ... 1
+   -     Y     -     -    : Other solutions (2 Moves) ...... 0
+-     X     -     -     - : Positions evaluated ............ 62
+   -     -     -     -    :
+      -     -     3       :
+         2     -          :
+            -             :
+ 
+Y-SeSwNo X-NeSeSwNo
+---------------------------------------------------------------------------
+            -             : Board (X52:Y71:21:33:72)
+         1     -          :
+      -     -     2       : Solutions (2 Moves, 7 Steps) ... 2
+   -     -     -     -    : Other solutions (2 Moves) ...... 0
+-     X     -     -     - : Positions evaluated ............ 90
+   -     -     -     -    :
+      Y     3     -       :
+         -     -          :
+            -             :
+ 
+X-SeNeNwSo Y-NeNwSo
+Y-NeNwSo X-SeNeNwSo
+---------------------------------------------------------------------------
+            -             : Board (X52:Y62:21:33:72)
+         1     -          :
+      -     -     2       : Solutions (2 Moves, 7 Steps) ... 1
+   -     -     -     -    : Other solutions (2 Moves) ...... 0
+-     X     -     -     - : Positions evaluated ............ 62
+   -     Y     -     -    :
+      -     3     -       :
+         -     -          :
+            -             :
+ 
+Y-NeNwSo X-SeNeNwSo
+---------------------------------------------------------------------------
+            -             : Board (X52:Y33:21:72:73)
+         1     -          :
+      -     -     Y       : Solutions (2 Moves, 7 Steps) ... 1
+   -     -     -     -    : Other solutions (2 Moves) ...... 0
+-     X     -     -     - : Positions evaluated ............ 236
+   -     -     -     -    :
+      -     2     3       :
+         -     -          :
+            -             :
+ 
+X-SeNeNwSo Y-SoNwSo
+---------------------------------------------------------------------------
+            -             : Board (X52:Y33:32:81:73)
+         -     -          :
+      -     1     Y       : Solutions (2 Moves, 7 Steps) ... 2
+   -     -     -     -    : Other solutions (2 Moves) ...... 0
+-     X     -     -     - : Positions evaluated ............ 225
+   -     -     -     -    :
+      -     -     3       :
+         2     -          :
+            -             :
+ 
+X-NeSeSwNo Y-SoSwNo
+Y-SoSwNo X-NeSeSwNo
+---------------------------------------------------------------------------
+            -             : Board (X42:Y61:32:81:73)
+         -     -          :
+      -     1     -       : Solutions (2 Moves, 7 Steps) ... 1
+   -     X     -     -    : Other solutions (2 Moves) ...... 0
+-     -     -     -     - : Positions evaluated ............ 145
+   Y     -     -     -    :
+      -     -     3       :
+         2     -          :
+            -             :
+ 
+X-SeSwNo Y-NeSeSwNo
+---------------------------------------------------------------------------
+            Y             : Board (X41:Y11:21:71:82)
+         1     -          :
+      -     -     -       : Solutions (3 Moves, 10 Steps) .. 1
+   X     -     -     -    : Other solutions (3 Moves) ...... 0
+-     -     -     -     - : Positions evaluated ............ 173
+   -     -     -     -    :
+      2     -     -       :
+         -     3          :
+            -             :
+ 
+1-SwSoSeNo Y-SwSoSeNo X-SeNo
+---------------------------------------------------------------------------
+            Y             : Board (X41:Y11:43:91:73)
+         -     -          :
+      -     -     -       : Solutions (3 Moves, 10 Steps) .. 1
+   X     -     1     -    : Other solutions (3 Moves) ...... 0
+-     -     -     -     - : Positions evaluated ............ 731
+   -     -     -     -    :
+      -     -     3       :
+         -     -          :
+            2             :
+ 
+3-SwNw X-NeSeSoNwNe Y-SoNwNe
+---------------------------------------------------------------------------
+            Y             : Board (X41:Y11:43:91:64)
+         -     -          :
+      -     -     -       : Solutions (3 Moves, 10 Steps) .. 1
+   X     -     1     -    : Other solutions (3 Moves) ...... 0
+-     -     -     -     - : Positions evaluated ............ 2,832
+   -     -     -     3    :
+      -     -     -       :
+         -     -          :
+            2             :
+ 
+3-SwNw X-NeSeSoNwNe Y-SoNwNe
+---------------------------------------------------------------------------
+            Y             : Board (X41:Y11:43:91:55)
+         -     -          :
+      -     -     -       : Solutions (3 Moves, 10 Steps) .. 1
+   X     -     1     -    : Other solutions (3 Moves) ...... 0
+-     -     -     -     3 : Positions evaluated ............ 2,250
+   -     -     -     -    :
+      -     -     -       :
+         -     -          :
+            2             :
+ 
+3-SwNw X-NeSeSoNwNe Y-SoNwNe
+---------------------------------------------------------------------------
+            -             : Board (X51:Y21:71:33:72)
+         Y     -          :
+      -     -     2       : Solutions (3 Moves, 9 Steps) ... 1
+   -     -     -     -    : Other solutions (3 Moves) ...... 0
+X     -     -     -     - : Positions evaluated ............ 420
+   -     -     -     -    :
+      1     3     -       :
+         -     -          :
+            -             :
+ 
+X-NeSoSeNeNwSo 1-Ne Y-SeSo
+---------------------------------------------------------------------------
+            -             : Board (X51:Y32:31:81:73)
+         -     -          :
+      1     Y     -       : Solutions (3 Moves, 9 Steps) ... 1
+   -     -     -     -    : Other solutions (3 Moves) ...... 0
+X     -     -     -     - : Positions evaluated ............ 513
+   -     -     -     -    :
+      -     -     3       :
+         2     -          :
+            -             :
+ 
+X-SeNoNeSeSwNo 1-SeSw Y-So
+---------------------------------------------------------------------------
+            -             : Board (X51:Y22:31:71:72)
+         -     Y          :
+      1     -     -       : Solutions (3 Moves, 9 Steps) ... 1
+   -     -     -     -    : Other solutions (3 Moves) ...... 0
+X     -     -     -     - : Positions evaluated ............ 736
+   -     -     -     -    :
+      2     3     -       :
+         -     -          :
+            -             :
+ 
+X-SeNeSo 2-NoNeSoNw Y-SwSo
+---------------------------------------------------------------------------
+            -             : Board (X51:Y81:31:32:73)
+         -     -          :
+      1     2     -       : Solutions (3 Moves, 9 Steps) ... 1
+   -     -     -     -    : Other solutions (3 Moves) ...... 0
+X     -     -     -     - : Positions evaluated ............ 567
+   -     -     -     -    :
+      -     -     3       :
+         Y     -          :
+            -             :
+ 
+X-SeNoNeSeSwNo 1-Se Y-NeNo
+---------------------------------------------------------------------------
+            -             : Board (X51:Y72:21:71:33)
+         1     -          :
+      -     -     3       : Solutions (3 Moves, 9 Steps) ... 1
+   -     -     -     -    : Other solutions (3 Moves) ...... 0
+X     -     -     -     - : Positions evaluated ............ 396
+   -     -     -     -    :
+      2     Y     -       :
+         -     -          :
+            -             :
+ 
+X-NeSoSeNeNwSo 2-NeNw Y-No
+---------------------------------------------------------------------------
+            -             : Board (X51:Y82:31:32:71)
+         -     -          :
+      1     2     -       : Solutions (3 Moves, 9 Steps) ... 1
+   -     -     -     -    : Other solutions (3 Moves) ...... 0
+X     -     -     -     - : Positions evaluated ............ 581
+   -     -     -     -    :
+      3     -     -       :
+         -     Y          :
+            -             :
+ 
+X-NeSeNo 1-SoSeNoSw Y-NwNo
+---------------------------------------------------------------------------
+            Y             : Board (X41:Y11:31:71:82)
+         -     -          :
+      1     -     -       : Solutions (3 Moves, 9 Steps) ... 1
+   X     -     -     -    : Other solutions (3 Moves) ...... 0
+-     -     -     -     - : Positions evaluated ............ 465
+   -     -     -     -    :
+      2     -     -       :
+         -     3          :
+            -             :
+ 
+1-SoSeNo Y-SwSoSeNo X-SeNo
+---------------------------------------------------------------------------
+            Y             : Board (X41:Y11:71:43:82)
+         -     -          :
+      -     -     -       : Solutions (3 Moves, 9 Steps) ... 1
+   X     -     2     -    : Other solutions (3 Moves) ...... 0
+-     -     -     -     - : Positions evaluated ............ 1,016
+   -     -     -     -    :
+      1     -     -       :
+         -     3          :
+            -             :
+ 
+2-SwSeNo Y-SwSoSeNo X-SeNo
+---------------------------------------------------------------------------
+            Y             : Board (X41:Y11:71:33:82)
+         -     -          :
+      -     -     2       : Solutions (3 Moves, 9 Steps) ... 1
+   X     -     -     -    : Other solutions (3 Moves) ...... 0
+-     -     -     -     - : Positions evaluated ............ 1,875
+   -     -     -     -    :
+      1     -     -       :
+         -     3          :
+            -             :
+ 
+2-SwSeNo Y-SwSoSeNo X-SeNo
+---------------------------------------------------------------------------
+            Y             : Board (X41:Y11:62:63:55)
+         -     -          :
+      -     -     -       : Solutions (3 Moves, 9 Steps) ... 1
+   X     -     -     -    : Other solutions (3 Moves) ...... 0
+-     -     -     -     3 : Positions evaluated ............ 1,090
+   -     1     2     -    :
+      -     -     -       :
+         -     -          :
+            -             :
+ 
+3-NwSoSwNo Y-SwSe X-SeNeSe
+---------------------------------------------------------------------------
+            Y             : Board (X41:Y11:43:91:82)
+         -     -          :
+      -     -     -       : Solutions (3 Moves, 9 Steps) ... 1
+   X     -     1     -    : Other solutions (3 Moves) ...... 0
+-     -     -     -     - : Positions evaluated ............ 446
+   -     -     -     -    :
+      -     -     -       :
+         -     3          :
+            2             :
+ 
+3-Nw X-NeSeSoNwNe Y-SoNwNe
+---------------------------------------------------------------------------
+            -             : Board (X41:Y22:43:81:82)
+         -     Y          :
+      -     -     -       : Solutions (3 Moves, 9 Steps) ... 2
+   X     -     1     -    : Other solutions (3 Moves) ...... 0
+-     -     -     -     - : Positions evaluated ............ 181
+   -     -     -     -    :
+      -     -     -       :
+         2     3          :
+            -             :
+ 
+1-SoSwNwNe X-SeNo Y-SoSwNo
+1-SoSwNwNe Y-SoSwNo X-SeNo
+---------------------------------------------------------------------------
+            2             : Board (X41:Y54:51:11:62)
+         -     -          :
+      -     -     -       : Solutions (3 Moves, 9 Steps) ... 1
+   X     -     -     -    : Other solutions (3 Moves) ...... 0
+1     -     -     Y     - : Positions evaluated ............ 116
+   -     3     -     -    :
+      -     -     -       :
+         -     -          :
+            -             :
+ 
+X-NeSeSw 1-NeSeSwNo Y-NwSw
+---------------------------------------------------------------------------
+            Y             : Board (X31:Y11:51:71:82)
+         -     -          :
+      X     -     -       : Solutions (3 Moves, 9 Steps) ... 1
+   -     -     -     -    : Other solutions (3 Moves) ...... 0
+1     -     -     -     - : Positions evaluated ............ 2,760
+   -     -     -     -    :
+      2     -     -       :
+         -     3          :
+            -             :
+ 
+2-NoSeNo X-SwSeNo Y-SwSeNo
+---------------------------------------------------------------------------
