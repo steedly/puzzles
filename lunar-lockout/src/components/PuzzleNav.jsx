@@ -369,7 +369,7 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
           </div>
 
           {/* ── Sort ── */}
-          <div className="pnav__filter-row">
+          <div className="pnav__filter-row pnav__sort-row">
             <span className="pnav__label">Sort:</span>
             <select
               className="pnav__sort-select"

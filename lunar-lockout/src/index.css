@@ -659,6 +659,10 @@ button { cursor: pointer; font-family: inherit; }
   text-align: right;
   flex-shrink: 0;
 }
+.pnav__sort-row {
+  flex-wrap: nowrap;
+}
+
 .pnav__sort-select {
   padding: 3px 6px;
   border-radius: 6px;
@@ -667,6 +671,8 @@ button { cursor: pointer; font-family: inherit; }
   color: var(--text);
   font-size: 0.78rem;
   cursor: pointer;
+  min-width: 0;
+  max-width: 100px;
 }
 
 .pnav__empty {
