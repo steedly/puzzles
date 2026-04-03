@@ -5,7 +5,47 @@ import { slideRobot } from '../logic/gameEngine';
 import Cell from './Cell';
 import SolutionOverlay from './SolutionOverlay';
 
-export default function Board({ state, dispatch, puzzle, showPaths, variantBlocks }) {
+export default function Board({ state, dispatch, puzzle, showPaths, variantBlocks, buildMode, buildPieces, onBuildClick }) {
+  // ── Build mode: simpler rendering with click-to-place ──
+  if (buildMode) {
+    const cellMap = {};
+    const robotMeta = {};
+    let exitIdx = 0;
+    for (const p of buildPieces) {
+      cellMap[`${p.row},${p.col}`] = p.id;
+      robotMeta[p.id] = { isExit: p.isExit, exitIndex: p.isExit ? exitIdx++ : -1 };
+    }
+
+    const cells = [];
+    for (let r = 0; r < 7; r++) {
+      for (let c = 0; c < 7; c++) {
+        const key = `${r},${c}`;
+        const robotId = cellMap[key] ?? null;
+        cells.push(
+          <Cell
+            key={key}
+            row={r}
+            col={c}
+            isCenter={r === 3 && c === 3}
+            robotId={robotId}
+            robotMeta={robotId ? robotMeta[robotId] : null}
+            selectedRobotId={null}
+            isLandingCell={false}
+            isVariantBlocked={variantBlocks && variantBlocks.has(key)}
+            isBuildMode
+            onClick={(row, col) => onBuildClick(row, col)}
+          />
+        );
+      }
+    }
+    return (
+      <div className="board-container">
+        <div className="board">{cells}</div>
+      </div>
+    );
+  }
+
+  // ── Normal play mode ──
   // Build reverse lookup: "row,col" → robotId
   const cellMap = {};
   for (const [id, pos] of Object.entries(state.positions)) {

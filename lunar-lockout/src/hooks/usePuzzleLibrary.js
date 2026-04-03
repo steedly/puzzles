@@ -8,7 +8,7 @@ const DIR_MAP = { U: 'up', D: 'down', L: 'left', R: 'right' };
 // Compute a stable, position-based puzzle ID.
 // Encodes cell indices as digits in base-49, then converts to base-36.
 // Prefixed with exit count and a dash: e.g. "1-174o0"
-function computeStableId(numExits, positionsStr) {
+export function computeStableId(numExits, positionsStr) {
   const cells = positionsStr.trim().split(' ').map(p => {
     const [r, c] = p.split(',').map(Number);
     return r * 7 + c;

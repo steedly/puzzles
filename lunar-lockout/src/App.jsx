@@ -8,7 +8,9 @@ import { usePermalink } from './hooks/usePermalink';
 import Board from './components/Board';
 import HUD from './components/HUD';
 import PuzzleNav from './components/PuzzleNav';
+import BuildPanel from './components/BuildPanel';
 import WinModal from './components/WinModal';
+import { useBuildMode } from './hooks/useBuildMode';
 
 // Placeholder so useGameState never receives null.
 const DUMMY_PUZZLE = {
@@ -46,6 +48,10 @@ export default function App() {
   const { allPuzzles, loading, error, needsFilePicker, loadFile, variant, switchVariant, stableIdMap, pendingStableIdRef, findByPositions } = usePuzzleLibrary(initialState.variant || 'standard');
   const [currentPuzzle, setCurrentPuzzle] = useState(null);
   const filteredRef = useRef([]);
+
+  const [mode, setMode] = useState('library'); // 'library' | 'build'
+  const { buildState, buildDispatch, solve: buildSolve } = useBuildMode();
+  const pendingBuildSolveRef = useRef(false);
 
   const [showSolution, setShowSolution] = useState(false);
   const [scoreMode, setScoreMode] = useState('grouped'); // 'grouped' | 'slides'
@@ -91,6 +97,15 @@ export default function App() {
       if (match) {
         setCurrentPuzzle(match);
         dispatch({ type: 'LOAD_PUZZLE', puzzle: match });
+      } else {
+        // Not in library — try to decode and open in build mode
+        const decoded = decodeStableId(pending.stableId);
+        if (decoded && decoded.positions.length >= 2) {
+          setMode('build');
+          buildDispatch({ type: 'LOAD_POSITIONS', positions: decoded.positions });
+          // Auto-solve will be triggered by a separate effect
+          pendingBuildSolveRef.current = true;
+        }
       }
       pending.stableId = null;
     } else {
@@ -122,7 +137,7 @@ export default function App() {
       });
       pending.filters = null;
     }
-  }, [allPuzzles, resolvePuzzle, pendingStableIdRef, dispatch]);
+  }, [allPuzzles, resolvePuzzle, pendingStableIdRef, dispatch, buildDispatch]);
 
   // Handle external hash changes (user pastes URL while app is running)
   useEffect(() => {
@@ -217,23 +232,61 @@ export default function App() {
     setFilterState(newFilter);
   }, []);
 
+  // Auto-solve after loading positions from a permalink
+  useEffect(() => {
+    if (pendingBuildSolveRef.current && mode === 'build' && buildState.pieces.length >= 2 && buildState.phase === 'placing') {
+      pendingBuildSolveRef.current = false;
+      buildSolve(variantBlocks);
+    }
+  }, [mode, buildState.pieces, buildState.phase, buildSolve, variantBlocks]);
+
+  // When build mode produces a solved puzzle, load it for play
+  const buildSolvedPuzzle = buildState.solvedPuzzle;
+  useEffect(() => {
+    if (mode === 'build' && buildSolvedPuzzle) {
+      setCurrentPuzzle(buildSolvedPuzzle);
+      dispatch({ type: 'LOAD_PUZZLE', puzzle: buildSolvedPuzzle });
+      setShowSolution(false);
+    }
+  }, [mode, buildSolvedPuzzle, dispatch]);
+
+  // The puzzle to show in the header — build-solved or library puzzle
+  const isBuildPlacing = mode === 'build' && buildState.phase !== 'solved';
+  const activePuzzle = isBuildPlacing ? null : currentPuzzle;
+
+  // Handle build variant change: clear pieces when variant changes
+  const handleBuildVariantChange = useCallback((v) => {
+    switchVariant(v, currentPuzzle?.stableId);
+    buildDispatch({ type: 'CLEAR' });
+  }, [switchVariant, currentPuzzle?.stableId, buildDispatch]);
+
   return (
     <div className="app">
       <header className="app__header">
         <h1 className="app__title">Spaceport Solitaire</h1>
-        {currentPuzzle && (
+        <div className="app__mode-toggle">
+          <button
+            className={`app__mode-btn${mode === 'library' ? ' app__mode-btn--active' : ''}`}
+            onClick={() => setMode('library')}
+          >Library</button>
+          <button
+            className={`app__mode-btn${mode === 'build' ? ' app__mode-btn--active' : ''}`}
+            onClick={() => setMode('build')}
+          >Build</button>
+        </div>
+        {activePuzzle && (
           <div className="app__puzzle-info">
-            <span className="pinfo-badge">{currentPuzzle.stableId}</span>
-            <span className="pinfo-badge">{currentPuzzle.exits ?? 1}E {currentPuzzle.helpers}H</span>
-            <span className="pinfo-badge" title="Minimum grouped moves">{currentPuzzle.minMoves}M</span>
-            {currentPuzzle.rawSlides != null && (
-              <span className="pinfo-badge" title="Raw slides in solution">{currentPuzzle.rawSlides}S</span>
+            <span className="pinfo-badge">{activePuzzle.stableId}</span>
+            <span className="pinfo-badge">{activePuzzle.exits ?? 1}E {activePuzzle.helpers}H</span>
+            <span className="pinfo-badge" title="Minimum grouped moves">{activePuzzle.minMoves}M</span>
+            {activePuzzle.rawSlides != null && (
+              <span className="pinfo-badge" title="Raw slides in solution">{activePuzzle.rawSlides}S</span>
             )}
-            {currentPuzzle.minRawSlides != null && (
-              <span className="pinfo-badge" title="Min possible raw slides">{currentPuzzle.minRawSlides}mS</span>
+            {activePuzzle.minRawSlides != null && (
+              <span className="pinfo-badge" title="Min possible raw slides">{activePuzzle.minRawSlides}mS</span>
             )}
-            {currentPuzzle.forwardStates != null && (
-              <span className="pinfo-badge" title="Reachable states">{currentPuzzle.forwardStates}R</span>
+            {activePuzzle.forwardStates != null && (
+              <span className="pinfo-badge" title="Reachable states">{activePuzzle.forwardStates}R</span>
             )}
           </div>
         )}
@@ -271,7 +324,18 @@ export default function App() {
         <div className="game-layout">
           {/* ── Left: board + controls ── */}
           <div className="game-column">
-            {currentPuzzle && (
+            {isBuildPlacing ? (
+              /* Build mode: placement board */
+              <div className="game-area">
+                <Board
+                  buildMode
+                  buildPieces={buildState.pieces}
+                  onBuildClick={(row, col) => buildDispatch({ type: 'CLICK_CELL', row, col, blockedCells: variantBlocks })}
+                  variantBlocks={variantBlocks}
+                />
+              </div>
+            ) : currentPuzzle ? (
+              /* Play mode (library or solved build puzzle) */
               <div className="game-area">
                 <Board
                   state={state} dispatch={dispatch} puzzle={currentPuzzle}
@@ -290,27 +354,40 @@ export default function App() {
                   onHideOptimalChange={setHideOptimal}
                 />
               </div>
+            ) : null}
+            {!isBuildPlacing && (
+              <p className="instructions">
+                Click a robot to select it, then click a cell or use arrow keys to slide it.
+                Get all <span className="instructions__target">exit robots</span> (A, B, C…) to the glowing center cell.
+              </p>
             )}
-            <p className="instructions">
-              Click a robot to select it, then click a cell or use arrow keys to slide it.
-              Get all <span className="instructions__target">exit robots</span> (A, B, C…) to the glowing center cell.
-            </p>
           </div>
 
-          {/* ── Right: navigation panel ── */}
-          <PuzzleNav
-            allPuzzles={allPuzzles}
-            currentPuzzle={currentPuzzle}
-            onSelect={handleSelectPuzzle}
-            onFilteredChange={handleFilteredChange}
-            blockedCells={new Set()}
-            variant={variant}
-            onVariantChange={(v) => switchVariant(v, currentPuzzle?.stableId)}
-            scoreMode={scoreMode}
-            hideOptimal={hideOptimal}
-            filterState={filterState}
-            onFilterChange={handleFilterChange}
-          />
+          {/* ── Right: navigation or build panel ── */}
+          {mode === 'build' ? (
+            <BuildPanel
+              variant={variant}
+              onVariantChange={handleBuildVariantChange}
+              buildState={buildState}
+              buildDispatch={buildDispatch}
+              onSolve={() => buildSolve(variantBlocks)}
+              onBackToLibrary={() => setMode('library')}
+            />
+          ) : (
+            <PuzzleNav
+              allPuzzles={allPuzzles}
+              currentPuzzle={currentPuzzle}
+              onSelect={handleSelectPuzzle}
+              onFilteredChange={handleFilteredChange}
+              blockedCells={new Set()}
+              variant={variant}
+              onVariantChange={(v) => switchVariant(v, currentPuzzle?.stableId)}
+              scoreMode={scoreMode}
+              hideOptimal={hideOptimal}
+              filterState={filterState}
+              onFilterChange={handleFilterChange}
+            />
+          )}
         </div>
       </main>
 

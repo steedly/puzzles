@@ -914,6 +914,89 @@ button { cursor: pointer; font-family: inherit; }
   text-align: center;
 }
 
+/* ── Mode Toggle ──────────────────────────────────────────────────────────── */
+.app__mode-toggle {
+  display: flex;
+  gap: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--cell-border);
+}
+
+.app__mode-btn {
+  padding: 6px 16px;
+  border: none;
+  background: var(--btn-bg);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.app__mode-btn:hover { background: var(--btn-hover); }
+
+.app__mode-btn--active {
+  background: #3a3a80;
+  color: var(--text);
+}
+
+/* ── Build Panel ──────────────────────────────────────────────────────────── */
+.build-panel__instructions {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.build-panel__status-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+}
+
+.build-panel__placed { color: var(--text); font-weight: 600; }
+.build-panel__empty  { color: var(--text-muted); }
+
+.build-panel__actions {
+  display: flex;
+  gap: 6px;
+}
+
+.build-panel__solve-btn:not(:disabled) {
+  background: linear-gradient(135deg, #5555cc, #8844cc);
+  color: #fff;
+  border-color: #6666dd;
+}
+
+.build-panel__solve-btn:not(:disabled):hover {
+  background: linear-gradient(135deg, #6666dd, #9955dd);
+}
+
+.build-panel__result {
+  font-size: 0.85rem;
+  color: #4caf50;
+  padding: 8px 10px;
+  background: rgba(76, 175, 80, 0.08);
+  border-radius: 6px;
+  border: 1px solid rgba(76, 175, 80, 0.2);
+}
+
+.build-panel__error {
+  font-size: 0.82rem;
+  color: #f44336;
+  padding: 8px 10px;
+  background: rgba(244, 67, 54, 0.08);
+  border-radius: 6px;
+  border: 1px solid rgba(244, 67, 54, 0.2);
+}
+
+/* ── Build-mode cell hover ────────────────────────────────────────────────── */
+.cell--build-placeable:hover {
+  background: rgba(100, 100, 255, 0.15);
+  border-color: rgba(100, 100, 255, 0.35);
+}
+
 /* ── Responsive ────────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .game-layout { flex-direction: column; }

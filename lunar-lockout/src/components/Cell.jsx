@@ -3,7 +3,7 @@
 
 import Robot from './Robot';
 
-export default function Cell({ row, col, isCenter, robotId, robotMeta, selectedRobotId, isLandingCell, isVariantBlocked, onClick }) {
+export default function Cell({ row, col, isCenter, robotId, robotMeta, selectedRobotId, isLandingCell, isVariantBlocked, isBuildMode, onClick }) {
   return (
     <div
       className={[
@@ -11,6 +11,7 @@ export default function Cell({ row, col, isCenter, robotId, robotMeta, selectedR
         isCenter         ? 'cell--center'         : '',
         isLandingCell    ? 'cell--landing'         : '',
         isVariantBlocked ? 'cell--variant-blocked' : '',
+        isBuildMode && !robotId && !isVariantBlocked && !isCenter ? 'cell--build-placeable' : '',
       ].filter(Boolean).join(' ')}
       onClick={() => onClick(row, col, robotId)}
     >
