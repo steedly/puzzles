@@ -991,6 +991,63 @@ button { cursor: pointer; font-family: inherit; }
   border: 1px solid rgba(244, 67, 54, 0.2);
 }
 
+/* ── Build panel: library matches ──────────────────────────────────────────── */
+.build-panel__matches {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.build-panel__match-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.build-panel__match-id {
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--cell-border);
+  background: var(--btn-bg);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-family: monospace;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+
+.build-panel__match-id:hover {
+  background: var(--btn-hover);
+  color: var(--text);
+  border-color: #5555aa;
+}
+
+.build-panel__match-id--active {
+  background: #2a2a5a;
+  border-color: #a0a0ff;
+  color: #a0a0ff;
+}
+
+/* ── Build panel: preview banner ──────────────────────────────────────────── */
+.build-panel__preview-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  background: rgba(160, 160, 255, 0.08);
+  border-radius: 6px;
+  border: 1px solid rgba(160, 160, 255, 0.2);
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.build-panel__preview-banner strong {
+  color: var(--text);
+}
+
 /* ── Build-mode cell hover ────────────────────────────────────────────────── */
 .cell--build-placeable:hover {
   background: rgba(100, 100, 255, 0.15);

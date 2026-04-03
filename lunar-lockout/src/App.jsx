@@ -52,6 +52,7 @@ export default function App() {
   const [mode, setMode] = useState('library'); // 'library' | 'build'
   const { buildState, buildDispatch, solve: buildSolve } = useBuildMode();
   const pendingBuildSolveRef = useRef(false);
+  const [buildPreview, setBuildPreview] = useState(null); // library puzzle being previewed from build mode
 
   const [showSolution, setShowSolution] = useState(false);
   const [scoreMode, setScoreMode] = useState('grouped'); // 'grouped' | 'slides'
@@ -250,6 +251,21 @@ export default function App() {
     }
   }, [mode, buildSolvedPuzzle, dispatch]);
 
+  // When previewing a library match from build mode, load it
+  useEffect(() => {
+    if (buildPreview) {
+      setCurrentPuzzle(buildPreview);
+      dispatch({ type: 'LOAD_PUZZLE', puzzle: buildPreview });
+      setShowSolution(false);
+    } else if (mode === 'build' && buildSolvedPuzzle) {
+      // Return from preview — reload the build puzzle
+      setCurrentPuzzle(buildSolvedPuzzle);
+      dispatch({ type: 'LOAD_PUZZLE', puzzle: buildSolvedPuzzle });
+      setShowSolution(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [buildPreview]);
+
   // The puzzle to show in the header — build-solved or library puzzle
   const isBuildPlacing = mode === 'build' && buildState.phase !== 'solved';
   const activePuzzle = isBuildPlacing ? null : currentPuzzle;
@@ -258,7 +274,17 @@ export default function App() {
   const handleBuildVariantChange = useCallback((v) => {
     switchVariant(v, currentPuzzle?.stableId);
     buildDispatch({ type: 'CLEAR' });
+    setBuildPreview(null);
   }, [switchVariant, currentPuzzle?.stableId, buildDispatch]);
+
+  // Preview a library puzzle from build mode (without losing build state)
+  const handleBuildPreview = useCallback((puzzle) => {
+    setBuildPreview(puzzle);
+  }, []);
+
+  const handleBuildPreviewBack = useCallback(() => {
+    setBuildPreview(null);
+  }, []);
 
   return (
     <div className="app">
@@ -371,7 +397,11 @@ export default function App() {
               buildState={buildState}
               buildDispatch={buildDispatch}
               onSolve={() => buildSolve(variantBlocks)}
-              onBackToLibrary={() => setMode('library')}
+              onBackToLibrary={() => { setMode('library'); setBuildPreview(null); }}
+              allPuzzles={allPuzzles}
+              buildPreview={buildPreview}
+              onPreview={handleBuildPreview}
+              onPreviewBack={handleBuildPreviewBack}
             />
           ) : (
             <PuzzleNav
