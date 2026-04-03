@@ -159,21 +159,30 @@ function canonicalPositionKey(robots, usedIds, boardN = 7, isHex = false) {
 export function findD4PositionMatches(solution, robots, puzzles, boardN = 7, isHex = false) {
   if (!solution?.length || !robots?.length || !puzzles?.length) return [];
 
-  const used = usedRobotIds(solution);
-  const customKey = canonicalPositionKey(robots, used, boardN, isHex);
   const numExits = robots.filter(r => r.isExit).length;
+  const allIds = new Set(robots.map(r => r.id));
+  const numHelpers = robots.filter(r => !r.isExit).length;
+
+  // Key 1: all robots — matches when library kept all helpers (C++ used them all)
+  const allKey = canonicalPositionKey(robots, allIds, boardN, isHex);
+
+  // Key 2: only JS-solution-used robots — matches when library pruned the same helpers
+  const used = usedRobotIds(solution);
   const numUsedHelpers = robots.filter(r => !r.isExit && used.has(r.id)).length;
+  const prunedKey = numUsedHelpers < numHelpers
+    ? canonicalPositionKey(robots, used, boardN, isHex)
+    : null; // identical to allKey when all helpers used
 
   const matches = [];
   for (const p of puzzles) {
     if (!p.robots) continue;
     if (p.robots.filter(r => r.isExit).length !== numExits) continue;
     const pH = p.robots.filter(r => !r.isExit).length;
-    if (pH !== numUsedHelpers) continue;
+    if (pH !== numHelpers && pH !== numUsedHelpers) continue;
 
-    const allIds = new Set(p.robots.map(r => r.id));
-    const pKey = canonicalPositionKey(p.robots, allIds, boardN, isHex);
-    if (pKey === customKey) matches.push(p);
+    const pIds = new Set(p.robots.map(r => r.id));
+    const pKey = canonicalPositionKey(p.robots, pIds, boardN, isHex);
+    if (pKey === allKey || (prunedKey && pKey === prunedKey)) matches.push(p);
   }
   return matches;
 }
