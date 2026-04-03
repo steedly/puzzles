@@ -146,7 +146,7 @@ export default function Board({ state, dispatch, puzzle, showPaths, variantBlock
            style={isHex ? { '--hex-n': N } : undefined}>
         {cells}
       </div>
-      {showPaths && (
+      {showPaths && !isHex && (
         <SolutionOverlay puzzle={puzzle} blockedCells={variantBlocks} board={board} />
       )}
     </div>

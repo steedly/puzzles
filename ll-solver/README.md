@@ -1,6 +1,6 @@
 # ll-solver — Lunar Lockout Puzzle Enumerator
 
-A C++ engine that finds **every solvable Lunar Lockout starting position** on a 7×7 board, deduplicates them, and outputs a compact puzzle file (`.llp`).
+A C++ engine that finds **every solvable Lunar Lockout starting position** on a board, deduplicates them, and outputs a compact puzzle file (`.llp`). Supports square boards (7×7 with 4 directions) and hex diamond boards (5×5 or 7×7 with 6 directions).
 
 ## Game Rules
 
@@ -166,6 +166,8 @@ CSP compaction reduces final puzzle counts by ~35% compared to the old heuristic
 | French | 56,764 | 4.8 MB |
 | Solitaire | 23,834 | 1.9 MB |
 | UFO | 17,996 | 1.5 MB |
+| Hex (5×5) | 125,797 | 9.5 MB |
+| Bee Hive (7×7) | TBD | TBD |
 
 #### Totals by variant (≤7 total robots, up to 3 exits — full enumeration)
 
@@ -216,13 +218,15 @@ make NO_OPENMP=1
 | `max_total` | 6 | Maximum total robots (exits + helpers) |
 | `min_moves` | 1 | Minimum grouped moves to include |
 | `max_moves` | 99 | Maximum grouped moves to include |
-| `variant` | standard | Board variant: `standard` (7×7), `french` (7×7 with inner corners blocked), `solitaire` (7×7 with 2×2 corners blocked), or `ufo` (5×5 center only) |
+| `variant` | standard | Board variant (see below) |
 
 Puzzle data goes to **stdout**; progress/stats go to **stderr**.
 
 ### Board Variants
 
-The enumerator supports four board variants via a blocked-cell bitmask:
+The enumerator supports six board variants:
+
+**Square variants** (7×7 grid, 4 cardinal directions, D4 symmetry with 8 transforms):
 
 | Variant | Usable cells | Blocked cells | Description |
 |---------|-------------|---------------|-------------|
@@ -231,7 +235,16 @@ The enumerator supports four board variants via a blocked-cell bitmask:
 | `solitaire` | 33 | 16 | 7×7 with four 2×2 corners blocked |
 | `ufo` | 25 | 24 | Center 5×5 only (border cells blocked) |
 
-Blocked cells act as walls — robots cannot occupy or slide through them, and stopping against one is a wall-stop (illegal). All blocked patterns are D4-symmetric, so canonicalization works unchanged.
+**Hex diamond variants** (N×N grid rotated 45°, 6 directions, Klein four-group symmetry with 4 transforms):
+
+| Variant | Grid | Cells | Center | Description |
+|---------|------|-------|--------|-------------|
+| `hex` | 5×5 | 25 | (2,2) | 5×5 hex diamond — compact board for quick play |
+| `beehive` | 7×7 | 49 | (3,3) | 7×7 hex diamond — same cell count as standard but 6 directions |
+
+Hex directions are the 4 cardinal directions plus 2 diagonals: NW(-1,0), SE(+1,0), SW(0,-1), NE(0,+1), N-diag(-1,+1), S-diag(+1,-1). The hex diamond is visually displayed as a rotated square grid with hexagonal cells.
+
+Blocked cells (square variants only) act as walls — robots cannot occupy or slide through them, and stopping against one is a wall-stop (illegal). All blocked patterns are D4-symmetric, so canonicalization works unchanged.
 
 #### How variants relate to each other
 
@@ -278,6 +291,12 @@ In the code, this hierarchy is visible in `reverse_moves_normal` in `enumerate.c
 # Multi-exit: up to 3 exits, 6 total robots, moves 1-20
 ./enumerate 3 6 1 20 > puzzles.llp
 
+# Hex diamond (5x5) variant
+./enumerate 4 6 1 99 hex > puzzles-hex.llp
+
+# Bee Hive (7x7 hex diamond) variant
+./enumerate 4 6 1 99 beehive > puzzles-beehive.llp
+
 # Quick test: 1 exit, up to 3 helpers
 ./enumerate 1 4 1 10
 ```
@@ -294,9 +313,12 @@ id|exits|helpers|minMoves|positions|solution
 - **solution**: space-separated moves, each `moverDIRblocker`
   - `A`, `B`, `C` = exit robots (by ascending initial position)
   - `1`-`9` = helper robots (by ascending initial position)
-  - `DIR`: `U`=up, `D`=down, `L`=left, `R`=right
+  - `DIR` (square): `U`=up, `D`=down, `L`=left, `R`=right
+  - `DIR` (hex): `Nw`, `Se`, `Sw`, `Ne`, `No`, `So` (2-char codes, move tokens are 4 chars)
 
-Example: `42|1|3|5|2,3 0,3 4,5 6,1|AD1 1U2 AU3 AD1 AR3`
+Example (square): `42|1|3|5|2,3 0,3 4,5 6,1|AD1 1U2 AU3 AD1 AR3`
+
+Example (hex): `3|1|2|1|2,3 1,1 3,1|1Se2 ASw1`
 
 ## Testing
 
@@ -307,8 +329,8 @@ make test
 ```
 
 This runs:
-1. **96 unit tests** (`test_enumerate`) — internal function correctness
-2. **Puzzle generation** — full `./enumerate 1 6 1 20` run
+1. **108 unit tests** (`test_enumerate`) — internal function correctness (includes hex-specific tests)
+2. **Puzzle generation** — full `./enumerate 1 6 1 20` run for all 6 variants
 3. **Solution validation** (`validate_solutions.py`) — forward simulation, position validity, sequential IDs, D4 dedup, collision-sig dedup
 4. **D4 duplicate check** (`test_canonical`) — no two output puzzles are D4-equivalent
 
