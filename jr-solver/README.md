@@ -97,9 +97,10 @@ For HEX, the hex grid is embedded in the rectangular array at 45 degrees. The si
 | `src/cfgstd.pli` | Wrapper: sets `%TYPE = 'STD'` and includes `config.pli` |
 | `src/solstd.pli` | Wrapper: sets `%TYPE = 'STD'` and includes `solver.pli` |
 | `src/cfg7x7.pli` | 7x7 board configuration generator (standalone) |
+| `src/config-7x7-v2.pli` | 7x7 config generator with both STD and HEX code paths |
+| `src/solver-7x7.pli` | 7x7 solver with both STD and HEX code paths |
 | `src/solver.cpy` | 7x7 solver declarations (PL/I copybook) |
 | `src/solstd.cod` | Compiled solver output data |
-| `src/*.csv` | Configuration and solver data tables |
 
 ## Pre-computed data
 
