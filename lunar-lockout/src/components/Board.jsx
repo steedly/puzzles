@@ -10,24 +10,30 @@ import SolutionOverlay from './SolutionOverlay';
 /**
  * Compute pixel position for a hex diamond cell.
  *
- * The internal grid is NxN (row r, col c). To display as a hex diamond:
- *   1. Rotate the grid 45°: u = c - r, v = c + r
- *   2. Squeeze horizontally by 1/√2 so neighbor centers form equilateral triangles
- *   3. Result: flat-top hexagons sharing edges in a diamond layout
+ * The internal grid is NxN (row r, col c) with 6 neighbor directions:
+ *   (±1,0), (0,±1), (-1,+1), (+1,-1)
  *
- * For flat-top hexagons with circumradius R:
- *   - Cell width = 2R, height = R√3
- *   - Horizontal center-to-center along a hex row = 3R/2
- *   - The squeeze makes the grid spacing match this ratio
+ * Step 1: Standard axial hex → pixel mapping. This places all 6 neighbors
+ *         at equal distance R√3, ensuring hexagons share edges.
+ * Step 2: Rotate -60° to turn the parallelogram into a horizontal diamond.
  */
 function hexCellPosition(r, c, N, hexR) {
-  const cr = r - (N - 1) / 2;
-  const cc = c - (N - 1) / 2;
+  // Axial hex → pixel (flat-top orientation, all 6 neighbors equidistant)
+  const bx = 1.5 * hexR * c;
+  const by = Math.sqrt(3) * hexR * (r + c / 2);
 
-  // Rotate 45° and apply squeeze (1/√2 horizontal)
-  // This maps grid neighbors to equilateral-triangle spacing
-  const x = (cc - cr) * hexR * 1.5;           // horizontal: 3R/2 per grid step
-  const y = (cc + cr) * hexR * Math.sqrt(3) / 2; // vertical: R√3/2 per grid step
+  // Center on the grid midpoint
+  const mid = (N - 1) / 2;
+  const cx = 1.5 * hexR * mid;
+  const cy = Math.sqrt(3) * hexR * (mid + mid / 2);
+  const dx = bx - cx;
+  const dy = by - cy;
+
+  // Rotate -60° to form a horizontal diamond
+  const cos60 = 0.5;
+  const sin60 = Math.sqrt(3) / 2;
+  const x =  cos60 * dx + sin60 * dy;
+  const y = -sin60 * dx + cos60 * dy;
 
   return { x, y };
 }
