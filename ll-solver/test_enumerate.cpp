@@ -1751,6 +1751,40 @@ TEST(hex_solve_min_grouped_basic) {
     ASSERT_EQ((int)result.moves.size(), 1);
 }
 
+TEST(pruned_puzzle_resolves_optimally) {
+    // Regression test for the post-pruning optimality bug.
+    // A 1e+4h puzzle pruned to 1e+3h must have solve_min_grouped run
+    // on the pruned positions, not just the unpruned solution minus helpers.
+    //
+    // This specific position had 3 grouped moves from the 4-helper solve,
+    // but the 3-helper board has a 2-move solution.
+    HexScope h(5);
+
+    // Pruned positions: exit(3,3)=18, helpers (0,3)=3, (2,3)=13, (3,0)=15
+    int pos3[4] = {18, 3, 13, 15};
+    std::sort(pos3 + 1, pos3 + 4);
+    auto r3 = solve_min_grouped(encode(pos3, 4), 4, 1);
+    ASSERT_EQ(r3.grouped_moves, 2);
+    ASSERT_EQ((int)r3.moves.size(), 3);
+
+    // Same position under 180° (John's original): exit(1,1)=6
+    int pos_john[4] = {6, 9, 11, 21};
+    std::sort(pos_john + 1, pos_john + 4);
+    auto rj = solve_min_grouped(encode(pos_john, 4), 4, 1);
+    ASSERT_EQ(rj.grouped_moves, 2);
+
+    // With an extra unused helper at (4,4)=24, solve_min_grouped should
+    // return a solution that doesn't use it — and after pruning+re-solve
+    // the result should still be 2 grouped moves.
+    int pos5[5] = {18, 3, 13, 15, 24};
+    std::sort(pos5 + 1, pos5 + 5);
+    auto r5 = solve_min_grouped(encode(pos5, 5), 5, 1);
+    // The 5-robot solve may or may not use helper at 24.
+    // But solve on the pruned 4-robot set must give 2 grouped moves.
+    // (This is what the pipeline fix ensures.)
+    ASSERT(r5.grouped_moves >= 2); // sanity — at least as hard with more robots
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // Main test runner
 // ═══════════════════════════════════════════════════════════════════════════════

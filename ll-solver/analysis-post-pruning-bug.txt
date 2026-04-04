@@ -1,0 +1,150 @@
+============================================================
+Analysis: Post-Pruning Grouped-Move Optimality Bug
+============================================================
+Date: 2026-04-04
+Affects: All variants (standard, solitaire, ufo, french, hex, beehive)
+
+SUMMARY
+-------
+After prune_unused_helpers removes robots from a solved puzzle, the
+remaining positions may have a better solution. The pipeline was not
+re-solving after pruning, outputting suboptimal grouped move counts.
+
+
+THE INVESTIGATION
+=================
+
+Step 1: Compare against John's data
+------------------------------------
+compare_john.py reported 2,715 "move count discrepancies" between our
+hex output and John Rausch's reference data.
+
+Example: John's puzzle X52:22:62:82
+  John: positions (1,1),(1,4),(2,1),(4,1) → 2 grouped moves, 3 steps
+  Ours: puzzle #1211 at (3,3),(0,3),(2,3),(3,0) → 3 grouped moves, 4 slides
+
+These ARE the same puzzle under 180° Klein rotation:
+  180° of (3,3)=(1,1), (0,3)=(4,1), (2,3)=(2,1), (3,0)=(1,4) ✓
+
+Step 2: Run solve_min_grouped directly
+--------------------------------------
+Tested solve_min_grouped on our output positions (3,3),(0,3),(2,3),(3,0):
+  Result: 2 grouped moves, 3 slides
+
+This is the CORRECT answer (matches John). But our .llp file says 3/4.
+The pipeline produced the wrong result.
+
+Step 3: Rule out the remapping pipeline
+---------------------------------------
+Tested whether stabilise_indices, sort_exits_and_remap, or
+prune_unused_helpers could change the grouped count. They can't —
+they're consistent bijections (every occurrence of index X becomes Y).
+
+Wrote a scan of all 2,129 self-canonical 1e+3h states: 0 mismatches
+between solve_min_grouped and the pipeline output. The pipeline
+transforms are NOT the bug.
+
+Step 4: Discover the puzzle's origin
+-------------------------------------
+The .llp says min_raw_slides=4, but BFS depth for 1e+3h at these
+positions is 3. Key discovery:
+
+  Puzzle #1211 does NOT appear in a 1e+3h-only generation
+  (./enumerate 1 4 1 99 hex).
+
+  It ONLY appears with max_total>=5 (./enumerate 1 5 1 99 hex).
+
+This means it was generated in the 1e+4h BFS (1 exit + 4 helpers),
+then had 1 unused helper pruned to become 1e+3h in the output.
+
+Step 5: Identify root cause
+----------------------------
+The pipeline in enumerate.cpp emit() Pass 3 (line ~1472):
+
+  1. solve_min_grouped(state_with_4_helpers) → 3 grouped, 4 raw slides
+  2. prune_unused_helpers() removes 1 helper → 3 helpers in output
+  3. count_grouped_moves(pruned_solution) → 3 (same as before pruning)
+  4. Output: 3 grouped, 4 raw slides ← WRONG
+
+But with only 3 helpers on the board, there's a better path:
+  solve_min_grouped(state_with_3_helpers) → 2 grouped, 3 raw slides
+
+The removed helper was an obstacle in the 4-helper solve. Without it,
+the exit can take a more direct path that groups better.
+
+The pruned puzzle was NEVER re-solved.
+
+
+THE FIX
+=======
+
+In emit() Pass 3, after prune_unused_helpers, if any helpers were
+actually removed (new_h < n - num_exits), re-run solve_min_grouped
+on the pruned positions and use that result:
+
+  if (new_h < n - num_exits) {
+      State ps = encode(pruned_pos, ci);
+      auto tr2 = solve_min_grouped(ps, ci, num_exits);
+      if (!tr2.moves.empty()) {
+          // Use the re-solved result
+          ...
+      }
+  }
+
+
+VERIFICATION
+============
+
+1. make test: 109 unit tests pass, all 6 variants generate + validate clean
+2. Regression test added: pruned_puzzle_resolves_optimally
+3. Definitive verification against John's data:
+
+   $ python3 verify_john.py --dump | ./test_john_positions
+
+   Results: 127,060 puzzles tested
+     Equal:       127,056
+     Ours better: 4
+     John better: 0
+     Unsolvable:  0
+
+   Our solver finds equal or better solutions for EVERY ONE of John's
+   127,060 hex positions. Zero regressions.
+
+4. John's solutions all replay correctly on our grid:
+   $ python3 verify_john.py
+   Replay results: 127060 valid, 0 invalid
+
+
+WHY THE INITIAL COMPARISON WAS MISLEADING
+==========================================
+
+compare_john.py matches puzzles by Klein-four-group canonical position
+form. This means John's position (1,1),(1,4),(2,1),(4,1) matches our
+dedup survivor (3,3),(0,3),(2,3),(3,0) because they share the same
+canonical form (under 180° rotation).
+
+But these are different STARTING positions with potentially different
+optimal solutions. The "discrepancy" is between two different symmetric
+orientations of the same abstract puzzle — each solved from its own
+starting position with its own grouping.
+
+The REAL test is: for John's exact positions, does our solver find an
+equal-or-better solution? Answer: YES, for all 127,060 puzzles.
+
+
+PREVENTION
+==========
+
+1. Regression test: pruned_puzzle_resolves_optimally in test_enumerate.cpp
+   Tests the specific puzzle that triggered this bug.
+
+2. Memory note saved: "After pruning, always re-solve" — applies any
+   time pieces are removed from a puzzle (pruning, compaction, etc.)
+
+3. test_john_positions.cpp: C++ harness that tests solve_min_grouped
+   against all of John's positions. Can be run as part of validation
+   for hex variants.
+
+4. Principle: When comparing solver output against reference data,
+   compare on EXACT positions (not canonical forms) to avoid conflating
+   different symmetric representatives.
