@@ -1063,65 +1063,92 @@ button { cursor: pointer; font-family: inherit; }
 
 /* ── Responsive ────────────────────────────────────────────────────────────── */
 /* ── Hex diamond board ─────────────────────────────────────────────────────── */
-/* The NxN grid is rotated 45° to display as a diamond. Each cell becomes a
-   hexagon via clip-path. The board container compensates for the rotation. */
+/* Hex cells are absolutely positioned by Board.jsx. Each cell is a flat-top
+   hexagon (wider than tall) using clip-path. The diamond shape emerges from
+   the NxN grid rotated 45° with horizontal squeeze so neighbors share edges. */
 
-.board--hex {
-  transform: rotate(45deg);
-  /* After rotation, the diagonal of the NxN grid becomes the width/height.
-     Scale down slightly so it fits in the same space as the square board. */
-  transform-origin: center center;
+.hex-board {
+  flex-shrink: 0;
 }
 
-.board--hex-5 {
-  grid-template-columns: repeat(5, var(--cell-size));
-  grid-template-rows: repeat(5, var(--cell-size));
-  /* Scale so the rotated 5x5 fits nicely */
-  --hex-scale: 0.82;
-  transform: rotate(45deg) scale(var(--hex-scale));
-  margin: 30px;
+/* Flat-top hexagon: width = 100%, height = 100% of the positioned element.
+   The clip-path creates a regular hexagon rotated so flat edges are on top/bottom. */
+.hex-cell {
+  /* flat-top hex: 6 vertices at 0°, 60°, 120°, 180°, 240°, 300° */
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  background: var(--cell-border);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
 }
 
-.board--hex-7 {
-  grid-template-columns: repeat(7, var(--cell-size));
-  grid-template-rows: repeat(7, var(--cell-size));
-  --hex-scale: 0.72;
-  transform: rotate(45deg) scale(var(--hex-scale));
-  margin: 10px;
-}
-
-/* Hex cells: hexagonal shape, counter-rotated so content is upright */
-.board--hex .cell {
-  clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
-  border-radius: 0;
-  border: none;
-  background: var(--cell-bg);
-}
-
-.board--hex .cell::before {
+/* Inner fill creates a visible border by being slightly smaller than the outer clip */
+.hex-cell::before {
   content: '';
   position: absolute;
-  inset: 0;
-  clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
-  border: 2px solid var(--cell-border);
-  pointer-events: none;
+  inset: 1.5px;
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  background: var(--cell-bg);
+  z-index: 0;
+  transition: background 0.15s;
 }
 
-.board--hex .cell--center {
+.hex-cell:hover::before {
+  background: #22224a;
+}
+
+.hex-cell--center {
+  background: #4444aa;
+}
+
+.hex-cell--center::before {
   background: var(--cell-center-bg);
 }
 
-.board--hex .cell--landing {
-  background: rgba(255, 215, 0, 0.12);
+.hex-cell--center::after {
+  content: '✦';
+  position: absolute;
+  font-size: 16px;
+  color: rgba(140, 140, 255, 0.4);
+  pointer-events: none;
+  user-select: none;
+  z-index: 1;
 }
 
-/* Counter-rotate cell contents so robots appear upright */
-.board--hex .cell > * {
-  transform: rotate(-45deg);
+.hex-cell--landing {
+  background: rgba(255, 215, 0, 0.45);
 }
 
-.board--hex .cell--center::after {
-  transform: rotate(-45deg);
+.hex-cell--landing::before {
+  background: rgba(255, 215, 0, 0.08);
+}
+
+.hex-cell--landing:hover::before {
+  background: rgba(255, 215, 0, 0.16);
+}
+
+.hex-cell--placeable:hover {
+  background: rgba(80, 200, 80, 0.15);
+}
+
+/* Robot inside hex cell — override Cell component's default styling */
+.hex-cell__robot {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.hex-cell__robot .cell {
+  background: transparent;
+  border: none;
+  width: 100%;
+  height: 100%;
 }
 
 @media (max-width: 640px) {
