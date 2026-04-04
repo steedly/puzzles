@@ -109,7 +109,9 @@ function renderHexCells(N, hexR, cellMap, robotMeta, opts) {
 export default function Board({ state, dispatch, puzzle, showPaths, variantBlocks, buildMode, buildPieces, onBuildClick, board = SQUARE_7x7 }) {
   const N = board.N;
   const isHex = board.type === 'hex';
-  const hexR = N <= 5 ? 28 : 22; // hex circumradius (center to vertex)
+  // Match square board's center-to-center spacing (cell-size 62px + gap 5px = 67px).
+  // Adjacent hex cells are R√3 apart, so R = 67/√3 ≈ 38.7.
+  const hexR = 67 / Math.sqrt(3);
 
   // ── Build mode ──
   if (buildMode) {
