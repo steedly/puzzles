@@ -4,6 +4,7 @@
 import { slideRobot } from '../logic/gameEngine';
 import { SQUARE_7x7 } from '../logic/boardGeometry';
 import Cell from './Cell';
+import Robot from './Robot';
 import SolutionOverlay from './SolutionOverlay';
 
 /**
@@ -85,16 +86,11 @@ function renderHexCells(N, hexR, cellMap, robotMeta, opts) {
         >
           {robotId && robotMeta[robotId] && (
             <div className="hex-cell__robot">
-              <Cell
-                row={r} col={c}
-                isCenter={false}
+              <Robot
                 robotId={robotId}
-                robotMeta={robotMeta[robotId]}
-                selectedRobotId={opts.selectedRobotId}
-                isLandingCell={false}
-                isVariantBlocked={false}
-                isHex
-                onClick={() => {}}
+                isExit={robotMeta[robotId].isExit}
+                exitIndex={robotMeta[robotId].exitIndex}
+                isSelected={robotId === opts.selectedRobotId}
               />
             </div>
           )}
