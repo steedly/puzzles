@@ -1483,9 +1483,9 @@ static void emit(const FlatMap& dist, int n, int num_exits,
         bool used[10];
         std::vector<Move> pruned;
         const int new_h = prune_unused_helpers(tr.moves, num_exits, n, pruned, used);
-        const int grouped_moves = count_grouped_moves(pruned);
-        const int raw_slides = (int)pruned.size();
-        const int min_raw_slides = (int)recs[i].d;  // BFS depth
+        int grouped_moves = count_grouped_moves(pruned);
+        int raw_slides = (int)pruned.size();
+        int min_raw_slides = (int)recs[i].d;  // BFS depth (unpruned)
 
         // Compute forward reachable states from pruned starting position.
         int pruned_pos[10];
@@ -1493,6 +1493,26 @@ static void emit(const FlatMap& dist, int n, int num_exits,
         for (int e = 0; e < num_exits; e++) pruned_pos[ci++] = init_pos[e];
         for (int h = num_exits; h < n; h++)
             if (used[h]) pruned_pos[ci++] = init_pos[h];
+
+        // If helpers were pruned, the board has fewer obstacles and the optimal
+        // solution may use fewer grouped moves or raw slides.  Re-solve on
+        // the pruned positions to find the true optimum.
+        if (new_h < n - num_exits) {
+            State ps = encode(pruned_pos, ci);
+            auto tr2 = solve_min_grouped(ps, ci, num_exits);
+            if (!tr2.moves.empty()) {
+                stabilise_indices(tr2.moves, ps, ci, num_exits);
+                // Re-decode (stabilise doesn't change positions, but we need
+                // fresh init_pos for the pruned robot set).
+                decode(ps, ci, pruned_pos);
+                sort_exits_and_remap(pruned_pos, tr2.moves, num_exits);
+                pruned = std::move(tr2.moves);
+                grouped_moves = count_grouped_moves(pruned);
+                raw_slides = (int)pruned.size();
+                min_raw_slides = raw_slides; // upper bound for pruned state
+            }
+        }
+
         State pruned_start = encode(pruned_pos, ci);
 
         auto fwd_states_vec = forward_bfs_states(pruned_start, ci, num_exits);
