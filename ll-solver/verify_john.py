@@ -160,5 +160,33 @@ def main():
         print("This may indicate a coordinate mapping error in the comparison script.")
 
 
+def dump_positions():
+    """Dump John's puzzle positions for C++ solver testing.
+    Format: john_moves john_steps num_exits r0,c0 r1,c1 ...
+    """
+    john_dir = os.path.join(os.path.dirname(__file__), '..', 'jr-solver', 'data', 'hex')
+    for subdir in sorted(Path(john_dir).iterdir()):
+        if not subdir.is_dir():
+            continue
+        for solfile in sorted(subdir.glob('solut*.txt')):
+            puzzles = parse_john_solution_file(str(solfile))
+            for p in puzzles:
+                num_exits = sum(1 for ch, _ in p['pieces'] if ch.isalpha())
+                # Replay to get verified move count
+                ok, grouped, slides = replay_john_solution(p['pieces'], p['solution'])
+                if not ok:
+                    continue
+                # Output: john_moves john_steps num_exits positions...
+                # Exits first, then helpers (matching our convention)
+                exits = [pos for ch, pos in p['pieces'] if ch.isalpha()]
+                helpers = [pos for ch, pos in p['pieces'] if ch.isdigit()]
+                all_pos = exits + helpers
+                pos_str = ' '.join(f'{r},{c}' for r, c in all_pos)
+                print(f"{grouped} {slides} {num_exits} {pos_str}")
+
+
 if __name__ == '__main__':
-    main()
+    if len(sys.argv) > 1 and sys.argv[1] == '--dump':
+        dump_positions()
+    else:
+        main()
