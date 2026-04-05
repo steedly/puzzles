@@ -147,7 +147,7 @@ export function useBuildMode() {
       robots,
     };
 
-    const solution = solvePuzzle(syntheticPuzzle, blockedCells);
+    const solution = solvePuzzle(syntheticPuzzle, blockedCells, board);
     if (!solution || solution.length === 0) {
       buildDispatch({ type: 'SOLVE_ERROR', msg: 'No solution exists for this configuration.' });
       return;
