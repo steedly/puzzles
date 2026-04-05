@@ -21,6 +21,7 @@ npm run lint         # ESLint
 - Deployed to GitHub Pages via `.github/workflows/deploy.yml`
 - Puzzle data in `.llp` format (pipe-delimited): `id|exits|helpers|groupedMoves|rawSlides|minRawSlides|forwardStates|positions|solution`
 - Hex variants use 2-char direction codes in solutions (Nw, Se, Sw, Ne, No, So) instead of single-char (U, D, L, R)
+- Hex boards are internally the same NxN square grid — the only difference is 2 extra diagonal move directions (-1,+1) and (+1,-1). The diamond rendering is a visual rotation so all 6 neighbors appear equidistant.
 
 ### ll-solver/ — C++17 puzzle enumerator (generates .llp files for lunar-lockout)
 ```bash
@@ -36,7 +37,7 @@ python3 validate_solutions.py puzzles.llp      # Validate solutions
 - Uses D4 symmetry group canonicalization to eliminate redundant board states
 - Makefile auto-detects OpenMP on macOS via `brew --prefix libomp`
 - Generate full puzzle set: `./enumerate 4 6 1 99 [standard|solitaire|ufo|french|hex|beehive]`
-- Hex variants: 5x5 ("hex") and 7x7 ("beehive") hex diamond boards with 6 directions and 6-element symmetry group (identity, 180°, H-flip, V-flip, diagonal, anti-diagonal)
+- Hex variants: 5x5 ("hex") and 7x7 ("beehive") — same square grid with 2 extra diagonal directions. 6-element symmetry group: the 4 square symmetries that don't use 90° rotation (identity, 180°, H-flip, V-flip) plus 2 diagonal reflections (swap r↔c, and anti-diagonal). 90°/270° rotations are invalid because they map the diagonal direction (-1,+1) to (1,1), which is not a valid hex direction.
 - Makefile `test` target uses max_exits=1 max_moves=20 for speed; production uses max_exits=4 max_moves=99
 
 ## Critical Design Decisions (ll-solver)
@@ -48,7 +49,7 @@ Players count **grouped moves** (consecutive slides by the same robot = 1 move),
 The `seen_pruned_canons` set deduplicates across exit/helper combinations. The key MUST include `num_exits` (packed into bits 60-63) because the same cell positions with different exit/helper role assignments are different puzzles. Without this, a 1E+2H puzzle could falsely dedup against a 2E+1H puzzle.
 
 ### Variant independence
-Each board variant (standard, solitaire, ufo, french, hex, beehive) runs its own independent enumeration pipeline. The puzzle sets are NOT strict subsets of each other — different dedup survivors are selected per variant. Square variants (standard, solitaire, ufo, french) share a 7x7 grid with 4 directions and D4 symmetry (8 transforms). Hex variants (hex, beehive) use an NxN grid (5 or 7) with 6 directions (4 cardinal + 2 diagonals) and 6-element symmetry group (identity, 180°, H-flip, V-flip, diagonal, anti-diagonal).
+Each board variant (standard, solitaire, ufo, french, hex, beehive) runs its own independent enumeration pipeline. The puzzle sets are NOT strict subsets of each other — different dedup survivors are selected per variant. Square variants (standard, solitaire, ufo, french) share a 7x7 grid with 4 directions and D4 symmetry (8 transforms). Hex variants (hex, beehive) use the same NxN grid (5 or 7) with 2 additional diagonal directions (+6 directions total) and a 6-element symmetry group (the D4 subgroup excluding 90°/270° rotations, plus 2 diagonal reflections).
 
 ### Three-layer dedup in Pass 3
 After the greedy collision-sig dedup in Pass 2, Pass 3 applies three sequential dedup layers:
