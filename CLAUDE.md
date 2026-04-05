@@ -32,11 +32,11 @@ make test                                      # Full pipeline: unit tests + gen
 ./test_enumerate                               # Unit tests only
 python3 validate_solutions.py puzzles.llp      # Validate solutions
 ```
-- 4-stage pipeline: retrograde BFS → collision-signature dedup → CSP compaction → 0-1 BFS trace
+- 3-stage pipeline: retrograde BFS → collision-signature dedup → 0-1 BFS trace
 - Uses D4 symmetry group canonicalization to eliminate redundant board states
 - Makefile auto-detects OpenMP on macOS via `brew --prefix libomp`
 - Generate full puzzle set: `./enumerate 4 6 1 99 [standard|solitaire|ufo|french|hex|beehive]`
-- Hex variants: 5x5 ("hex") and 7x7 ("beehive") hex diamond boards with 6 directions and Klein four-group symmetry (4 transforms)
+- Hex variants: 5x5 ("hex") and 7x7 ("beehive") hex diamond boards with 6 directions and 6-element symmetry group (identity, 180°, H-flip, V-flip, diagonal, anti-diagonal)
 - Makefile `test` target uses max_exits=1 max_moves=20 for speed; production uses max_exits=4 max_moves=99
 
 ## Critical Design Decisions (ll-solver)
@@ -44,14 +44,11 @@ python3 validate_solutions.py puzzles.llp      # Validate solutions
 ### Grouped moves vs raw slides
 Players count **grouped moves** (consecutive slides by the same robot = 1 move), NOT raw slides. The retrograde BFS finds minimum raw slides, but `solve_min_grouped()` does a separate 0-1 BFS to find the globally optimal grouped-move solution, which may use MORE raw slides. The .llp `groupedMoves` field is the primary difficulty metric. Never optimize for raw slides as the primary objective.
 
-### Compaction constraints
-Compaction (CSP search in `try_compact()`) finds more compact robot positions that preserve the collision sequence. **Critical:** after compaction, `solve_min_grouped()` must be re-run on the compacted state to verify the grouped-move count is preserved. Compaction that changes grouped moves = different puzzle = must be rejected.
-
 ### Cross-combo dedup
 The `seen_pruned_canons` set deduplicates across exit/helper combinations. The key MUST include `num_exits` (packed into bits 60-63) because the same cell positions with different exit/helper role assignments are different puzzles. Without this, a 1E+2H puzzle could falsely dedup against a 2E+1H puzzle.
 
 ### Variant independence
-Each board variant (standard, solitaire, ufo, french, hex, beehive) runs its own independent enumeration pipeline. The puzzle sets are NOT strict subsets of each other — different dedup survivors are selected per variant. Square variants (standard, solitaire, ufo, french) share a 7x7 grid with 4 directions and D4 symmetry (8 transforms). Hex variants (hex, beehive) use an NxN grid (5 or 7) with 6 directions (4 cardinal + 2 diagonals) and Klein four-group symmetry (4 transforms: identity, 180°, H-flip, V-flip).
+Each board variant (standard, solitaire, ufo, french, hex, beehive) runs its own independent enumeration pipeline. The puzzle sets are NOT strict subsets of each other — different dedup survivors are selected per variant. Square variants (standard, solitaire, ufo, french) share a 7x7 grid with 4 directions and D4 symmetry (8 transforms). Hex variants (hex, beehive) use an NxN grid (5 or 7) with 6 directions (4 cardinal + 2 diagonals) and 6-element symmetry group (identity, 180°, H-flip, V-flip, diagonal, anti-diagonal).
 
 ### Three-layer dedup in Pass 3
 After the greedy collision-sig dedup in Pass 2, Pass 3 applies three sequential dedup layers:
@@ -99,5 +96,5 @@ python3 elastic_collision.py
 
 - **lunar-lockout** and **ll-solver** are tightly coupled: ll-solver generates the `.llp` puzzle files that lunar-lockout consumes. The `.llp` format is shared between them.
 - **lunar-lockout** key modules: `src/logic/gameEngine.js` (slide physics), `src/logic/solver.js` (BFS solver for on-demand solutions), `src/hooks/usePuzzleLibrary.js` (.llp parser), `src/logic/puzzleFilter.js` (blocked-cell filtering), `src/logic/boardGeometry.js` (board configs for square and hex variants).
-- **ll-solver** is a single `enumerate.cpp` with unit tests in `test_enumerate.cpp` (108 tests). Collision signatures are symmetry-normalised across directions. Board type (square/hex) is runtime-configurable via variant parameter.
+- **ll-solver** is a single `enumerate.cpp` with unit tests in `test_enumerate.cpp` (110 tests). Collision signatures are symmetry-normalised across directions. Board type (square/hex) is runtime-configurable via variant parameter.
 - Paths with spaces (`peg game/`, `Elastic Collision/`) require quoting in shell commands.

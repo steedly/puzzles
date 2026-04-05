@@ -140,11 +140,13 @@ int main() {
     while (std::getline(std::cin, line)) {
         // Detect hex variants from header
         if (line.find("# Variant: hex") != std::string::npos) {
-            N = 5; NUM_SYMS = 4;
-            SYM_INDICES[0]=0; SYM_INDICES[1]=2; SYM_INDICES[2]=4; SYM_INDICES[3]=5;
+            N = 5; NUM_SYMS = 6;
+            SYM_INDICES[0]=0; SYM_INDICES[1]=2; SYM_INDICES[2]=4;
+            SYM_INDICES[3]=5; SYM_INDICES[4]=6; SYM_INDICES[5]=7;
         } else if (line.find("# Variant: beehive") != std::string::npos) {
-            N = 7; NUM_SYMS = 4;
-            SYM_INDICES[0]=0; SYM_INDICES[1]=2; SYM_INDICES[2]=4; SYM_INDICES[3]=5;
+            N = 7; NUM_SYMS = 6;
+            SYM_INDICES[0]=0; SYM_INDICES[1]=2; SYM_INDICES[2]=4;
+            SYM_INDICES[3]=5; SYM_INDICES[4]=6; SYM_INDICES[5]=7;
         }
         Puzzle p;
         if (parse_puzzle(line, p)) puzzles.push_back(std::move(p));

@@ -1118,15 +1118,19 @@ static const int DIR_TRANSFORM[8][4] = {
 
 // Hex (Klein four-group): 4 transforms permuting 6 dirs.
 // Dirs: 0=NW(-1,0) 1=SE(+1,0) 2=SW(0,-1) 3=NE(0,+1) 4=N-diag(-1,+1) 5=S-diag(+1,-1)
-// Identity:  NW SE SW NE N  S   → same
-// 180°:      NW SE SW NE N  S   → SE NW NE SW S  N  (swap all opposite pairs)
-// H-flip:    NW SE SW NE N  S   → NW SE NE SW S  N  (swap left↔right: SW↔NE, N↔S)
-// V-flip:    NW SE SW NE N  S   → SE NW SW NE S  N  (swap up↔down: NW↔SE, N↔S)
-static const int HEX_DIR_TRANSFORM[4][6] = {
-    {0, 1, 2, 3, 4, 5},  // identity
-    {1, 0, 3, 2, 5, 4},  // 180°
-    {0, 1, 3, 2, 5, 4},  // H-flip (reflect horizontally)
-    {1, 0, 2, 3, 5, 4},  // V-flip (reflect vertically)
+// Identity:     NW SE SW NE N  S   → same
+// 180°:         NW SE SW NE N  S   → SE NW NE SW S  N  (swap all opposite pairs)
+// H-flip:       NW SE SW NE N  S   → NW SE NE SW S  N  (swap left↔right: SW↔NE, N↔S)
+// V-flip:       NW SE SW NE N  S   → SE NW SW NE S  N  (swap up↔down: NW↔SE, N↔S)
+// Diag-reflect: NW SE SW NE N  S   → SW NE NW SE S  N  (swap r↔c: NW↔SW, SE↔NE, N↔S)
+// Anti-diag:    NW SE SW NE N  S   → NE SW SE NW N  S  (negate+swap: NW↔NE, SE↔SW, N=N, S=S)
+static const int HEX_DIR_TRANSFORM[6][6] = {
+    {0, 1, 2, 3, 4, 5},  // identity       (t0)
+    {1, 0, 3, 2, 5, 4},  // 180°           (t2)
+    {0, 1, 3, 2, 5, 4},  // H-flip         (t4)
+    {1, 0, 2, 3, 5, 4},  // V-flip         (t5)
+    {2, 3, 0, 1, 5, 4},  // diag-reflect   (t6)
+    {3, 2, 1, 0, 4, 5},  // anti-diag      (t7)
 };
 
 static std::string collision_signature_for_transform(
@@ -1714,13 +1718,15 @@ int main(int argc, char* argv[]) {
     else if (variant == "french")   BLOCKED = make_blocked_french();
     else if (variant == "hex") {
         BOARD_TYPE = BOARD_HEX;
-        N = 5; NC = 25; CTR = 12; NUM_DIRS = 6; NUM_SYMS = 4;
-        SYM_INDICES[0] = 0; SYM_INDICES[1] = 2; SYM_INDICES[2] = 4; SYM_INDICES[3] = 5;
+        N = 5; NC = 25; CTR = 12; NUM_DIRS = 6; NUM_SYMS = 6;
+        SYM_INDICES[0] = 0; SYM_INDICES[1] = 2; SYM_INDICES[2] = 4;
+        SYM_INDICES[3] = 5; SYM_INDICES[4] = 6; SYM_INDICES[5] = 7;
     }
     else if (variant == "beehive") {
         BOARD_TYPE = BOARD_HEX;
-        N = 7; NC = 49; CTR = 24; NUM_DIRS = 6; NUM_SYMS = 4;
-        SYM_INDICES[0] = 0; SYM_INDICES[1] = 2; SYM_INDICES[2] = 4; SYM_INDICES[3] = 5;
+        N = 7; NC = 49; CTR = 24; NUM_DIRS = 6; NUM_SYMS = 6;
+        SYM_INDICES[0] = 0; SYM_INDICES[1] = 2; SYM_INDICES[2] = 4;
+        SYM_INDICES[3] = 5; SYM_INDICES[4] = 6; SYM_INDICES[5] = 7;
     }
     else if (variant != "standard") {
         std::cerr << "Unknown variant: " << variant

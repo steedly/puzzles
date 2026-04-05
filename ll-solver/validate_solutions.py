@@ -304,12 +304,14 @@ def collision_signature(p):
 
     # Direction transforms for collision signature normalization.
     if IS_HEX:
-        # Klein four-group: 4 transforms permuting 6 hex directions.
+        # 6-element symmetry group permuting 6 hex directions.
         DIR_TRANSFORMS = [
             [0, 1, 2, 3, 4, 5],  # identity
             [1, 0, 3, 2, 5, 4],  # 180°
             [0, 1, 3, 2, 5, 4],  # H-flip
             [1, 0, 2, 3, 5, 4],  # V-flip
+            [2, 3, 0, 1, 5, 4],  # diag-reflect
+            [3, 2, 1, 0, 4, 5],  # anti-diag
         ]
     else:
         # D4: 8 transforms permuting 4 square directions {U=0,D=1,L=2,R=3}.
@@ -383,7 +385,7 @@ def d4_canonical(positions, num_exits):
         lambda r, c: (m - c, m - r),   # 7: anti-diag reflect
     ]
     if IS_HEX:
-        transforms = [all_transforms[i] for i in [0, 2, 4, 5]]
+        transforms = [all_transforms[i] for i in [0, 2, 4, 5, 6, 7]]
     else:
         transforms = all_transforms
 

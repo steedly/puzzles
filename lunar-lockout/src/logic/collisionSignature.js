@@ -16,21 +16,24 @@ const SQUARE_DIR_TRANSFORM = [
 const SQUARE_DIR_TO_IDX = { up: 0, down: 1, left: 2, right: 3 };
 const SQUARE_IDX_TO_CHAR = ['U', 'D', 'L', 'R'];
 
-// Hex (Klein four-group): 4 direction transforms for {nw=0,se=1,sw=2,ne=3,no=4,so=5}
+// Hex: 6 symmetry direction transforms for {nw=0,se=1,sw=2,ne=3,no=4,so=5}
+// Klein four-group + two diagonal reflections
 const HEX_DIR_TRANSFORM = [
   [0, 1, 2, 3, 4, 5], // identity
   [1, 0, 3, 2, 5, 4], // 180°
   [0, 1, 3, 2, 5, 4], // H-flip
   [1, 0, 2, 3, 5, 4], // V-flip
+  [2, 3, 0, 1, 5, 4], // diag-reflect (swap r↔c: NW↔SW, SE↔NE, N↔S)
+  [3, 2, 1, 0, 4, 5], // anti-diag (NW↔NE, SE↔SW, N=N, S=S)
 ];
 
 const HEX_DIR_TO_IDX = { nw: 0, se: 1, sw: 2, ne: 3, no: 4, so: 5 };
 const HEX_IDX_TO_CHAR = ['Nw', 'Se', 'Sw', 'Ne', 'No', 'So'];
 
 // Symmetry transform indices for spatial transforms (into the sym() switch)
-// Square: all 8 D4.  Hex: Klein four = {0, 2, 4, 5}.
+// Square: all 8 D4.  Hex: 6 transforms = {0, 2, 4, 5, 6, 7}.
 const SQUARE_SYM_INDICES = [0, 1, 2, 3, 4, 5, 6, 7];
-const HEX_SYM_INDICES = [0, 2, 4, 5];
+const HEX_SYM_INDICES = [0, 2, 4, 5, 6, 7];
 
 function isHexDir(dir) {
   return dir in HEX_DIR_TO_IDX;
