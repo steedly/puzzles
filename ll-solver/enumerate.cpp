@@ -1429,8 +1429,9 @@ static void emit(const FlatMap& dist, int n, int num_exits,
     // (smallest board_size) among states sharing the same collision signature.
     std::unordered_map<uint64_t, int> local_best; // sig_hash → best recs index
     int total_valid = 0;
+    int greedy_failures = 0;
     for (int i = 0; i < (int)recs.size(); i++) {
-        if (!trace_ok[i]) continue;
+        if (!trace_ok[i]) { greedy_failures++; continue; }
         total_valid++;
         if (seen_sigs.count(sig_hashes[i])) continue; // globally already emitted
         auto [it, inserted] = local_best.emplace(sig_hashes[i], i);
@@ -1438,20 +1439,27 @@ static void emit(const FlatMap& dist, int n, int num_exits,
             it->second = i; // found more compact representative
     }
     std::vector<int> survivors;
-    survivors.reserve(local_best.size());
+    survivors.reserve(local_best.size() + greedy_failures);
     for (auto& [hash, idx] : local_best) {
         seen_sigs.insert(hash);
         survivors.push_back(idx);
     }
-    int dup_count = total_valid - (int)survivors.size();
+    // States where the greedy trace failed are forwarded to Pass 3 where
+    // the full 0-1 BFS will solve them.  Without this, solvable states
+    // are silently dropped from the pipeline.
+    for (int i = 0; i < (int)recs.size(); i++) {
+        if (!trace_ok[i]) survivors.push_back(i);
+    }
+    int dup_count = total_valid - (int)local_best.size();
     sig_hashes.clear();
     sig_hashes.shrink_to_fit();
     board_sizes.clear();
     board_sizes.shrink_to_fit();
 
     auto t2 = Clock::now();
-    std::cerr << "  pass 2 (greedy dedup): " << survivors.size() << " unique, "
+    std::cerr << "  pass 2 (greedy dedup): " << local_best.size() << " unique, "
               << dup_count << " deduped, "
+              << greedy_failures << " greedy failures forwarded, "
               << std::chrono::duration<double>(t2 - t1).count() << "s\n";
 
     // ── Pass 3: DP trace for survivors → dedup → output ──
