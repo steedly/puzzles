@@ -45,7 +45,7 @@ function reducer(state, action) {
       if (blockedCells && blockedCells.has(key)) return state;
       const ctrR = board ? board.centerRow : 3;
       const ctrC = board ? board.centerCol : 3;
-      if (row === ctrR && col === ctrC) return state; // can't place on center
+      if (row === ctrR && col === ctrC && state.placingType === 'exit') return state;
 
       const existing = state.pieces.find(p => p.row === row && p.col === col);
       if (existing) {
