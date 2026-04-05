@@ -1,41 +1,32 @@
 // Copyright (c) 2025-2026 Drew Steedly. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+import { useState, useRef, useEffect } from 'react';
 import { slideRobot } from '../logic/gameEngine';
 import { SQUARE_7x7 } from '../logic/boardGeometry';
 import Cell from './Cell';
-import Robot from './Robot';
 import SolutionOverlay from './SolutionOverlay';
+
+// ── Hex geometry helpers ──────────────────────────────────────────────────────
 
 /**
  * Compute pixel position for a hex diamond cell.
- *
- * The internal grid is NxN (row r, col c) with 6 neighbor directions:
- *   (±1,0), (0,±1), (-1,+1), (+1,-1)
- *
- * Step 1: Standard axial hex → pixel mapping. This places all 6 neighbors
- *         at equal distance R√3, ensuring hexagons share edges.
- * Step 2: Rotate -60° to turn the parallelogram into a horizontal diamond.
+ * Axial hex → pixel, then rotate -60° to form a horizontal diamond.
  */
 function hexCellPosition(r, c, N, hexR) {
-  // Axial hex → pixel (flat-top orientation, all 6 neighbors equidistant)
   const bx = 1.5 * hexR * c;
   const by = Math.sqrt(3) * hexR * (r + c / 2);
-
-  // Center on the grid midpoint
   const mid = (N - 1) / 2;
   const cx = 1.5 * hexR * mid;
   const cy = Math.sqrt(3) * hexR * (mid + mid / 2);
   const dx = bx - cx;
   const dy = by - cy;
-
-  // Rotate -60° to form a horizontal diamond
   const cos60 = 0.5;
   const sin60 = Math.sqrt(3) / 2;
-  const x =  cos60 * dx + sin60 * dy;
-  const y = -sin60 * dx + cos60 * dy;
-
-  return { x, y };
+  return {
+    x:  cos60 * dx + sin60 * dy,
+    y: -sin60 * dx + cos60 * dy,
+  };
 }
 
 function hexBoardDimensions(N, hexR) {
@@ -59,136 +50,84 @@ function hexBoardDimensions(N, hexR) {
   };
 }
 
-function renderHexCells(N, hexR, cellMap, robotMeta, opts) {
-  const dims = hexBoardDimensions(N, hexR);
-  const cells = [];
-  // Flat-top hex: width = 2R, height = R√3
-  const cellW = hexR * 2;
-  const cellH = hexR * Math.sqrt(3);
+// ── Responsive scaling wrapper ────────────────────────────────────────────────
 
-  for (let r = 0; r < N; r++) {
-    for (let c = 0; c < N; c++) {
-      const key = `${r},${c}`;
-      const { x, y } = hexCellPosition(r, c, N, hexR);
-      const robotId = cellMap[key] ?? null;
+/**
+ * Scales its children to fit within the parent container width.
+ * Used by both square and hex boards so responsive behavior is consistent.
+ */
+function ScaledBoard({ naturalWidth, naturalHeight, children }) {
+  const containerRef = useRef(null);
+  const [scale, setScale] = useState(1);
 
-      cells.push(
-        <div
-          key={key}
-          className={[
-            'hex-cell',
-            opts.isCenter(r, c)                    ? 'hex-cell--center'  : '',
-            opts.isLanding && opts.isLanding(key)   ? 'hex-cell--landing' : '',
-            opts.isBuildMode && !robotId && !opts.isCenter(r, c) ? 'hex-cell--placeable' : '',
-          ].filter(Boolean).join(' ')}
-          style={{
-            position: 'absolute',
-            left: x + dims.offsetX - cellW / 2,
-            top:  y + dims.offsetY - cellH / 2,
-            width: cellW,
-            height: cellH,
-          }}
-          onClick={() => opts.onClick(r, c, robotId)}
-        >
-          {robotId && robotMeta[robotId] && (
-            <div className="hex-cell__robot">
-              <Robot
-                robotId={robotId}
-                isExit={robotMeta[robotId].isExit}
-                exitIndex={robotMeta[robotId].exitIndex}
-                isSelected={robotId === opts.selectedRobotId}
-              />
-            </div>
-          )}
-        </div>
-      );
+  useEffect(() => {
+    function measure() {
+      if (!containerRef.current) return;
+      const parentWidth = containerRef.current.parentElement?.clientWidth ?? naturalWidth;
+      setScale(prev => {
+        const next = Math.min(1, parentWidth / naturalWidth);
+        return next === prev ? prev : next;
+      });
     }
-  }
+    // Use ResizeObserver for initial + subsequent measurements
+    const parent = containerRef.current?.parentElement;
+    const ro = new ResizeObserver(measure);
+    if (parent) ro.observe(parent);
+    return () => ro.disconnect();
+  }, [naturalWidth]);
 
-  return { cells, dims };
+  return (
+    <div
+      ref={containerRef}
+      style={{
+        width: naturalWidth * scale,
+        height: naturalHeight * scale,
+        overflow: 'hidden',
+      }}
+    >
+      <div style={{
+        width: naturalWidth,
+        height: naturalHeight,
+        position: 'relative',
+        transform: `scale(${scale})`,
+        transformOrigin: 'top left',
+      }}>
+        {children}
+      </div>
+    </div>
+  );
 }
+
+// ── Board component ───────────────────────────────────────────────────────────
 
 export default function Board({ state, dispatch, puzzle, showPaths, variantBlocks, buildMode, buildPieces, onBuildClick, board = SQUARE_7x7 }) {
   const N = board.N;
   const isHex = board.type === 'hex';
-  // Match square board's center-to-center spacing (cell-size 62px + gap 5px = 67px).
-  // Adjacent hex cells are R√3 apart, so R = 67/√3 ≈ 38.7.
+  // Adjacent hex cells are R√3 apart; match square spacing (cell-size 62 + gap 5 = 67).
   const hexR = 67 / Math.sqrt(3);
 
-  // ── Build mode ──
+  // ── Shared: build cellMap + robotMeta from pieces or state ──
+  const cellMap = {};
+  const robotMeta = {};
+  let exitIdx = 0;
+
   if (buildMode) {
-    const cellMap = {};
-    const robotMeta = {};
-    let exitIdx = 0;
     for (const p of buildPieces) {
       cellMap[`${p.row},${p.col}`] = p.id;
       robotMeta[p.id] = { isExit: p.isExit, exitIndex: p.isExit ? exitIdx++ : -1 };
     }
-
-    if (isHex) {
-      const { cells, dims } = renderHexCells(N, hexR, cellMap, robotMeta, {
-        isCenter: (r, c) => r === board.centerRow && c === board.centerCol,
-        isLanding: null,
-        isBuildMode: true,
-        selectedRobotId: null,
-        onClick: (r, c) => onBuildClick(r, c),
-      });
-      return (
-        <div className="board-container">
-          <div className="hex-board" style={{ width: dims.width, height: dims.height, position: 'relative' }}>
-            {cells}
-          </div>
-        </div>
-      );
+  } else {
+    for (const [id, pos] of Object.entries(state.positions)) {
+      cellMap[`${pos.row},${pos.col}`] = id;
     }
-
-    // Square build mode (unchanged)
-    const cells = [];
-    for (let r = 0; r < N; r++) {
-      for (let c = 0; c < N; c++) {
-        const key = `${r},${c}`;
-        const robotId = cellMap[key] ?? null;
-        cells.push(
-          <Cell key={key} row={r} col={c}
-            isCenter={r === board.centerRow && c === board.centerCol}
-            robotId={robotId}
-            robotMeta={robotId ? robotMeta[robotId] : null}
-            selectedRobotId={null} isLandingCell={false}
-            isVariantBlocked={variantBlocks && variantBlocks.has(key)}
-            isBuildMode
-            onClick={(row, col) => onBuildClick(row, col)}
-          />
-        );
-      }
+    for (const r of puzzle.robots) {
+      robotMeta[r.id] = { isExit: r.isExit, exitIndex: r.isExit ? exitIdx++ : -1 };
     }
-    return (
-      <div className="board-container">
-        <div className="board">{cells}</div>
-      </div>
-    );
   }
 
-  // ── Normal play mode ──
-  const cellMap = {};
-  for (const [id, pos] of Object.entries(state.positions)) {
-    cellMap[`${pos.row},${pos.col}`] = id;
-  }
-
-  const robotMeta = {};
-  let exitIdx = 0;
-  for (const r of puzzle.robots) {
-    robotMeta[r.id] = {
-      isExit:    r.isExit,
-      exitIndex: r.isExit ? exitIdx++ : -1,
-    };
-  }
-
-  const selectedRobotPos = state.selectedRobotId
-    ? state.positions[state.selectedRobotId]
-    : null;
-
+  // ── Shared: landing cells ──
   const landingCells = new Set();
-  if (state.selectedRobotId && selectedRobotPos) {
+  if (!buildMode && state.selectedRobotId && state.positions[state.selectedRobotId]) {
     for (const dir of board.dirs) {
       const newPositions = slideRobot(
         state.positions, state.selectedRobotId, dir.name, state.exitIds ?? null, variantBlocks ?? null, board
@@ -203,12 +142,17 @@ export default function Board({ state, dispatch, puzzle, showPaths, variantBlock
     }
   }
 
+  // ── Shared: click handler ──
   function handleCellClick(row, col, robotId) {
+    if (buildMode) {
+      onBuildClick(row, col);
+      return;
+    }
     if (robotId) {
       dispatch({ type: 'SELECT_ROBOT', robotId });
       return;
     }
-    if (!state.selectedRobotId || !selectedRobotPos) {
+    if (!state.selectedRobotId || !state.positions[state.selectedRobotId]) {
       dispatch({ type: 'DESELECT' });
       return;
     }
@@ -228,49 +172,73 @@ export default function Board({ state, dispatch, puzzle, showPaths, variantBlock
     dispatch({ type: 'DESELECT' });
   }
 
-  if (isHex) {
-    const { cells, dims } = renderHexCells(N, hexR, cellMap, robotMeta, {
-      isCenter: (r, c) => r === board.centerRow && c === board.centerCol,
-      isLanding: (key) => landingCells.has(key),
-      isBuildMode: false,
-      selectedRobotId: state.selectedRobotId,
-      onClick: handleCellClick,
-    });
-    return (
-      <div className="board-container">
-        <div className="hex-board" style={{ width: dims.width, height: dims.height, position: 'relative' }}>
-          {cells}
-        </div>
-      </div>
-    );
-  }
+  // ── Shared: generate cell elements ──
+  const hexDims = isHex ? hexBoardDimensions(N, hexR) : null;
+  const cellW = hexR * 2;
+  const cellH = hexR * Math.sqrt(3);
 
-  // ── Square board (unchanged) ──
   const cells = [];
   for (let r = 0; r < N; r++) {
     for (let c = 0; c < N; c++) {
       const key = `${r},${c}`;
       const robotId = cellMap[key] ?? null;
+
+      // Hex cells need absolute positioning via inline style
+      let style;
+      if (isHex) {
+        const { x, y } = hexCellPosition(r, c, N, hexR);
+        style = {
+          position: 'absolute',
+          left: x + hexDims.offsetX - cellW / 2,
+          top:  y + hexDims.offsetY - cellH / 2,
+          width: cellW,
+          height: cellH,
+        };
+      }
+
       cells.push(
-        <Cell key={key} row={r} col={c}
+        <Cell
+          key={key}
+          row={r}
+          col={c}
+          hex={isHex}
+          style={style}
           isCenter={r === board.centerRow && c === board.centerCol}
           robotId={robotId}
           robotMeta={robotId ? robotMeta[robotId] : null}
-          selectedRobotId={state.selectedRobotId}
+          selectedRobotId={buildMode ? null : state.selectedRobotId}
           isLandingCell={landingCells.has(key)}
-          isVariantBlocked={variantBlocks && variantBlocks.has(key)}
+          isVariantBlocked={!isHex && variantBlocks && variantBlocks.has(key)}
+          isBuildMode={buildMode}
           onClick={handleCellClick}
         />
       );
     }
   }
 
+  // ── Render: board container ──
+  if (isHex) {
+    return (
+      <div className="board-container">
+        <ScaledBoard naturalWidth={hexDims.width} naturalHeight={hexDims.height}>
+          {cells}
+        </ScaledBoard>
+      </div>
+    );
+  }
+
+  // Square board: compute natural size for ScaledBoard
+  const squareNatural = N * 62 + (N - 1) * 5 + 20; // cell-size + gaps + padding
   return (
     <div className="board-container">
-      <div className="board">{cells}</div>
-      {showPaths && (
-        <SolutionOverlay puzzle={puzzle} blockedCells={variantBlocks} board={board} />
-      )}
+      <ScaledBoard naturalWidth={squareNatural} naturalHeight={squareNatural}>
+        <div className="board">
+          {cells}
+        </div>
+        {showPaths && (
+          <SolutionOverlay puzzle={puzzle} blockedCells={variantBlocks} board={board} />
+        )}
+      </ScaledBoard>
     </div>
   );
 }

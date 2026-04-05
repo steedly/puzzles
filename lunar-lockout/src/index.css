@@ -7,6 +7,7 @@
   --board-bg:        #12122a;
   --cell-bg:         #1a1a38;
   --cell-border:     #2a2a50;
+  --cell-hover:      #22224a;
   --cell-center-bg:  #1e1e4a;
   --cell-center-glow: rgba(120, 120, 255, 0.35);
   --robot-target:    #e63946;
@@ -157,7 +158,7 @@ button { cursor: pointer; font-family: inherit; }
   flex-shrink: 0;
 }
 
-/* ── Cell ──────────────────────────────────────────────────────────────────── */
+/* ── Cell (shared base for square and hex) ────────────────────────────────── */
 .cell {
   background: var(--cell-bg);
   border-radius: 6px;
@@ -171,37 +172,108 @@ button { cursor: pointer; font-family: inherit; }
 }
 
 .cell:hover {
-  background: #22224a;
+  background: var(--cell-hover);
 }
 
+/* ── Cell: hex shape override ──────────────────────────────────────────────── */
+/* Hex cells are absolutely positioned by Board.jsx; clip-path gives hex shape.
+   The ::before pseudo-element creates a visible "border" via inset. */
+.cell--hex {
+  border: none;
+  border-radius: 0;
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  background: var(--cell-border);
+}
+
+.cell--hex::before {
+  content: '';
+  position: absolute;
+  inset: 1.5px;
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  background: var(--cell-bg);
+  z-index: 0;
+  transition: background 0.15s;
+}
+
+/* Hex hover targets the inner fill (::before) instead of background */
+.cell--hex:hover {
+  background: var(--cell-border);
+}
+.cell--hex:hover::before {
+  background: var(--cell-hover);
+}
+
+/* ── Cell states (shared) ─────────────────────────────────────────────────── */
 .cell--center {
   background: var(--cell-center-bg);
   box-shadow: inset 0 0 18px var(--cell-center-glow);
   border-color: #4444aa;
 }
 
-.cell--landing {
-  background: rgba(255, 215, 0, 0.08);
-  border-color: rgba(255, 215, 0, 0.45);
+.cell--hex.cell--center {
+  background: #4444aa;
+  box-shadow: none;
 }
-
-.cell--landing:hover {
-  background: rgba(255, 215, 0, 0.16);
+.cell--hex.cell--center::before {
+  background: var(--cell-center-bg);
 }
 
 .cell--center::after {
   content: '✦';
   position: absolute;
-  font-size: 22px;
+  font-size: 20px;
   color: rgba(140, 140, 255, 0.4);
   pointer-events: none;
   user-select: none;
+  z-index: 1;
+}
+
+.cell--landing {
+  background: rgba(255, 215, 0, 0.08);
+  border-color: rgba(255, 215, 0, 0.45);
+}
+.cell--hex.cell--landing {
+  background: rgba(255, 215, 0, 0.45);
+}
+.cell--hex.cell--landing::before {
+  background: rgba(255, 215, 0, 0.08);
+}
+
+.cell--landing:hover {
+  background: rgba(255, 215, 0, 0.16);
+}
+.cell--hex.cell--landing:hover {
+  background: rgba(255, 215, 0, 0.45);
+}
+.cell--hex.cell--landing:hover::before {
+  background: rgba(255, 215, 0, 0.16);
+}
+
+.cell--blocked {
+  background: var(--bg) !important;
+  border-color: var(--bg) !important;
+  cursor: default !important;
+}
+
+.cell--placeable:hover {
+  background: rgba(100, 100, 255, 0.15);
+  border-color: rgba(100, 100, 255, 0.35);
+}
+.cell--hex.cell--placeable:hover {
+  background: rgba(100, 100, 255, 0.35);
+}
+.cell--hex.cell--placeable:hover::before {
+  background: rgba(100, 100, 255, 0.15);
 }
 
 /* ── Robot ─────────────────────────────────────────────────────────────────── */
+/* Robot size is percentage-based so it scales with the cell in both layouts. */
+.cell .robot {
+  width: 85%;
+  height: 85%;
+}
+
 .robot {
-  width: 54px;
-  height: 54px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -894,11 +966,6 @@ button { cursor: pointer; font-family: inherit; }
 }
 
 /* ── Variant-blocked cells (corners/border for solitaire/ufo) ──────────────── */
-.cell--variant-blocked {
-  background: var(--bg) !important;
-  border-color: var(--bg) !important;
-  cursor: default !important;
-}
 
 .hud__no-sol {
   font-size: 0.82rem;
@@ -1055,96 +1122,7 @@ button { cursor: pointer; font-family: inherit; }
   color: #e040fb;
 }
 
-/* ── Build-mode cell hover ────────────────────────────────────────────────── */
-.cell--build-placeable:hover {
-  background: rgba(100, 100, 255, 0.15);
-  border-color: rgba(100, 100, 255, 0.35);
-}
-
 /* ── Responsive ────────────────────────────────────────────────────────────── */
-/* ── Hex diamond board ─────────────────────────────────────────────────────── */
-/* Hex cells are absolutely positioned by Board.jsx. Each cell is a flat-top
-   hexagon (wider than tall) using clip-path. The diamond shape emerges from
-   the NxN grid rotated 45° with horizontal squeeze so neighbors share edges. */
-
-.hex-board {
-  flex-shrink: 0;
-}
-
-/* Flat-top hexagon: width = 100%, height = 100% of the positioned element.
-   The clip-path creates a regular hexagon rotated so flat edges are on top/bottom. */
-.hex-cell {
-  /* flat-top hex: 6 vertices at 0°, 60°, 120°, 180°, 240°, 300° */
-  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
-  background: var(--cell-border);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.15s;
-}
-
-/* Inner fill creates a visible border by being slightly smaller than the outer clip */
-.hex-cell::before {
-  content: '';
-  position: absolute;
-  inset: 1.5px;
-  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
-  background: var(--cell-bg);
-  z-index: 0;
-  transition: background 0.15s;
-}
-
-.hex-cell:hover::before {
-  background: #22224a;
-}
-
-.hex-cell--center {
-  background: #4444aa;
-}
-
-.hex-cell--center::before {
-  background: var(--cell-center-bg);
-}
-
-.hex-cell--center::after {
-  content: '✦';
-  position: absolute;
-  font-size: 16px;
-  color: rgba(140, 140, 255, 0.4);
-  pointer-events: none;
-  user-select: none;
-  z-index: 1;
-}
-
-.hex-cell--landing {
-  background: rgba(255, 215, 0, 0.45);
-}
-
-.hex-cell--landing::before {
-  background: rgba(255, 215, 0, 0.08);
-}
-
-.hex-cell--landing:hover::before {
-  background: rgba(255, 215, 0, 0.16);
-}
-
-.hex-cell--placeable:hover {
-  background: rgba(80, 200, 80, 0.15);
-}
-
-/* Robot inside hex cell — override Cell component's default styling */
-.hex-cell__robot {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-  z-index: 1;
-}
-
-
 @media (max-width: 640px) {
   .game-layout { flex-direction: column; }
   .pnav { width: 100%; max-width: 100%; }
@@ -1152,9 +1130,6 @@ button { cursor: pointer; font-family: inherit; }
 }
 
 @media (max-width: 520px) {
-  :root { --cell-size: 42px; --cell-gap: 3px; }
-  .robot { width: 30px; height: 30px; font-size: 11px; }
-  .cell--center::after { font-size: 16px; }
   .app__title { font-size: 1.4rem; }
   .game-area { justify-content: center; }
 }

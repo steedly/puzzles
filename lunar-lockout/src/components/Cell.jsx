@@ -3,18 +3,29 @@
 
 import Robot from './Robot';
 
-export default function Cell({ row, col, isCenter, robotId, robotMeta, selectedRobotId, isLandingCell, isVariantBlocked, isBuildMode, onClick }) {
+/**
+ * Unified cell component for both square and hex boards.
+ *
+ * Square cells are laid out by CSS Grid on the parent .board element.
+ * Hex cells receive explicit `style` with absolute positioning from Board.jsx.
+ */
+export default function Cell({
+  row, col, isCenter, robotId, robotMeta, selectedRobotId,
+  isLandingCell, isVariantBlocked, isBuildMode, onClick,
+  hex, style,
+}) {
+  const prefix = hex ? 'cell cell--hex' : 'cell';
+
+  const className = [
+    prefix,
+    isCenter         ? 'cell--center'    : '',
+    isLandingCell    ? 'cell--landing'    : '',
+    isVariantBlocked ? 'cell--blocked'    : '',
+    isBuildMode && !robotId && !isVariantBlocked && !isCenter ? 'cell--placeable' : '',
+  ].filter(Boolean).join(' ');
+
   return (
-    <div
-      className={[
-        'cell',
-        isCenter         ? 'cell--center'         : '',
-        isLandingCell    ? 'cell--landing'         : '',
-        isVariantBlocked ? 'cell--variant-blocked' : '',
-        isBuildMode && !robotId && !isVariantBlocked && !isCenter ? 'cell--build-placeable' : '',
-      ].filter(Boolean).join(' ')}
-      onClick={() => onClick(row, col, robotId)}
-    >
+    <div className={className} style={style} onClick={() => onClick(row, col, robotId)}>
       {robotId && robotMeta && (
         <Robot
           robotId={robotId}
