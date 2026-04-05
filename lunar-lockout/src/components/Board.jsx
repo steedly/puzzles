@@ -80,7 +80,8 @@ function ScaledBoard({ naturalWidth, naturalHeight, children }) {
     <div
       ref={containerRef}
       style={{
-        width: naturalWidth * scale,
+        width: '100%',
+        maxWidth: naturalWidth,
         height: naturalHeight * scale,
         overflow: 'hidden',
       }}

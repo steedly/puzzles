@@ -5,13 +5,13 @@ A C++ engine that finds **every solvable Lunar Lockout starting position** on a 
 ## Game Rules
 
 - Robots slide in cardinal directions until blocked by **another robot** (wall stops are illegal).
-- **Exit robots** disappear when they reach the center cell (3,3).
+- **Exit robots** disappear when they reach the center cell.
 - **Helper robots** are blockers only — they never exit.
 - **Win condition**: all exit robots have exited the board.
 
 ## How It Works — Plain-English Guide
 
-The goal is to find every possible starting arrangement of robots that can be solved, without including duplicates that would feel like the same puzzle to a player. This happens in four stages.
+The goal is to find every possible starting arrangement of robots that can be solved, without including duplicates that would feel like the same puzzle to a player. This happens in three stages.
 
 ### Stage 1: Finding every solvable position (Canonical Retrograde BFS)
 
@@ -19,15 +19,15 @@ Instead of trying every possible starting arrangement and checking "can this be 
 
 Think of it like a maze: rather than trying every entrance to see which ones reach the exit, you start at the exit and walk backward through every possible path. Every room you reach this way is a room that *can* reach the exit.
 
-The board has 8 symmetries (the [dihedral group D4](https://en.wikipedia.org/wiki/Dihedral_group)): 4 rotations (0°, 90°, 180°, 270°) and 4 reflections (horizontal, vertical, and both diagonals). A puzzle with all robots shifted 90° clockwise plays exactly the same way. The solver exploits this by **canonicalizing during the BFS** — only exploring one representative from each group of 8 symmetric positions. This reduces the state space by ~8×.
+For square boards, the board has 8 symmetries (the [dihedral group D4](https://en.wikipedia.org/wiki/Dihedral_group)): 4 rotations (0°, 90°, 180°, 270°) and 4 reflections (horizontal, vertical, and both diagonals). A puzzle with all robots shifted 90° clockwise plays exactly the same way. The solver exploits this by **canonicalizing during the BFS** — only exploring one representative from each symmetry class. Hex boards use a smaller symmetry group (see [Board Variants](#board-variants)).
 
 Concretely:
 
-1. **Seed from "already won" states — canonical only.** A won state has all exit robots exited through the center, with helpers anywhere on the remaining 48 cells. The solver generates every helper arrangement, but only seeds the ~1/8 that are D4-canonical (the "smallest" version under all 8 symmetry transforms). For 5 helpers, this means ~215K canonical seeds instead of all 1.7M.
+1. **Seed from "already won" states — canonical only.** A won state has all exit robots exited through the center, with helpers anywhere on the remaining cells. The solver generates every helper arrangement, but only seeds the ones that are canonical (the "smallest" version under all symmetry transforms). For 5 helpers on a standard board, this means ~215K canonical seeds instead of all 1.7M.
 
 2. **Work backward one move at a time, staying canonical.** For each state, the solver generates all *predecessor* states (boards that could reach it in one move). Each predecessor is immediately canonicalized before insertion into the hash table. This ensures the BFS only ever stores and expands canonical states — rotations and reflections are eliminated on the fly, not in a post-processing pass.
 
-3. **Repeat, level by level.** Because it works outward level by level, the first time a position is found is guaranteed to be at its minimum number of individual slides from the solution. (This is *not* the same as minimum grouped moves — that optimization happens later in Stage 4.)
+3. **Repeat, level by level.** Because it works outward level by level, the first time a position is found is guaranteed to be at its minimum number of individual slides from the solution. (This is *not* the same as minimum grouped moves — that optimization happens later in Stage 3.)
 
 **Why this works:** The predecessor relationship is D4-equivariant — if board P reaches board S in one move, then rotating both P and S by the same transform preserves the move. So expanding a single canonical representative discovers every canonical predecessor that any member of its symmetry orbit would have found.
 
@@ -47,33 +47,11 @@ The solver detects this by computing a **collision signature** for each puzzle:
 
 4. **Deduplicate.** If two puzzles produce the same D4-normalized collision sequence, they're the same puzzle in different clothes. Only one representative is kept.
 
-**Compaction preference:** When multiple starting positions share the same collision signature, the solver prefers the one where all robots fit on the **smallest board**. It measures each position's "board size" — the smallest square centered on the middle of the board that contains every robot. A puzzle where all robots are within 2 squares of the center (fitting on a 5×5 board) is preferred over one where a robot is in the corner (requiring the full 7×7 board). This produces tidier-looking puzzles without changing the gameplay.
+**Compactness preference:** When multiple starting positions share the same collision signature, the solver prefers the one where all robots fit on the **smallest board**. It measures each position's "board size" — the smallest square centered on the middle of the board that contains every robot. A puzzle where all robots are within 2 squares of the center (fitting on a 5×5 board) is preferred over one where a robot is in the corner (requiring the full 7×7 board). This produces tidier-looking puzzles without changing the gameplay.
 
-This is the biggest source of deduplication. For 1 exit + 5 helpers, it reduces 1,548,611 collected states to 58,505 unique puzzles. For 3 exits + 4 helpers, it reduces 33,835,553 to 5,406,234.
+This is the biggest source of deduplication, typically eliminating 95%+ of collected states.
 
-### Stage 3: Compacting puzzles to the smallest board
-
-After dedup picks a representative for each collision signature, the solver tries to make each puzzle even more compact by **reconstructing** a tighter starting position via CSP (constraint satisfaction) search.
-
-The key insight: when a robot makes its first slide, only the *direction* and *blocker* matter — the distance it travels (the "gap") is irrelevant to the gameplay. A robot that slides 5 cells right before hitting a blocker plays exactly the same as one that slides 1 cell right to the same blocker. More broadly, a robot can be repositioned to **any** cell that preserves the collision sequence — not just along its movement axis.
-
-Concretely, for each puzzle:
-
-1. **For each robot, find all valid cells.** Test every non-blocked cell that is at least as close to center as the robot's current position. A cell is valid if, with that robot moved there (and all others fixed), the full collision sequence replays correctly. Also include 1-step neighbor cells toward center as candidates for inter-robot-dependent shifts (cells that fail individual validation but may work when multiple robots shift together).
-
-2. **Backtracking search.** Try all combinations of valid cells across robots, with bounding-box pruning: if the partial bounding rectangle from already-placed robots already exceeds the best found, prune the branch. Candidates are sorted center-first so good solutions are found early and pruning is aggressive.
-
-3. **Optimize bounding rectangle area.** The primary metric is the area of the smallest axis-aligned rectangle containing all robots. Tiebreaker: sum of Manhattan distances from each robot to center (3,3). This produces tighter layouts than the old Chebyshev-based "board size" metric.
-
-4. **Verify difficulty is preserved.** After compaction selects the best layout, `solve_min_grouped()` is re-run on the compacted positions. If the minimum grouped moves changed (the compacted board enables a shorter solution), the compaction is rejected — it would create a different puzzle.
-
-5. **Verify BFS reachability.** The compacted state must exist in the retrograde BFS (i.e., it's a valid solvable position).
-
-**Why CSP instead of the old heuristic:** The previous approach only shifted movers along their movement axis (reducing the "gap") and non-movers toward center. This missed perpendicular shifts — e.g., a robot that slides Left could also start one row closer to center without affecting the collision sequence, but the old code never tried this. The CSP search finds all valid positions exhaustively.
-
-**Performance:** With ~2-5 valid cells per robot on average, the backtracking search with pruning handles 6-robot puzzles in under 1ms. For 200K puzzles this adds ~60 seconds to generation time (~10% overhead).
-
-### Stage 4: Finding the best solution and writing output
+### Stage 3: Finding the best solution and writing output
 
 Stage 1's BFS tagged each state with its minimum number of **individual slides** — but a player experiences puzzles in terms of **grouped moves**, where consecutive slides by the same robot feel like a single action. For example, sliding robot A right then sliding robot A up is one grouped move (you're still "using" robot A), but then sliding robot 2 would start a second grouped move.
 
@@ -81,7 +59,7 @@ Critically, the solution with the fewest grouped moves is often **not** the one 
 
 For each surviving unique puzzle, the solver runs a **[0-1 BFS](https://en.wikipedia.org/wiki/0-1_BFS)** from the start position over an augmented state space of (board configuration, last-mover landing cell). Edges where the same robot continues sliding cost 0; edges where a different robot starts cost 1. This explores **all** reachable states (not just those on minimum-slide paths) and finds the globally optimal grouped-move solution. Because the forward-reachable state space per puzzle is small (typically 50–5,000 board states × ~50 last-mover cells), this is fast even when run for hundreds of thousands of puzzles.
 
-After computing the optimal solution, a final **collision-signature dedup** catches any remaining duplicates that the earlier greedy-trace dedup missed (since the greedy and 0-1 BFS tracers may find different solution paths, occasionally producing different collision signatures for the same strategic puzzle).
+After computing the optimal solution, three sequential dedup layers catch remaining duplicates: (1) D4-canonical positions with exit count, (2) collision-signature of the DP solution (catches greedy/DP path divergences), and (3) a hash of the forward-reachable state set (catches puzzles with identical reachability). Among duplicates at each layer, the most compact representative is kept.
 
 ### Technical summary
 
@@ -90,15 +68,14 @@ After computing the optimal solution, a final **collision-signature dedup** catc
 | 1. Canonical retrograde BFS | Finds all solvable canonical positions | 2,135,377 states |
 | — non-goal states collected | States with at least one exit robot still on the board | 1,903,904 |
 | 2. Collision-sig dedup | Removes strategically identical puzzles | 78,058 unique |
-| 3. CSP compaction | Tightens starting positions via constraint search | 67,128 improved |
-| 4. DP trace + final dedup | Finds optimal grouped-move solutions, removes remaining dups | 27,632 final (36,391 cross-D4 + 14,035 DP dups removed) |
+| 3. DP trace + final dedup | Finds optimal grouped-move solutions, removes remaining dups | 27,632 final |
 
 ### Performance
 
 - **Canonical BFS** eliminates D4-symmetric states during exploration, reducing states by ~8× compared to a full BFS with post-hoc filtering.
 - **Parallel BFS** via OpenMP with lock-free atomic insertions into a custom hash table.
 - 1 exit + 5 helpers (~2.1M canonical states): ~4 seconds single-threaded.
-- 1 exit + 5 helpers produces ~28K unique puzzles after all dedup stages (CSP compaction increases dedup effectiveness by ~45%).
+- 1 exit + 5 helpers produces ~28K unique puzzles after all dedup stages.
 - Multi-exit runs are dominated by collision-sig dedup time, not BFS time — deduplicating 45M states for 3 exits + 4 helpers takes ~14 minutes.
 
 ## Computational Complexity
@@ -155,8 +132,6 @@ Multi-exit BFS times scale roughly with state count. The collision-sig dedup (St
 | **2 exits** | 0 | 1 | 19 | 809 | 78,646 | — | — |
 | **3 exits** | 0 | 1 | 50 | 21,078 | — | — | — |
 | **4 exits** | 0 | 0 | 72 | — | — | — | — |
-
-CSP compaction reduces final puzzle counts by ~35% compared to the old heuristic compaction, because tighter layouts create more collision-signature and cross-combo D4 overlaps.
 
 #### Totals by variant (≤6 total robots, up to 4 exits — currently deployed)
 
@@ -269,7 +244,7 @@ Solitaire and UFO are **incomparable** — Solitaire blocks the 2×2 corners tha
 
 **Why puzzle counts decrease.** With fewer solvable positions and fewer collision signatures (since fewer moves produce fewer distinct solution paths), each restriction reduces the number of unique puzzles that survive dedup:
 
-> Puzzle counts: Standard (243K) > French (103K) > Solitaire (45K) > UFO (30K)
+> Puzzle counts: Standard (129K) > French (57K) > Solitaire (24K) > UFO (18K)
 
 In the code, this hierarchy is visible in `reverse_moves_normal` in `enumerate.cpp`: each candidate predecessor slide is checked against the blocked-cell mask, and blocked cells cause the slide to be skipped — directly reducing the number of predecessors discovered by the BFS.
 
@@ -306,19 +281,23 @@ In the code, this hierarchy is visible in `reverse_moves_normal` in `enumerate.c
 One puzzle per line:
 
 ```
-id|exits|helpers|minMoves|positions|solution
+id|exits|helpers|groupedMoves|rawSlides|minRawSlides|forwardStates|positions|solution
 ```
 
-- **positions**: `exit0_r,c [exit1_r,c ...] [helper_r,c ...]` — row,col on the 7×7 board
+- **groupedMoves**: minimum grouped moves (consecutive slides by the same robot = 1 move) — the primary difficulty metric
+- **rawSlides**: number of individual slides in the grouped-optimal solution
+- **minRawSlides**: minimum individual slides (from the retrograde BFS)
+- **forwardStates**: number of forward-reachable board states
+- **positions**: `exit0_r,c [exit1_r,c ...] [helper_r,c ...]` — row,col on the board
 - **solution**: space-separated moves, each `moverDIRblocker`
   - `A`, `B`, `C` = exit robots (by ascending initial position)
   - `1`-`9` = helper robots (by ascending initial position)
   - `DIR` (square): `U`=up, `D`=down, `L`=left, `R`=right
   - `DIR` (hex): `Nw`, `Se`, `Sw`, `Ne`, `No`, `So` (2-char codes, move tokens are 4 chars)
 
-Example (square): `42|1|3|5|2,3 0,3 4,5 6,1|AD1 1U2 AU3 AD1 AR3`
+Example (square): `2|1|2|2|2|2|4|4,3 1,3 3,3|2U1 AU2` — 1 exit, 2 helpers, 2 grouped moves
 
-Example (hex): `3|1|2|1|2,3 1,1 3,1|1Se2 ASw1`
+Example (hex): `3|1|2|1|2|2|5|2,3 1,1 3,1|1Se2 ASw1` — 1 exit, 2 helpers, 1 grouped move
 
 ## Testing
 
@@ -329,8 +308,8 @@ make test
 ```
 
 This runs:
-1. **108 unit tests** (`test_enumerate`) — internal function correctness (includes hex-specific tests)
-2. **Puzzle generation** — full `./enumerate 1 6 1 20` run for all 6 variants
+1. **110 unit tests** (`test_enumerate`) — internal function correctness (includes hex-specific tests)
+2. **Puzzle generation** — `./enumerate 1 6 1 20` for square variants, `./enumerate 1 4 1 20` for hex variants
 3. **Solution validation** (`validate_solutions.py`) — forward simulation, position validity, sequential IDs, D4 dedup, collision-sig dedup
 4. **D4 duplicate check** (`test_canonical`) — no two output puzzles are D4-equivalent
 

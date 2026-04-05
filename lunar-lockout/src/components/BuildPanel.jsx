@@ -4,7 +4,14 @@
 import { useMemo } from 'react';
 import { collisionSignature, findMatchingPuzzles, findD4PositionMatches } from '../logic/collisionSignature';
 
-const VARIANTS = ['standard', 'solitaire', 'ufo', 'french', 'hex', 'beehive'];
+const VARIANTS = [
+  { key: 'standard',  label: 'Square' },
+  { key: 'beehive',   label: 'Hex' },
+  { key: 'french',    label: 'French Solitaire' },
+  { key: 'solitaire', label: 'Solitaire' },
+  { key: 'ufo',       label: 'UFO' },
+  { key: 'hex',       label: 'Beehive' },
+];
 
 export default function BuildPanel({
   variant, onVariantChange, buildState, buildDispatch, onSolve, onBackToLibrary,
@@ -46,7 +53,7 @@ export default function BuildPanel({
           value={variant}
           onChange={e => onVariantChange(e.target.value)}
         >
-          {VARIANTS.map(v => <option key={v} value={v}>{v}</option>)}
+          {VARIANTS.map(v => <option key={v.key} value={v.key}>{v.label}</option>)}
         </select>
       </div>
 

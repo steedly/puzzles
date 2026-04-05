@@ -20,12 +20,12 @@ const SORT_OPTIONS = [
 ];
 
 const VARIANTS = [
-  { key: 'standard',  label: '7×7' },
+  { key: 'standard',  label: 'Square' },
+  { key: 'beehive',   label: 'Hex' },
   { key: 'french',    label: 'French Solitaire' },
   { key: 'solitaire', label: 'Solitaire' },
   { key: 'ufo',       label: 'UFO' },
-  { key: 'hex',       label: 'Hex' },
-  { key: 'beehive',   label: 'Bee Hive' },
+  { key: 'hex',       label: 'Beehive' },
 ];
 
 // Click = select only this value; Shift+click = toggle add/remove
