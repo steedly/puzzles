@@ -69,10 +69,11 @@ export function collisionSignature(solution) {
 
   let best = null;
   for (const dt of dirTransforms) {
-    let sig = '';
+    const parts = [];
     for (const [m, d, b] of moves) {
-      sig += m + idxToChar[dt[d]] + b;
+      parts.push(m + idxToChar[dt[d]] + b);
     }
+    const sig = parts.join(' ');
     if (best === null || sig < best) best = sig;
   }
   return best;

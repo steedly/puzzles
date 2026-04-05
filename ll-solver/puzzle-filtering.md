@@ -52,15 +52,17 @@ Some buckets contain hundreds of thousands of puzzles. Computing distances betwe
 
 ## What This Looks Like in Practice
 
-For the Hex (5×5) variant with N = 1,000:
+Results with N = 1,000 (default), max_pieces = 7:
 
-| Before | After |
-|--------|-------|
-| 125,797 puzzles | 24,649 puzzles |
-| 10.3 MB | ~2 MB |
-| 84 buckets | 84 buckets (all preserved) |
+| Variant | Board | Before | After | Buckets | Kept | File size |
+|---|---|---|---|---|---|---|
+| Hex (5×5) | 5×5 hex diamond | 125,797 | 24,649 | 84 | 19.6% | ~2 MB |
+| UFO | 7×7 square (12 blocked) | 314,649 | 45,259 | 141 | 14.4% | 4.4 MB |
+| Solitaire | 7×7 square (4 blocked) | 881,332 | 78,729 | 186 | 8.9% | 8.3 MB |
+| Beehive (7×7) | 7×7 hex diamond | 5,416,861 | 82,776 | 149 | 1.5% | 9.1 MB |
+| French | 7×7 square (12 blocked) | 3,158,591 | 99,854 | 197 | 3.2% | 12 MB |
 
-Every difficulty level and solution length that existed before filtering is still represented. The filtered set covers the full range of the puzzle space — from trivial 1-move warmups to fiendish 16-move challenges.
+Every difficulty level and solution length that existed before filtering is still represented. The filtered set covers the full range of the puzzle space — from trivial 1-move warmups to the most challenging puzzles in each variant.
 
 ## Usage
 

@@ -65,8 +65,9 @@ function stateKey(positions, exitOrder, helperOrder) {
 }
 
 /**
- * Solve a puzzle, returning the solution with minimum grouped moves
- * (among all minimum raw-slide solutions).
+ * Solve a puzzle using 0-1 BFS on augmented state (board, lastMoverCell),
+ * returning the solution with minimum grouped moves (allowing any number
+ * of raw slides). This matches the C++ solve_min_grouped() algorithm.
  *
  * @param {Object} puzzle - Puzzle object with .robots and robot metadata
  * @param {Set} blockedCells - Set of blocked cell keys
@@ -84,111 +85,94 @@ export function solvePuzzle(puzzle, blockedCells, board = SQUARE_7x7) {
 
   if (isWon(positions, exitIds)) return [];
 
-  const startKey = stateKey(positions, exitOrder, helperOrder);
+  const startSK = stateKey(positions, exitOrder, helperOrder);
 
-  // ── Phase 1: Forward BFS to find optimal depth D ──
-  const dist = new Map();
-  dist.set(startKey, 0);
-  let frontier = [{ positions, key: startKey }];
-  let goalDepth = -1;
+  // ── 0-1 BFS on augmented state (board_state, last_mover_cell) ──
+  // Cost 0 edge: same robot continues sliding (mover's current cell = last landing)
+  // Cost 1 edge: different robot starts sliding
+  // This finds minimum grouped moves, allowing any number of raw slides.
 
-  for (let depth = 0; frontier.length > 0; depth++) {
-    if (goalDepth >= 0) break;
-    const next = [];
-    for (const { positions: pos } of frontier) {
-      for (const rid of robotIds) {
-        if (!pos[rid]) continue;
-        for (let d = 0; d < numDirs; d++) {
-          const result = slideWithBlocker(pos, rid, d, exitIds, blockedCells, board);
-          if (!result) continue;
-          const key = stateKey(result.newPositions, exitOrder, helperOrder);
-          if (dist.has(key)) continue;
-          dist.set(key, depth + 1);
-          if (isWon(result.newPositions, exitIds)) {
-            goalDepth = depth + 1;
+  const SENTINEL = 'S'; // last_mover_cell for start state (no previous mover)
+  const startKey = startSK + '~' + SENTINEL;
+
+  // visited: augKey → { cost, parentKey, move }
+  const visited = new Map();
+  visited.set(startKey, { cost: 0, parentKey: null, move: null, positions });
+
+  // Deque: frontStack (LIFO for cost-0 edges) + backQueue (FIFO for cost-1 edges)
+  const frontStack = [startKey];
+  const backQueue = [];
+  let backHead = 0;
+
+  let bestGoalKey = null;
+  let bestGoalCost = Infinity;
+
+  while (frontStack.length > 0 || backHead < backQueue.length) {
+    const key = frontStack.length > 0
+      ? frontStack.pop()
+      : backQueue[backHead++];
+
+    const node = visited.get(key);
+    if (!node || node.cost >= bestGoalCost) continue;
+
+    const { positions: pos, cost } = node;
+    const lastCell = key.slice(key.lastIndexOf('~') + 1);
+
+    for (const rid of robotIds) {
+      if (!pos[rid]) continue;
+      const moverCell = `${pos[rid].row},${pos[rid].col}`;
+
+      for (let d = 0; d < numDirs; d++) {
+        const result = slideWithBlocker(pos, rid, d, exitIds, blockedCells, board);
+        if (!result) continue;
+
+        const edgeCost = (moverCell === lastCell) ? 0 : 1;
+        const newCost = cost + edgeCost;
+        if (newCost >= bestGoalCost) continue;
+
+        // Determine landing cell for augmented key
+        const landingCell = pos[rid] && exitIds.has(rid)
+          && !result.newPositions[rid]
+          ? 'X'  // robot exited
+          : `${result.newPositions[rid].row},${result.newPositions[rid].col}`;
+
+        const nsk = stateKey(result.newPositions, exitOrder, helperOrder);
+        const nk = nsk + '~' + landingCell;
+
+        const existing = visited.get(nk);
+        if (existing && existing.cost <= newCost) continue;
+
+        const move = { mover: rid, dir: result.dirName, blocker: result.blockerId };
+        visited.set(nk, { cost: newCost, parentKey: key, move, positions: result.newPositions });
+
+        // Check if goal
+        if (isWon(result.newPositions, exitIds)) {
+          if (newCost < bestGoalCost) {
+            bestGoalCost = newCost;
+            bestGoalKey = nk;
           }
-          next.push({ positions: result.newPositions, key });
+          continue; // don't expand goal states
         }
-      }
-    }
-    frontier = next;
-  }
 
-  if (goalDepth < 0) return [];
-
-  // ── Phase 2: Layer-by-layer DP to minimize grouped moves ──
-  const layers = Array.from({ length: goalDepth + 1 }, () => []);
-  layers[0].push({
-    positions,
-    lastMover: null,
-    groupedCost: 0,
-    prevIdx: -1,
-    move: null,
-  });
-
-  for (let step = 0; step < goalDepth; step++) {
-    const nextMap = new Map();
-    const targetDist = step + 1;
-
-    for (let i = 0; i < layers[step].length; i++) {
-      const node = layers[step][i];
-
-      for (const rid of robotIds) {
-        if (!node.positions[rid]) continue;
-        for (let d = 0; d < numDirs; d++) {
-          const result = slideWithBlocker(node.positions, rid, d, exitIds, blockedCells, board);
-          if (!result) continue;
-
-          const key = stateKey(result.newPositions, exitOrder, helperOrder);
-          const nodeDist = dist.get(key);
-          if (nodeDist !== targetDist) continue;
-
-          const cost = node.groupedCost + (rid === node.lastMover ? 0 : 1);
-          const move = { mover: rid, dir: result.dirName, blocker: result.blockerId };
-          const augKey = key + '~' + rid;
-
-          const existing = nextMap.get(augKey);
-          if (existing === undefined) {
-            nextMap.set(augKey, layers[step + 1].length);
-            layers[step + 1].push({
-              positions: result.newPositions,
-              lastMover: rid,
-              groupedCost: cost,
-              prevIdx: i,
-              move,
-            });
-          } else if (cost < layers[step + 1][existing].groupedCost) {
-            layers[step + 1][existing] = {
-              positions: result.newPositions,
-              lastMover: rid,
-              groupedCost: cost,
-              prevIdx: i,
-              move,
-            };
-          }
+        if (edgeCost === 0) {
+          frontStack.push(nk);
+        } else {
+          backQueue.push(nk);
         }
       }
     }
   }
 
-  let bestIdx = -1, bestCost = Infinity;
-  for (let i = 0; i < layers[goalDepth].length; i++) {
-    const node = layers[goalDepth][i];
-    if (isWon(node.positions, exitIds) && node.groupedCost < bestCost) {
-      bestCost = node.groupedCost;
-      bestIdx = i;
-    }
-  }
+  if (bestGoalKey === null) return [];
 
-  if (bestIdx < 0) return [];
-
+  // Backtrack to reconstruct solution
   const solution = [];
-  let idx = bestIdx;
-  for (let step = goalDepth; step > 0; step--) {
-    solution.push(layers[step][idx].move);
-    idx = layers[step][idx].prevIdx;
+  let cur = bestGoalKey;
+  while (cur !== startKey) {
+    const node = visited.get(cur);
+    solution.push(node.move);
+    cur = node.parentKey;
   }
   solution.reverse();
-
   return solution;
 }
