@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import { usePuzzleLibrary, decodeStableId } from './hooks/usePuzzleLibrary';
+import { usePuzzleLibrary, decodeStableId, computeStableId } from './hooks/usePuzzleLibrary';
 import { useGameState } from './hooks/useGameState';
 import { usePermalink } from './hooks/usePermalink';
 import Board from './components/Board';
@@ -192,16 +192,26 @@ export default function App() {
     return { availableHelpers: helpers, availableExits: exits, movesRange: { min, max } };
   }, [allPuzzles]);
 
+  // Compute stableId from build pieces so the URL reflects the board during editing
+  const buildStableId = useMemo(() => {
+    if (mode !== 'build' || buildState.pieces.length < 2) return null;
+    const exits = buildState.pieces.filter(p => p.isExit);
+    if (exits.length === 0) return null;
+    const posStr = buildState.pieces.map(p => `${p.row},${p.col}`).join(' ');
+    return computeStableId(exits.length, posStr, board.N);
+  }, [mode, buildState.pieces, board.N]);
+
   // Update URL hash when state changes
   useEffect(() => {
     if (!filterDefaults) return;
+    const stableId = currentPuzzle?.stableId || buildStableId || null;
     updateHash({
       variant,
-      stableId: currentPuzzle?.stableId || null,
+      stableId,
       filters: filterState || {},
       defaults: filterDefaults,
     });
-  }, [variant, currentPuzzle?.stableId, filterState, filterDefaults, updateHash]);
+  }, [variant, currentPuzzle?.stableId, buildStableId, filterState, filterDefaults, updateHash]);
 
   // Called by PuzzleNav whenever the filtered list changes.
   const handleFilteredChange = useCallback(list => {
