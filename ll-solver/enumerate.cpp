@@ -106,7 +106,7 @@ static BoardType BOARD_TYPE = BOARD_SQUARE;
 
 // ── Board constants (set once in main() before any BFS runs) ─────────────────
 // Square boards: N=7, 4 directions (up/down/left/right), D4 symmetry (8).
-// Hex boards:    N=5 or 7, 6 directions (+2 diagonals), Klein symmetry (4).
+// Hex boards:    N=7, 6 directions (+2 diagonals); "hex" variant blocks border ring.
 static int N      = 7;
 static int NC     = 49;    // N * N
 static int CTR    = 24;    // center cell = (N/2)*N + N/2
@@ -1499,6 +1499,15 @@ static void emit(const FlatMap& dist, int n, int num_exits,
         int raw_slides = (int)pruned.size();
         int min_raw_slides = (int)recs[i].d;  // BFS depth (unpruned)
 
+        // Skip hex puzzles whose solution uses only cardinal directions —
+        // these are playable on a square board and belong in square variants.
+        if (BOARD_TYPE == BOARD_HEX) {
+            bool uses_diagonal = false;
+            for (const auto& m : pruned)
+                if (m.dir >= 4) { uses_diagonal = true; break; }
+            if (!uses_diagonal) continue;
+        }
+
         // Compute forward reachable states from pruned starting position.
         int pruned_pos[10];
         int ci = 0;
@@ -1718,9 +1727,10 @@ int main(int argc, char* argv[]) {
     else if (variant == "french")   BLOCKED = make_blocked_french();
     else if (variant == "hex") {
         BOARD_TYPE = BOARD_HEX;
-        N = 5; NC = 25; CTR = 12; NUM_DIRS = 6; NUM_SYMS = 6;
+        N = 7; NC = 49; CTR = 24; NUM_DIRS = 6; NUM_SYMS = 6;
         SYM_INDICES[0] = 0; SYM_INDICES[1] = 2; SYM_INDICES[2] = 4;
         SYM_INDICES[3] = 5; SYM_INDICES[4] = 6; SYM_INDICES[5] = 7;
+        BLOCKED = make_blocked_ufo(); // border ring blocked → 5x5 inner diamond
     }
     else if (variant == "beehive") {
         BOARD_TYPE = BOARD_HEX;
