@@ -344,19 +344,19 @@ export function usePuzzleLibrary(initialVariant = 'standard') {
 
   // Find a puzzle by decoded positions (forward-compatibility fallback).
   // Searches for a puzzle with the same set of robot positions and exit count.
-  const findByPositions = useCallback((numExits, positions) => {
+  const findByPositions = useCallback((numExits, positions, boardN = 7) => {
     if (!positions || positions.length === 0) return null;
     const posKey = positions.map(([r, c]) => `${r},${c}`).join(' ');
     // Recompute what the stableId would be for these positions
-    const newStableId = computeStableId(numExits, posKey);
+    const newStableId = computeStableId(numExits, posKey, boardN);
     const exact = stableIdMap.get(newStableId);
     if (exact) return exact;
     // Fallback: linear search by matching position sets
-    const posSet = new Set(positions.map(([r, c]) => r * 7 + c));
+    const posSet = new Set(positions.map(([r, c]) => r * boardN + c));
     return allPuzzles.find(p =>
       p.exits === numExits &&
       p.robots.length === positions.length &&
-      p.robots.every(r => posSet.has(r.row * 7 + r.col))
+      p.robots.every(r => posSet.has(r.row * boardN + r.col))
     ) || null;
   }, [allPuzzles, stableIdMap]);
 

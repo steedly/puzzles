@@ -86,7 +86,7 @@ export default function App() {
     if (exact) return exact;
     // Decode positions and search
     const decoded = decodeStableId(stableId);
-    if (decoded) return findByPositions(decoded.numExits, decoded.positions);
+    if (decoded) return findByPositions(decoded.numExits, decoded.positions, decoded.boardN);
     return null;
   }, [stableIdMap, findByPositions]);
 
@@ -243,7 +243,7 @@ export default function App() {
   useEffect(() => {
     if (pendingBuildSolveRef.current && mode === 'build' && buildState.pieces.length >= 2 && buildState.phase === 'placing') {
       pendingBuildSolveRef.current = false;
-      buildSolve(variantBlocks);
+      buildSolve(variantBlocks, board);
     }
   }, [mode, buildState.pieces, buildState.phase, buildSolve, variantBlocks]);
 
@@ -410,7 +410,7 @@ export default function App() {
               onVariantChange={handleBuildVariantChange}
               buildState={buildState}
               buildDispatch={buildDispatch}
-              onSolve={() => buildSolve(variantBlocks)}
+              onSolve={() => buildSolve(variantBlocks, board)}
               onBackToLibrary={() => { setMode('library'); setBuildPreview(null); }}
               allPuzzles={allPuzzles}
               buildPreview={buildPreview}

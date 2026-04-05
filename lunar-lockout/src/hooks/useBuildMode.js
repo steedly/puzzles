@@ -121,7 +121,7 @@ function reducer(state, action) {
 export function useBuildMode() {
   const [buildState, buildDispatch] = useReducer(reducer, INITIAL_STATE);
 
-  const solve = useCallback((blockedCells) => {
+  const solve = useCallback((blockedCells, board) => {
     const { pieces } = buildState;
     const exits = pieces.filter(p => p.isExit);
     const helpers = pieces.filter(p => !p.isExit);
@@ -155,7 +155,7 @@ export function useBuildMode() {
 
     const grouped = countGroupedMoves(solution);
     const posStr = robots.map(r => `${r.row},${r.col}`).join(' ');
-    const stableId = computeStableId(exits.length, posStr);
+    const stableId = computeStableId(exits.length, posStr, board?.N ?? 7);
     const solvedPuzzle = {
       ...syntheticPuzzle,
       stableId,
