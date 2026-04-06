@@ -39,7 +39,7 @@ Even after removing rotations and reflections, many remaining positions are **st
 
 The solver detects this by computing a **collision signature** for each puzzle:
 
-1. **Trace the solution.** Replay each move, recording which robot moved, which direction, and which robot stopped it.
+1. **Trace the solution.** Starting from the puzzle's initial position, replay each slide forward. For each slide, record three things: *who moved*, *which direction*, and *who stopped them*. For example, "the exit robot slid up and was stopped by helper 3" becomes the triple (exit, up, helper-3). The sequence of these triples — ignoring the specific cells and distances — captures the *strategic structure* of the solution: which robots interact, in what order, and from which directions. Two puzzles where the robots are in completely different places can produce the exact same sequence of triples, meaning a player would experience them as the same puzzle.
 
 2. **Normalize the robot names.** Instead of using the actual robot labels (which depend on position), rename them by order of first appearance. The first robot to act becomes "A", the first helper involved becomes "1", and so on. This way, two puzzles with the same strategic pattern get the same signature regardless of which specific robots are involved.
 
