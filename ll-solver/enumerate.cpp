@@ -1401,7 +1401,6 @@ static void emit(const FlatMap& dist, int n, int num_exits,
     // ── Pass 2: greedy trace → collision sig hash → dedup ──
     std::vector<uint64_t> sig_hashes(recs.size(), 0);
     std::vector<int8_t>  board_sizes(recs.size(), 7);
-    std::vector<bool> trace_ok(recs.size(), false);
 
     {
     std::atomic<int> p2_done{0};
@@ -1413,7 +1412,23 @@ static void emit(const FlatMap& dist, int n, int num_exits,
 #endif
     for (int i = 0; i < p2_total; i++) {
         auto sol = trace_solution_greedy(recs[i].s, n, num_exits, dist);
-        if (sol.size() != (size_t)recs[i].d) { p2_done.fetch_add(1, std::memory_order_relaxed); continue; }
+        if (sol.size() != (size_t)recs[i].d) {
+            // Greedy trace failure — this indicates a bug (likely in the
+            // symmetry group or canonicalization).  Dump debug info and abort.
+            int pos[10]; decode(recs[i].s, n, pos);
+            #pragma omp critical
+            {
+                std::cerr << "\nFATAL: greedy trace failed for state " << recs[i].s
+                          << " (expected " << (int)recs[i].d << " slides, got "
+                          << sol.size() << ")\n  positions:";
+                for (int j = 0; j < n; j++)
+                    std::cerr << " " << pos[j] << "(" << pos[j]/N << "," << pos[j]%N << ")";
+                std::cerr << "\n  canonical: " << canonical(recs[i].s, n, num_exits)
+                          << " (self=" << (recs[i].s == canonical(recs[i].s, n, num_exits))
+                          << ")\n";
+            }
+            std::exit(1);
+        }
         stabilise_indices(sol, recs[i].s, n, num_exits);
 
         int init_pos[10];
@@ -1429,7 +1444,6 @@ static void emit(const FlatMap& dist, int n, int num_exits,
                         + "h" + std::to_string(new_h) + "|" + sig;
         sig_hashes[i] = hash_dedup_key(key);
         board_sizes[i] = (int8_t)compute_board_size(init_pos, used, n);
-        trace_ok[i] = true;
         int done = p2_done.fetch_add(1, std::memory_order_relaxed) + 1;
         if (done % 1000 == 0) {
             auto now = Clock::now();
@@ -1453,29 +1467,19 @@ static void emit(const FlatMap& dist, int n, int num_exits,
     // Sequential dedup — prefer the most compact representative
     // (smallest board_size) among states sharing the same collision signature.
     std::unordered_map<uint64_t, int> local_best; // sig_hash → best recs index
-    int total_valid = 0;
-    int greedy_failures = 0;
     for (int i = 0; i < (int)recs.size(); i++) {
-        if (!trace_ok[i]) { greedy_failures++; continue; }
-        total_valid++;
         if (seen_sigs.count(sig_hashes[i])) continue; // globally already emitted
         auto [it, inserted] = local_best.emplace(sig_hashes[i], i);
         if (!inserted && board_sizes[i] < board_sizes[it->second])
             it->second = i; // found more compact representative
     }
     std::vector<int> survivors;
-    survivors.reserve(local_best.size() + greedy_failures);
+    survivors.reserve(local_best.size());
     for (auto& [hash, idx] : local_best) {
         seen_sigs.insert(hash);
         survivors.push_back(idx);
     }
-    // States where the greedy trace failed are forwarded to Pass 3 where
-    // the full 0-1 BFS will solve them.  Without this, solvable states
-    // are silently dropped from the pipeline.
-    for (int i = 0; i < (int)recs.size(); i++) {
-        if (!trace_ok[i]) survivors.push_back(i);
-    }
-    int dup_count = total_valid - (int)local_best.size();
+    int dup_count = (int)recs.size() - (int)local_best.size();
     sig_hashes.clear();
     sig_hashes.shrink_to_fit();
     board_sizes.clear();
@@ -1484,7 +1488,6 @@ static void emit(const FlatMap& dist, int n, int num_exits,
     auto t2 = Clock::now();
     std::cerr << "  pass 2 (greedy dedup): " << local_best.size() << " unique, "
               << dup_count << " deduped, "
-              << greedy_failures << " greedy failures forwarded, "
               << std::chrono::duration<double>(t2 - t1).count() << "s\n";
 
     // ── Pass 3: DP trace for survivors → dedup → output ──
