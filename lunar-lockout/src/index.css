@@ -135,6 +135,7 @@ button { cursor: pointer; font-family: inherit; }
 .board-container {
   position: relative;
   flex-shrink: 0;
+  max-width: 100%;
 }
 
 .solution-overlay {
@@ -1132,6 +1133,7 @@ button { cursor: pointer; font-family: inherit; }
 /* ── Responsive ────────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .game-layout { flex-direction: column; }
+  .game-column { width: 100%; }
   .pnav { width: 100%; max-width: 100%; }
   .pnav__list { max-height: 200px; }
 }
