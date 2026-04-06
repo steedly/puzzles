@@ -304,12 +304,11 @@ def collision_signature(p):
 
     # Direction transforms for collision signature normalization.
     if IS_HEX:
-        # 6-element symmetry group permuting 6 hex directions.
+        # Klein four-group: 4 direction-preserving transforms permuting 6 hex dirs.
+        # Only {identity, 180°, diag, anti-diag} preserve all 6 hex directions.
         DIR_TRANSFORMS = [
             [0, 1, 2, 3, 4, 5],  # identity
             [1, 0, 3, 2, 5, 4],  # 180°
-            [0, 1, 3, 2, 5, 4],  # H-flip
-            [1, 0, 2, 3, 5, 4],  # V-flip
             [2, 3, 0, 1, 5, 4],  # diag-reflect
             [3, 2, 1, 0, 4, 5],  # anti-diag
         ]
@@ -385,7 +384,7 @@ def d4_canonical(positions, num_exits):
         lambda r, c: (m - c, m - r),   # 7: anti-diag reflect
     ]
     if IS_HEX:
-        transforms = [all_transforms[i] for i in [0, 2, 4, 5, 6, 7]]
+        transforms = [all_transforms[i] for i in [0, 2, 6, 7]]
     else:
         transforms = all_transforms
 
@@ -423,11 +422,11 @@ def main():
                 BLOCKED = make_blocked_french()
             elif variant == 'hex':
                 IS_HEX = True
-                N = 7; CTR = 24; NUM_DIRS = 6; NUM_SYMS = 6
+                N = 7; CTR = 24; NUM_DIRS = 6; NUM_SYMS = 4
                 BLOCKED = make_blocked_ufo()
             elif variant == 'beehive':
                 IS_HEX = True
-                N = 7; CTR = 24; NUM_DIRS = 6; NUM_SYMS = 6
+                N = 7; CTR = 24; NUM_DIRS = 6; NUM_SYMS = 4
         p = parse_puzzle(line)
         if p is not None:
             puzzles.append(p)

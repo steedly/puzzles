@@ -106,7 +106,7 @@ static BoardType BOARD_TYPE = BOARD_SQUARE;
 
 // ── Board constants (set once in main() before any BFS runs) ─────────────────
 // Square boards: N=7, 4 directions (up/down/left/right), D4 symmetry (8).
-// Hex boards:    N=7, 6 directions (+2 diagonals); "hex" variant blocks border ring.
+// Hex boards:    N=7, 6 directions (+2 diagonals), 4 symmetries {id, 180°, diag, anti-diag}.
 static int N      = 7;
 static int NC     = 49;    // N * N
 static int CTR    = 24;    // center cell = (N/2)*N + N/2
@@ -122,7 +122,7 @@ static int DC[6] = { 0, 0,-1, 1,  1, -1};
 
 // Symmetry transform indices (into the D4 sym() function).
 // Square: all 8 D4 transforms.
-// Hex: Klein four-group = {identity(0), 180°(2), H-flip(4), V-flip(5)}.
+// Hex: Klein four-group = {identity(0), 180°(2), diag(6), anti-diag(7)}.
 static int SYM_INDICES[8] = {0,1,2,3,4,5,6,7};
 
 // Direction permutation tables under symmetry transforms.
@@ -169,7 +169,7 @@ static uint64_t make_blocked_french() {
 // ── Symmetry group ───────────────────────────────────────────────────────────
 // The dihedral group D4 has 8 elements: 4 rotations × {identity, reflection}.
 // sym(cell, transform) returns the cell after applying one transform.
-// For hex boards, only transforms {0,2,4,5} are valid (Klein four-group).
+// For hex boards, only transforms {0,2,6,7} are valid (Klein four-group).
 static inline int sym(int p, int t) {
     const int r = p/N, c = p%N, m = N-1;
     switch (t) {
@@ -1116,19 +1116,17 @@ static const int DIR_TRANSFORM[8][4] = {
     {3, 2, 1, 0},  // reflect anti-diag: U->R, D->L, L->D, R->U
 };
 
-// Hex (Klein four-group): 4 transforms permuting 6 dirs.
+// Hex (Klein four-group): 4 direction-preserving transforms permuting 6 dirs.
+// Only {identity, 180°, diag, anti-diag} preserve all 6 hex directions.
+// H-flip and V-flip map (-1,+1) to (-1,-1) or (+1,+1), which aren't valid hex dirs.
 // Dirs: 0=NW(-1,0) 1=SE(+1,0) 2=SW(0,-1) 3=NE(0,+1) 4=N-diag(-1,+1) 5=S-diag(+1,-1)
 // Identity:     NW SE SW NE N  S   → same
 // 180°:         NW SE SW NE N  S   → SE NW NE SW S  N  (swap all opposite pairs)
-// H-flip:       NW SE SW NE N  S   → NW SE NE SW S  N  (swap left↔right: SW↔NE, N↔S)
-// V-flip:       NW SE SW NE N  S   → SE NW SW NE S  N  (swap up↔down: NW↔SE, N↔S)
 // Diag-reflect: NW SE SW NE N  S   → SW NE NW SE S  N  (swap r↔c: NW↔SW, SE↔NE, N↔S)
 // Anti-diag:    NW SE SW NE N  S   → NE SW SE NW N  S  (negate+swap: NW↔NE, SE↔SW, N=N, S=S)
-static const int HEX_DIR_TRANSFORM[6][6] = {
+static const int HEX_DIR_TRANSFORM[4][6] = {
     {0, 1, 2, 3, 4, 5},  // identity       (t0)
     {1, 0, 3, 2, 5, 4},  // 180°           (t2)
-    {0, 1, 3, 2, 5, 4},  // H-flip         (t4)
-    {1, 0, 2, 3, 5, 4},  // V-flip         (t5)
     {2, 3, 0, 1, 5, 4},  // diag-reflect   (t6)
     {3, 2, 1, 0, 4, 5},  // anti-diag      (t7)
 };
@@ -1727,16 +1725,14 @@ int main(int argc, char* argv[]) {
     else if (variant == "french")   BLOCKED = make_blocked_french();
     else if (variant == "hex") {
         BOARD_TYPE = BOARD_HEX;
-        N = 7; NC = 49; CTR = 24; NUM_DIRS = 6; NUM_SYMS = 6;
-        SYM_INDICES[0] = 0; SYM_INDICES[1] = 2; SYM_INDICES[2] = 4;
-        SYM_INDICES[3] = 5; SYM_INDICES[4] = 6; SYM_INDICES[5] = 7;
+        N = 7; NC = 49; CTR = 24; NUM_DIRS = 6; NUM_SYMS = 4;
+        SYM_INDICES[0] = 0; SYM_INDICES[1] = 2; SYM_INDICES[2] = 6; SYM_INDICES[3] = 7;
         BLOCKED = make_blocked_ufo(); // border ring blocked → 5x5 inner diamond
     }
     else if (variant == "beehive") {
         BOARD_TYPE = BOARD_HEX;
-        N = 7; NC = 49; CTR = 24; NUM_DIRS = 6; NUM_SYMS = 6;
-        SYM_INDICES[0] = 0; SYM_INDICES[1] = 2; SYM_INDICES[2] = 4;
-        SYM_INDICES[3] = 5; SYM_INDICES[4] = 6; SYM_INDICES[5] = 7;
+        N = 7; NC = 49; CTR = 24; NUM_DIRS = 6; NUM_SYMS = 4;
+        SYM_INDICES[0] = 0; SYM_INDICES[1] = 2; SYM_INDICES[2] = 6; SYM_INDICES[3] = 7;
     }
     else if (variant != "standard") {
         std::cerr << "Unknown variant: " << variant

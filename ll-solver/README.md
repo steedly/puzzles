@@ -210,7 +210,7 @@ The enumerator supports six board variants:
 | `solitaire` | 33 | 16 | 7×7 with four 2×2 corners blocked |
 | `ufo` | 25 | 24 | Center 5×5 only (border cells blocked) |
 
-**Hex diamond variants** (7×7 grid rotated 45°, 6 directions):
+**Hex diamond variants** (7×7 grid rotated 45°, 6 directions, 4 symmetries):
 
 | Variant | Usable cells | Blocked cells | Description |
 |---------|-------------|---------------|-------------|
@@ -218,6 +218,8 @@ The enumerator supports six board variants:
 | `beehive` | 49 | 0 | Full 7×7 hex diamond — same cell count as standard but 6 directions |
 
 Hex directions are the 4 cardinal directions plus 2 diagonals: NW(-1,0), SE(+1,0), SW(0,-1), NE(0,+1), N-diag(-1,+1), S-diag(+1,-1). The hex diamond is visually displayed as a rotated square grid with hexagonal cells.
+
+**Why hex has only 4 symmetries, not 8.** On a square board, all 8 D4 transforms (4 rotations + 4 reflections) preserve the 4 cardinal directions — flipping left and right just swaps "left" and "right", which are still valid moves. But on a hex board, two of the 6 directions are *diagonals* (NE-SW axis). A horizontal or vertical flip maps these diagonals to directions that don't exist on the hex grid — like trying to move a chess bishop diagonally on a board that only has horizontal and vertical lines. So those flips don't preserve gameplay: the same arrangement of pieces would have different legal moves after flipping. Only 4 transforms keep all 6 hex directions valid: identity, 180° rotation, and the two diagonal reflections (swapping rows with columns). These form a [Klein four-group](https://en.wikipedia.org/wiki/Klein_four-group).
 
 Blocked cells (square variants only) act as walls — robots cannot occupy or slide through them, and stopping against one is a wall-stop (illegal). All blocked patterns are D4-symmetric, so canonicalization works unchanged.
 

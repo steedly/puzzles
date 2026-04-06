@@ -1558,7 +1558,7 @@ struct HexScope {
         BOARD_TYPE = BOARD_HEX;
         N = side; NC = side * side; CTR = (side/2) * side + side/2;
         NUM_DIRS = 6; NUM_SYMS = 4;
-        SYM_INDICES[0] = 0; SYM_INDICES[1] = 2; SYM_INDICES[2] = 4; SYM_INDICES[3] = 5;
+        SYM_INDICES[0] = 0; SYM_INDICES[1] = 2; SYM_INDICES[2] = 6; SYM_INDICES[3] = 7;
     }
     ~HexScope() {
         N = saved_N; NC = saved_NC; CTR = saved_CTR;
@@ -1658,16 +1658,15 @@ TEST(hex_symmetry_lr_flip) {
 }
 
 TEST(hex_canonical_klein_equivalents) {
-    // Two positions related by Klein symmetry should have the same canonical form.
+    // Two positions related by valid hex symmetry (diag reflect, t=6)
+    // should have the same canonical form.
     HexScope h(5);
-    int pos1[2] = {0, 12};  // exit at (0,0), helper at center (2,2) — but helper can't be at center
-    // Use: exit at (0,0)=0, helper at (1,1)=6
-    pos1[0] = 0; pos1[1] = 6;
-    std::sort(pos1 + 1, pos1 + 2);
+    // exit at (0,1)=1, helper at (2,0)=10
+    int pos1[2] = {1, 10};
     State s1 = encode(pos1, 2);
 
-    // H-flip: (0,0)->(0,4)=4, (1,1)->(1,3)=8
-    int pos2[2] = {4, 8};
+    // diag reflect (swap r↔c): (0,1)->(1,0)=5, (2,0)->(0,2)=2
+    int pos2[2] = {5, 2};
     std::sort(pos2 + 1, pos2 + 2);
     State s2 = encode(pos2, 2);
 
@@ -1783,6 +1782,87 @@ TEST(pruned_puzzle_resolves_optimally) {
     // But solve on the pruned 4-robot set must give 2 grouped moves.
     // (This is what the pipeline fix ensures.)
     ASSERT(r5.grouped_moves >= 2); // sanity — at least as hard with more robots
+}
+
+// ── Hex symmetry group correctness ───────────────────────────────────────────
+
+TEST(hex_sym_indices_are_direction_preserving) {
+    // The 4 hex symmetry transforms {0,2,6,7} must map every valid hex
+    // direction to another valid hex direction.  H-flip(4) and V-flip(5)
+    // fail this: they map diagonal (-1,+1) to (-1,-1) or (+1,+1).
+    HexScope h(7);
+    const int valid_syms[] = {0, 2, 6, 7};
+    const int invalid_syms[] = {4, 5};
+
+    // Valid: each transform maps all 6 direction vectors to other valid ones.
+    for (int t : valid_syms) {
+        for (int d = 0; d < 6; d++) {
+            int fr = 3, fc = 3; // center
+            int tr = fr + DR[d], tc = fc + DC[d];
+            int mapped_from = sym(fr*N+fc, t);
+            int mapped_to   = sym(tr*N+tc, t);
+            int mr = mapped_from/N, mc = mapped_from%N;
+            int nr = mapped_to/N,   nc = mapped_to%N;
+            int ddr = nr - mr, ddc = nc - mc;
+            // Check this (ddr,ddc) is a valid hex direction
+            bool found = false;
+            for (int d2 = 0; d2 < 6; d2++)
+                if (DR[d2] == ddr && DC[d2] == ddc) { found = true; break; }
+            ASSERT(found);
+        }
+    }
+
+    // Invalid: H-flip and V-flip break at least one diagonal direction.
+    for (int t : invalid_syms) {
+        bool breaks = false;
+        for (int d = 0; d < 6; d++) {
+            int fr = 3, fc = 3;
+            int tr = fr + DR[d], tc = fc + DC[d];
+            int mapped_from = sym(fr*N+fc, t);
+            int mapped_to   = sym(tr*N+tc, t);
+            int mr = mapped_from/N, mc = mapped_from%N;
+            int nr = mapped_to/N,   nc = mapped_to%N;
+            int ddr = nr - mr, ddc = nc - mc;
+            bool found = false;
+            for (int d2 = 0; d2 < 6; d2++)
+                if (DR[d2] == ddr && DC[d2] == ddc) { found = true; break; }
+            if (!found) { breaks = true; break; }
+        }
+        ASSERT(breaks);
+    }
+}
+
+TEST(hex_diag_equivalent_positions_share_canonical) {
+    // Regression: two positions related by diagonal reflection (t=6, swap r↔c)
+    // must have the same canonical form.
+    // Beehive example: exit(4,3)+helper(2,3) ↔ exit(3,4)+helper(3,2)
+    HexScope h(7);
+    int pos_a[2] = {4*7+3, 2*7+3};  // (4,3), (2,3)
+    int pos_b[2] = {3*7+4, 3*7+2};  // (3,4), (3,2)
+    auto ca = canonical(encode(pos_a, 2), 2, 1);
+    auto cb = canonical(encode(pos_b, 2), 2, 1);
+    ASSERT_EQ(ca, cb);
+}
+
+TEST(hex_hflip_equivalent_positions_differ_in_canonical) {
+    // Regression: two positions related by H-flip (t=4) should NOT share
+    // canonical form, because H-flip doesn't preserve hex directions —
+    // the puzzles play differently.
+    // Example: exit(5,3) helpers(1,3)(3,1)(4,5)(5,1)
+    //    H-flip: exit(5,3) helpers(1,3)(3,5)(4,1)(5,5) — different gameplay
+    HexScope h(7);
+    int pos_a[5] = {5*7+3, 1*7+3, 3*7+1, 4*7+5, 5*7+1};
+    std::sort(pos_a+1, pos_a+5);
+    int pos_b[5];
+    // Apply H-flip: (r,c) -> (r, 6-c)
+    for (int i = 0; i < 5; i++) {
+        int r = pos_a[i]/7, c = pos_a[i]%7;
+        pos_b[i] = r*7 + (6-c);
+    }
+    std::sort(pos_b+1, pos_b+5);
+    auto ca = canonical(encode(pos_a, 5), 5, 1);
+    auto cb = canonical(encode(pos_b, 5), 5, 1);
+    ASSERT(ca != cb);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
