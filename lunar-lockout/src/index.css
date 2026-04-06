@@ -256,14 +256,10 @@ button { cursor: pointer; font-family: inherit; }
 }
 
 .cell--unreachable {
-  background: var(--bg) !important;
-  border-color: var(--bg) !important;
+  opacity: 0.25;
 }
 .cell--hex.cell--unreachable {
-  background: var(--bg) !important;
-}
-.cell--hex.cell--unreachable::before {
-  background: var(--bg) !important;
+  opacity: 0.25;
 }
 
 .cell--placeable:hover {
