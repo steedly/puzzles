@@ -11,7 +11,7 @@ import Robot from './Robot';
  */
 export default function Cell({
   row, col, isCenter, robotId, robotMeta, selectedRobotId,
-  isLandingCell, isVariantBlocked, isBuildMode, onClick,
+  isLandingCell, isVariantBlocked, isUnreachable, isBuildMode, onClick,
   hex, style,
 }) {
   const prefix = hex ? 'cell cell--hex' : 'cell';
@@ -21,6 +21,7 @@ export default function Cell({
     isCenter         ? 'cell--center'    : '',
     isLandingCell    ? 'cell--landing'    : '',
     isVariantBlocked ? 'cell--blocked'    : '',
+    isUnreachable && !isVariantBlocked ? 'cell--unreachable' : '',
     isBuildMode && !robotId && !isVariantBlocked && !isCenter ? 'cell--placeable' : '',
   ].filter(Boolean).join(' ');
 

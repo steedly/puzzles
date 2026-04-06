@@ -37,7 +37,7 @@ python3 validate_solutions.py puzzles.llp      # Validate solutions
 - Uses D4 symmetry group canonicalization to eliminate redundant board states
 - Makefile auto-detects OpenMP on macOS via `brew --prefix libomp`
 - Generate full puzzle set: `./enumerate 4 6 1 99 [standard|solitaire|ufo|french|hex|beehive]`
-- Hex variants: 5x5 ("hex") and 7x7 ("beehive") — same square grid with 2 extra diagonal directions. 6-element symmetry group: the 4 square symmetries that don't use 90° rotation (identity, 180°, H-flip, V-flip) plus 2 diagonal reflections (swap r↔c, and anti-diagonal). 90°/270° rotations are invalid because they map the diagonal direction (-1,+1) to (1,1), which is not a valid hex direction.
+- Hex variants: both use a 7x7 grid with 6 directions (4 cardinal + 2 diagonals). "hex" blocks the border ring (same as UFO) for a 5x5 inner playable area; "beehive" uses the full 7x7. 6-element symmetry group: the 4 square symmetries that don't use 90° rotation (identity, 180°, H-flip, V-flip) plus 2 diagonal reflections (swap r↔c, and anti-diagonal). 90°/270° rotations are invalid because they map the diagonal direction (-1,+1) to (1,1), which is not a valid hex direction.
 - Makefile `test` target uses max_exits=1 max_moves=20 for speed; production uses max_exits=4 max_moves=99
 
 ## Critical Design Decisions (ll-solver)

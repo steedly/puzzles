@@ -126,6 +126,17 @@ export default function Board({ state, dispatch, puzzle, showPaths, variantBlock
     }
   }
 
+  // ── Shared: bounding box of current positions (cells outside are unreachable) ──
+  let minR = N, maxR = -1, minC = N, maxC = -1;
+  if (!buildMode && state.positions) {
+    for (const pos of Object.values(state.positions)) {
+      if (pos.row < minR) minR = pos.row;
+      if (pos.row > maxR) maxR = pos.row;
+      if (pos.col < minC) minC = pos.col;
+      if (pos.col > maxC) maxC = pos.col;
+    }
+  }
+
   // ── Shared: landing cells ──
   const landingCells = new Set();
   if (!buildMode && state.selectedRobotId && state.positions[state.selectedRobotId]) {
@@ -209,7 +220,8 @@ export default function Board({ state, dispatch, puzzle, showPaths, variantBlock
           robotMeta={robotId ? robotMeta[robotId] : null}
           selectedRobotId={buildMode ? null : state.selectedRobotId}
           isLandingCell={landingCells.has(key)}
-          isVariantBlocked={!isHex && variantBlocks && variantBlocks.has(key)}
+          isVariantBlocked={variantBlocks && variantBlocks.has(key)}
+          isUnreachable={!buildMode && maxR >= 0 && (r < minR || r > maxR || c < minC || c > maxC)}
           isBuildMode={buildMode}
           onClick={handleCellClick}
         />

@@ -5,8 +5,9 @@
  * Board geometry definitions for different variants.
  *
  * Square boards (standard, solitaire, ufo, french): 7x7 grid, 4 directions.
- * Hex boards (hex, beehive): NxN grid rotated 45° to form a diamond,
+ * Hex boards (hex, beehive): 7x7 grid rotated 45° to form a diamond,
  *   6 directions (4 cardinal + 2 diagonals).
+ *   "hex" uses blocked border cells (like UFO) for a 5x5 inner board.
  */
 
 const SQUARE_DIRS = [
@@ -33,14 +34,6 @@ export const SQUARE_7x7 = {
   dirs: SQUARE_DIRS,
 };
 
-export const HEX_5x5 = {
-  type: 'hex',
-  N: 5,
-  centerRow: 2,
-  centerCol: 2,
-  dirs: HEX_DIRS,
-};
-
 export const HEX_7x7 = {
   type: 'hex',
   N: 7,
@@ -54,7 +47,7 @@ const VARIANT_BOARDS = {
   solitaire: SQUARE_7x7,
   ufo:       SQUARE_7x7,
   french:    SQUARE_7x7,
-  hex:       HEX_5x5,
+  hex:       HEX_7x7,
   beehive:   HEX_7x7,
 };
 

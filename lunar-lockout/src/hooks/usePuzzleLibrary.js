@@ -7,45 +7,35 @@ const SQUARE_DIR_MAP = { U: 'up', D: 'down', L: 'left', R: 'right' };
 const HEX_DIR_MAP = { Nw: 'nw', Se: 'se', Sw: 'sw', Ne: 'ne', No: 'no', So: 'so' };
 
 // Compute a stable, position-based puzzle ID.
-// Encodes cell indices as digits in base-NC, then converts to base-36.
+// Encodes cell indices as digits in base-49, then converts to base-36.
 // Prefixed with exit count and a dash: e.g. "1-174o0"
-// For hex5 (N=5), uses base-25; for all others (N=7), uses base-49.
-export function computeStableId(numExits, positionsStr, boardN = 7) {
-  const nc = boardN * boardN;
+// All variants use a 7x7 grid (N=7, 49 cells).
+export function computeStableId(numExits, positionsStr) {
   const cells = positionsStr.trim().split(' ').map(p => {
     const [r, c] = p.split(',').map(Number);
-    return r * boardN + c;
+    return r * 7 + c;
   });
   let value = 0;
   for (const cell of cells) {
-    value = value * nc + cell;
+    value = value * 49 + cell;
   }
-  // Prefix with 'h' for hex5 to avoid collisions with 7x7 IDs
-  const prefix = boardN === 5 ? `h${numExits}` : `${numExits}`;
-  return `${prefix}-${value.toString(36)}`;
+  return `${numExits}-${value.toString(36)}`;
 }
 
 // Reverse of computeStableId.
 export function decodeStableId(stableId) {
-  let boardN = 7;
-  let rest = stableId;
-  if (rest.startsWith('h')) {
-    boardN = 5;
-    rest = rest.slice(1);
-  }
-  const dash = rest.indexOf('-');
+  const dash = stableId.indexOf('-');
   if (dash < 0) return null;
-  const numExits = parseInt(rest.slice(0, dash), 10);
+  const numExits = parseInt(stableId.slice(0, dash), 10);
   if (isNaN(numExits) || numExits < 1) return null;
-  let value = parseInt(rest.slice(dash + 1), 36);
+  let value = parseInt(stableId.slice(dash + 1), 36);
   if (isNaN(value) || value < 0) return null;
-  const nc = boardN * boardN;
   const cells = [];
   while (value > 0) {
-    cells.unshift(value % nc);
-    value = Math.floor(value / nc);
+    cells.unshift(value % 49);
+    value = Math.floor(value / 49);
   }
-  return { numExits, positions: cells.map(c => [Math.floor(c / boardN), c % boardN]), boardN };
+  return { numExits, positions: cells.map(c => [Math.floor(c / 7), c % 7]) };
 }
 
 // Map solution move characters to robot IDs.
@@ -68,7 +58,7 @@ function groupedMoveCount(solution) {
   return count;
 }
 
-function parseLine(line, boardN = 7) {
+function parseLine(line) {
   const parts = line.split('|');
 
   let idStr, exitsStr, helpersStr, posStr, solStr;
@@ -168,8 +158,7 @@ function parseLine(line, boardN = 7) {
     : groupedMoveCount(solution);
 
   // Precompute bounding box for blocked-cell filtering
-  const maxIdx = boardN - 1;
-  let minR = maxIdx, maxR = 0, minC = maxIdx, maxC = 0;
+  let minR = 6, maxR = 0, minC = 6, maxC = 0;
   for (const r of robots) {
     if (r.row < minR) minR = r.row;
     if (r.row > maxR) maxR = r.row;
@@ -178,7 +167,7 @@ function parseLine(line, boardN = 7) {
   }
   const bbox = { minR, maxR, minC, maxC };
 
-  const stableId = computeStableId(numExits, posStr, boardN);
+  const stableId = computeStableId(numExits, posStr);
 
   const actualRawSlides = rawSlides ?? solution.length;
 
@@ -203,17 +192,9 @@ function parseLine(line, boardN = 7) {
 }
 
 function parseText(text) {
-  const lines = text.split('\n');
-  // Detect board size from header
-  let boardN = 7;
-  for (const l of lines) {
-    if (l.startsWith('# Variant: hex')) { boardN = 5; break; }
-    if (l.startsWith('# Variant: beehive')) { boardN = 7; break; }
-    if (!l.startsWith('#')) break;
-  }
-  return lines
+  return text.split('\n')
     .filter(l => l && !l.startsWith('#'))
-    .map(l => parseLine(l, boardN))
+    .map(parseLine)
     .filter(Boolean);
 }
 
@@ -344,19 +325,18 @@ export function usePuzzleLibrary(initialVariant = 'standard') {
 
   // Find a puzzle by decoded positions (forward-compatibility fallback).
   // Searches for a puzzle with the same set of robot positions and exit count.
-  const findByPositions = useCallback((numExits, positions, boardN = 7) => {
+  const findByPositions = useCallback((numExits, positions) => {
     if (!positions || positions.length === 0) return null;
     const posKey = positions.map(([r, c]) => `${r},${c}`).join(' ');
-    // Recompute what the stableId would be for these positions
-    const newStableId = computeStableId(numExits, posKey, boardN);
+    const newStableId = computeStableId(numExits, posKey);
     const exact = stableIdMap.get(newStableId);
     if (exact) return exact;
     // Fallback: linear search by matching position sets
-    const posSet = new Set(positions.map(([r, c]) => r * boardN + c));
+    const posSet = new Set(positions.map(([r, c]) => r * 7 + c));
     return allPuzzles.find(p =>
       p.exits === numExits &&
       p.robots.length === positions.length &&
-      p.robots.every(r => posSet.has(r.row * boardN + r.col))
+      p.robots.every(r => posSet.has(r.row * 7 + r.col))
     ) || null;
   }, [allPuzzles, stableIdMap]);
 

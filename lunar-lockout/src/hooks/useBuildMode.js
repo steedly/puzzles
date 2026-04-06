@@ -155,7 +155,7 @@ export function useBuildMode() {
 
     const grouped = countGroupedMoves(solution);
     const posStr = robots.map(r => `${r.row},${r.col}`).join(' ');
-    const stableId = computeStableId(exits.length, posStr, board?.N ?? 7);
+    const stableId = computeStableId(exits.length, posStr);
     const solvedPuzzle = {
       ...syntheticPuzzle,
       stableId,

@@ -40,7 +40,12 @@ const VARIANT_BLOCKS = {
      [5,0],[6,0],[6,1],[5,6],[6,5],[6,6]]
       .map(([r, c]) => `${r},${c}`)
   ),
-  hex: new Set(),
+  hex: new Set(
+    Array.from({ length: 7 }, (_, r) =>
+      Array.from({ length: 7 }, (_, c) => ({ r, c }))
+    ).flat().filter(({ r, c }) => r === 0 || r === 6 || c === 0 || c === 6)
+     .map(({ r, c }) => `${r},${c}`)
+  ),
   beehive: new Set(),
 };
 
@@ -86,7 +91,7 @@ export default function App() {
     if (exact) return exact;
     // Decode positions and search
     const decoded = decodeStableId(stableId);
-    if (decoded) return findByPositions(decoded.numExits, decoded.positions, decoded.boardN);
+    if (decoded) return findByPositions(decoded.numExits, decoded.positions);
     return null;
   }, [stableIdMap, findByPositions]);
 

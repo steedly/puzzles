@@ -1,6 +1,6 @@
 # ll-solver — Lunar Lockout Puzzle Enumerator
 
-A C++ engine that finds **every solvable Lunar Lockout starting position** on a board, deduplicates them, and outputs a compact puzzle file (`.llp`). Supports square boards (7×7 with 4 directions) and hex diamond boards (5×5 or 7×7 with 6 directions).
+A C++ engine that finds **every solvable Lunar Lockout starting position** on a board, deduplicates them, and outputs a compact puzzle file (`.llp`). Supports square boards (7×7 with 4 directions) and hex diamond boards (7×7 with 6 directions).
 
 ## Game Rules
 
@@ -141,7 +141,7 @@ Multi-exit BFS times scale roughly with state count. The collision-sig dedup (St
 | French | 56,764 | 4.8 MB |
 | Solitaire | 23,834 | 1.9 MB |
 | UFO | 17,996 | 1.5 MB |
-| Hex (5×5) | 125,797 | 9.5 MB |
+| Hex | TBD | TBD |
 | Bee Hive (7×7) | TBD | TBD |
 
 #### Totals by variant (≤7 total robots, up to 3 exits — full enumeration)
@@ -210,12 +210,12 @@ The enumerator supports six board variants:
 | `solitaire` | 33 | 16 | 7×7 with four 2×2 corners blocked |
 | `ufo` | 25 | 24 | Center 5×5 only (border cells blocked) |
 
-**Hex diamond variants** (N×N grid rotated 45°, 6 directions, Klein four-group symmetry with 4 transforms):
+**Hex diamond variants** (7×7 grid rotated 45°, 6 directions):
 
-| Variant | Grid | Cells | Center | Description |
-|---------|------|-------|--------|-------------|
-| `hex` | 5×5 | 25 | (2,2) | 5×5 hex diamond — compact board for quick play |
-| `beehive` | 7×7 | 49 | (3,3) | 7×7 hex diamond — same cell count as standard but 6 directions |
+| Variant | Usable cells | Blocked cells | Description |
+|---------|-------------|---------------|-------------|
+| `hex` | 25 | 24 | 7×7 hex diamond with border blocked — compact 5×5 inner board |
+| `beehive` | 49 | 0 | Full 7×7 hex diamond — same cell count as standard but 6 directions |
 
 Hex directions are the 4 cardinal directions plus 2 diagonals: NW(-1,0), SE(+1,0), SW(0,-1), NE(0,+1), N-diag(-1,+1), S-diag(+1,-1). The hex diamond is visually displayed as a rotated square grid with hexagonal cells.
 
@@ -266,7 +266,7 @@ In the code, this hierarchy is visible in `reverse_moves_normal` in `enumerate.c
 # Multi-exit: up to 3 exits, 6 total robots, moves 1-20
 ./enumerate 3 6 1 20 > puzzles.llp
 
-# Hex diamond (5x5) variant
+# Hex diamond (5x5 inner) variant
 ./enumerate 4 6 1 99 hex > puzzles-hex.llp
 
 # Bee Hive (7x7 hex diamond) variant

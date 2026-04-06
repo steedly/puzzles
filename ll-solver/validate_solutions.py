@@ -423,10 +423,11 @@ def main():
                 BLOCKED = make_blocked_french()
             elif variant == 'hex':
                 IS_HEX = True
-                N = 5; CTR = 12; NUM_DIRS = 6; NUM_SYMS = 4
+                N = 7; CTR = 24; NUM_DIRS = 6; NUM_SYMS = 6
+                BLOCKED = make_blocked_ufo()
             elif variant == 'beehive':
                 IS_HEX = True
-                N = 7; CTR = 24; NUM_DIRS = 6; NUM_SYMS = 4
+                N = 7; CTR = 24; NUM_DIRS = 6; NUM_SYMS = 6
         p = parse_puzzle(line)
         if p is not None:
             puzzles.append(p)

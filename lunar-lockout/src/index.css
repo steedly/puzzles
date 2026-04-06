@@ -255,6 +255,17 @@ button { cursor: pointer; font-family: inherit; }
   cursor: default !important;
 }
 
+.cell--unreachable {
+  background: var(--bg) !important;
+  border-color: var(--bg) !important;
+}
+.cell--hex.cell--unreachable {
+  background: var(--bg) !important;
+}
+.cell--hex.cell--unreachable::before {
+  background: var(--bg) !important;
+}
+
 .cell--placeable:hover {
   background: rgba(100, 100, 255, 0.15);
   border-color: rgba(100, 100, 255, 0.35);
