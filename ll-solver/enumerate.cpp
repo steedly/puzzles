@@ -1403,12 +1403,17 @@ static void emit(const FlatMap& dist, int n, int num_exits,
     std::vector<int8_t>  board_sizes(recs.size(), 7);
     std::vector<bool> trace_ok(recs.size(), false);
 
+    {
+    std::atomic<int> p2_done{0};
+    auto p2_start = Clock::now();
+    auto p2_last_report = p2_start;
+    const int p2_total = (int)recs.size();
 #ifdef _OPENMP
     #pragma omp parallel for schedule(dynamic, 256)
 #endif
-    for (int i = 0; i < (int)recs.size(); i++) {
+    for (int i = 0; i < p2_total; i++) {
         auto sol = trace_solution_greedy(recs[i].s, n, num_exits, dist);
-        if (sol.size() != (size_t)recs[i].d) continue;
+        if (sol.size() != (size_t)recs[i].d) { p2_done.fetch_add(1, std::memory_order_relaxed); continue; }
         stabilise_indices(sol, recs[i].s, n, num_exits);
 
         int init_pos[10];
@@ -1425,6 +1430,24 @@ static void emit(const FlatMap& dist, int n, int num_exits,
         sig_hashes[i] = hash_dedup_key(key);
         board_sizes[i] = (int8_t)compute_board_size(init_pos, used, n);
         trace_ok[i] = true;
+        int done = p2_done.fetch_add(1, std::memory_order_relaxed) + 1;
+        if (done % 1000 == 0) {
+            auto now = Clock::now();
+            #ifdef _OPENMP
+            if (omp_get_thread_num() == 0)
+            #endif
+            {
+                double elapsed = std::chrono::duration<double>(now - p2_start).count();
+                double since_last = std::chrono::duration<double>(now - p2_last_report).count();
+                if (since_last >= 5.0) {
+                    std::cerr << "    pass 2 progress: " << done << "/" << p2_total
+                              << " (" << (100*done/p2_total) << "%), "
+                              << elapsed << "s elapsed\n";
+                    p2_last_report = now;
+                }
+            }
+        }
+    }
     }
 
     // Sequential dedup — prefer the most compact representative
@@ -1476,10 +1499,33 @@ static void emit(const FlatMap& dist, int n, int num_exits,
     std::vector<int> bounding_areas(survivors.size(), 99);
     std::vector<int> manhattan_sums(survivors.size(), 999);
 
+    std::atomic<int> p3_done{0};
+    auto p3_start = Clock::now();
+    auto p3_last_report = p3_start;
+    const int p3_total = (int)survivors.size();
 #ifdef _OPENMP
     #pragma omp parallel for schedule(dynamic, 64)
 #endif
-    for (int j = 0; j < (int)survivors.size(); j++) {
+    for (int j = 0; j < p3_total; j++) {
+        {
+            int done = p3_done.fetch_add(1, std::memory_order_relaxed) + 1;
+            if (done % 500 == 0) {
+                auto now = Clock::now();
+                #ifdef _OPENMP
+                if (omp_get_thread_num() == 0)
+                #endif
+                {
+                    double elapsed = std::chrono::duration<double>(now - p3_start).count();
+                    double since_last = std::chrono::duration<double>(now - p3_last_report).count();
+                    if (since_last >= 5.0) {
+                        std::cerr << "    pass 3 progress: " << done << "/" << p3_total
+                                  << " (" << (100*done/p3_total) << "%), "
+                                  << elapsed << "s elapsed\n";
+                        p3_last_report = now;
+                    }
+                }
+            }
+        }
         const int i = survivors[j];
         // Solve for minimum grouped moves (0-1 BFS, allows more raw slides).
         auto tr = solve_min_grouped(recs[i].s, n, num_exits);
