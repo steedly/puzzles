@@ -626,17 +626,27 @@ static FlatMap retrograde(int num_exits, int num_helpers)
 // Exit robots: position becomes EXITED if they land on center.
 // Returns true if the move is legal (stopped by a robot, actually moved).
 // new_state has helpers sorted; exits maintain their fixed indices.
+// Precompute occupancy bitmask for all robots.  Callers that expand
+// multiple robots from the same state should compute this once and pass it.
+static inline uint64_t make_occ(const int* pos, int n) {
+    uint64_t occ = 0;
+    for (int i = 0; i < n; i++)
+        if (pos[i] != EXITED) occ |= (uint64_t)1 << pos[i];
+    return occ;
+}
+
 static bool forward_move(const int* pos, int n, int num_exits, int ridx, int dir,
-                         int& new_cell, int& blocker_idx, State& new_state)
+                         int& new_cell, int& blocker_idx, State& new_state,
+                         uint64_t all_occ = 0)
 {
     if (ridx < num_exits && pos[ridx] == EXITED) return false; // already exited
 
     const int cur = pos[ridx];
     const int pr  = cur / N, pc = cur % N;
 
-    uint64_t occ = 0;
-    for (int i = 0; i < n; i++)
-        if (i != ridx && pos[i] != EXITED) occ |= (uint64_t)1 << pos[i];
+    // If caller passed precomputed occupancy, remove self; otherwise build from scratch.
+    uint64_t occ = all_occ ? (all_occ & ~((uint64_t)1 << cur))
+                           : make_occ(pos, n) & ~((uint64_t)1 << cur);
 
     int wr = pr, wc = pc;
     int blocker_cell = -1;
@@ -740,13 +750,14 @@ static TraceResult trace_solution(State start, int n, int num_exits,
             const Node& node = layers[step][i];
             int pos[10];
             decode(node.s, n, pos);
+            const uint64_t occ = make_occ(pos, n);
 
             for (int ridx = 0; ridx < n; ridx++) {
                 for (int d = 0; d < NUM_DIRS; d++) {
                     int new_cell, blocker_idx;
                     State new_state;
                     if (!forward_move(pos, n, num_exits, ridx, d,
-                                      new_cell, blocker_idx, new_state))
+                                      new_cell, blocker_idx, new_state, occ))
                         continue;
                     uint8_t nd;
                     if (!dist.find_val(canonical(new_state, n, num_exits), &nd)
@@ -813,11 +824,12 @@ static int forward_bfs_count(State start, int n, int num_exits) {
         State s = queue[head++];
         int pos[10];
         decode(s, n, pos);
+        const uint64_t occ = make_occ(pos, n);
         for (int ridx = 0; ridx < n; ridx++) {
             for (int d = 0; d < NUM_DIRS; d++) {
                 int nc, bi;
                 State ns;
-                if (!forward_move(pos, n, num_exits, ridx, d, nc, bi, ns))
+                if (!forward_move(pos, n, num_exits, ridx, d, nc, bi, ns, occ))
                     continue;
                 if (visited.insert(ns).second)
                     queue.push_back(ns);
@@ -838,11 +850,12 @@ static std::vector<State> forward_bfs_states(State start, int n, int num_exits) 
         State s = queue[head++];
         int pos[10];
         decode(s, n, pos);
+        const uint64_t occ = make_occ(pos, n);
         for (int ridx = 0; ridx < n; ridx++) {
             for (int d = 0; d < NUM_DIRS; d++) {
                 int nc, bi;
                 State ns;
-                if (!forward_move(pos, n, num_exits, ridx, d, nc, bi, ns))
+                if (!forward_move(pos, n, num_exits, ridx, d, nc, bi, ns, occ))
                     continue;
                 if (seen.insert(ns).second)
                     queue.push_back(ns);
@@ -925,12 +938,13 @@ static TraceResult solve_min_grouped(State start, int n, int num_exits) {
 
         int pos[10];
         decode(s, n, pos);
+        const uint64_t occ = make_occ(pos, n);
 
         for (int ridx = 0; ridx < n; ridx++) {
             for (int d = 0; d < NUM_DIRS; d++) {
                 int nc, bi;
                 State ns;
-                if (!forward_move(pos, n, num_exits, ridx, d, nc, bi, ns))
+                if (!forward_move(pos, n, num_exits, ridx, d, nc, bi, ns, occ))
                     continue;
 
                 const int mover_cell = pos[ridx];
@@ -999,13 +1013,14 @@ static std::vector<Move> trace_solution_greedy(State start, int n, int num_exits
     for (int step = (int)start_dist; step > 0; step--) {
         int pos[10];
         decode(cur, n, pos);
+        const uint64_t occ = make_occ(pos, n);
         bool found = false;
         for (int ridx = 0; ridx < n && !found; ridx++) {
             for (int d = 0; d < NUM_DIRS && !found; d++) {
                 int new_cell, blocker_idx;
                 State new_state;
                 if (!forward_move(pos, n, num_exits, ridx, d,
-                                  new_cell, blocker_idx, new_state))
+                                  new_cell, blocker_idx, new_state, occ))
                     continue;
                 uint8_t nd;
                 if (!dist.find_val(canonical(new_state, n, num_exits), &nd)
@@ -1498,6 +1513,9 @@ static void emit(const FlatMap& dist, int n, int num_exits,
     std::vector<uint64_t> dp_sig_hashes(survivors.size(), 0);
     // State-set hashes for third-layer dedup.
     std::vector<uint64_t> state_set_hashes(survivors.size(), 0);
+    // Pruned start state and robot count — for deferred forward BFS.
+    std::vector<State> pruned_starts(survivors.size(), 0);
+    std::vector<int>   pruned_ns(survivors.size(), 0);
     // Bounding area + Manhattan for picking most compact representative.
     std::vector<int> bounding_areas(survivors.size(), 99);
     std::vector<int> manhattan_sums(survivors.size(), 999);
@@ -1570,21 +1588,14 @@ static void emit(const FlatMap& dist, int n, int num_exits,
             auto tr2 = solve_min_grouped(ps, ci, num_exits);
             if (!tr2.moves.empty()) {
                 stabilise_indices(tr2.moves, ps, ci, num_exits);
-                // Re-decode (stabilise doesn't change positions, but we need
-                // fresh init_pos for the pruned robot set).
                 decode(ps, ci, pruned_pos);
                 sort_exits_and_remap(pruned_pos, tr2.moves, num_exits);
                 pruned = std::move(tr2.moves);
                 grouped_moves = count_grouped_moves(pruned);
                 raw_slides = (int)pruned.size();
-                min_raw_slides = raw_slides; // upper bound for pruned state
+                min_raw_slides = raw_slides;
             }
         }
-
-        State pruned_start = encode(pruned_pos, ci);
-
-        auto fwd_states_vec = forward_bfs_states(pruned_start, ci, num_exits);
-        int fwd_states = (int)fwd_states_vec.size();
 
         // D4-canonical form of pruned positions (cross-combo D4 dedup).
         pruned_canons[j] = canonical(encode(pruned_pos, ci), ci, num_exits)
@@ -1598,14 +1609,17 @@ static void emit(const FlatMap& dist, int n, int num_exits,
             dp_sig_hashes[j] = hash_dedup_key(key);
         }
 
-        // Forward state-set hash for third-layer dedup.
-        state_set_hashes[j] = forward_state_set_hash(fwd_states_vec);
+        // Store pruned start for deferred forward BFS (state-set dedup).
+        State pruned_start = encode(pruned_pos, ci);
+        pruned_starts[j] = pruned_start;
+        pruned_ns[j] = ci;
 
         // Bounding area and Manhattan for picking most compact representative.
         bounding_areas[j] = compute_bounding_area(pruned_pos, ci);
         manhattan_sums[j] = sum_manhattan(pruned_pos, ci);
 
         // Format output line (ID assigned sequentially below).
+        // forwardStates placeholder "0" — filled in after dedup for surviving puzzles.
         // Format: exits|helpers|groupedMoves|rawSlides|minRawSlides|forwardStates|positions|solution
         std::string line;
         line.reserve(160);
@@ -1614,7 +1628,7 @@ static void emit(const FlatMap& dist, int n, int num_exits,
         line += std::to_string(grouped_moves);   line += '|';
         line += std::to_string(raw_slides);      line += '|';
         line += std::to_string(min_raw_slides);  line += '|';
-        line += std::to_string(fwd_states);      line += '|';
+        line += "0|"; // placeholder for forwardStates
 
         line += std::to_string(init_pos[0]/N); line += ',';
         line += std::to_string(init_pos[0]%N);
@@ -1710,6 +1724,26 @@ static void emit(const FlatMap& dist, int n, int num_exits,
         }
     }
 
+    // Deferred forward BFS: compute state-set hashes only for DP-sig survivors.
+    // This avoids running forward_bfs_states for puzzles already eliminated
+    // by D4 or collision-sig dedup (~30% savings).
+    // Also stores state counts for output.
+    std::vector<int> fwd_state_counts(survivors.size(), 0);
+    {
+        std::vector<int> need_bfs;
+        for (auto& [sig, j] : best_for_dp_sig)
+            if (j >= 0) need_bfs.push_back(j);
+#ifdef _OPENMP
+        #pragma omp parallel for schedule(dynamic, 64)
+#endif
+        for (int k = 0; k < (int)need_bfs.size(); k++) {
+            int j = need_bfs[k];
+            auto fwd = forward_bfs_states(pruned_starts[j], pruned_ns[j], num_exits);
+            state_set_hashes[j] = forward_state_set_hash(fwd);
+            fwd_state_counts[j] = (int)fwd.size();
+        }
+    }
+
     // Layer 3: State-set hash dedup — among DP-sig survivors, catch remaining dups.
     std::unordered_map<uint64_t, int> best_for_hash; // state_set_hash → best j
     for (auto& [sig, j] : best_for_dp_sig) {
@@ -1737,14 +1771,22 @@ static void emit(const FlatMap& dist, int n, int num_exits,
         }
     }
 
-    // Emit winners.
+    // Emit winners — fill in forwardStates count (was placeholder "0").
     std::unordered_set<int> winners;
     for (auto& [h, j] : best_for_hash) {
         if (j >= 0) winners.insert(j);
     }
     for (int j = 0; j < (int)output_lines.size(); j++) {
         if (!winners.count(j)) continue;
-        std::cout << ++id << '|' << output_lines[j] << '\n';
+        auto& line = output_lines[j];
+        // Replace "0|" placeholder after the 5th pipe with actual forwardStates.
+        int pipes = 0;
+        size_t pos = 0;
+        for (; pos < line.size() && pipes < 5; pos++)
+            if (line[pos] == '|') pipes++;
+        size_t end = line.find('|', pos);
+        line.replace(pos, end - pos, std::to_string(fwd_state_counts[j]));
+        std::cout << ++id << '|' << line << '\n';
         emitted++;
     }
 

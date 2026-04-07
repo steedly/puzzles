@@ -2,7 +2,7 @@
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 CXX      ?= g++
-CXXFLAGS  = -O3 -std=c++17 -Wall -Wextra
+CXXFLAGS  = -O3 -std=c++17 -march=native -flto -Wall -Wextra
 LDFLAGS   =
 
 # ── C++ standard library headers ─────────────────────────────────────────────
@@ -56,6 +56,16 @@ all: enumerate
 
 enumerate: enumerate.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)
+
+# Profile-guided optimization: train on a small run, then rebuild with PGO data.
+enumerate-pgo: enumerate.cpp
+	@echo "=== PGO training build ==="
+	$(CXX) $(CXXFLAGS) -fprofile-generate -o enumerate-pgo-train $< $(LDFLAGS)
+	@echo "=== PGO training run ==="
+	./enumerate-pgo-train 1 6 1 99 standard > /dev/null 2>/dev/null
+	@echo "=== PGO optimized build ==="
+	$(CXX) $(CXXFLAGS) -fprofile-use -o $@ $< $(LDFLAGS)
+	@rm -f enumerate-pgo-train *.gcda
 
 test_enumerate: test_enumerate.cpp enumerate.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)
