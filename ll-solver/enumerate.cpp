@@ -1380,8 +1380,134 @@ static int count_grouped_moves(const std::vector<Move>& sol) {
 //         Eliminates ~85% of states cheaply before the expensive DP trace.
 // Pass 3: Full DP trace for survivors → minimum grouped moves → output.
 //         Only ~15% of canonical states reach this phase.
+// ── Pre-filter: farthest-point sampling by position diversity ────────────────
+// Buckets survivors by minRawSlides, then selects at most max_per_bucket
+// using farthest-point sampling on position fingerprints (sorted pairwise
+// Manhattan distances).  Returns indices into the input vector to keep.
+static std::vector<int> prefilter_diverse(
+    const std::vector<int>& survivor_indices,
+    const std::vector<uint64_t>& states,  // recs[i].s for each i
+    const std::vector<uint8_t>& depths,   // recs[i].d for each i
+    int n, int max_per_bucket)
+{
+    if (max_per_bucket <= 0)
+        return survivor_indices; // no filtering
+
+    using Clock = std::chrono::steady_clock;
+    auto t0 = Clock::now();
+
+    // Compute position fingerprints: sorted pairwise Manhattan distances.
+    struct FP { std::vector<int> dists; };
+    std::vector<FP> fps(survivor_indices.size());
+#ifdef _OPENMP
+    #pragma omp parallel for schedule(dynamic, 256)
+#endif
+    for (int k = 0; k < (int)survivor_indices.size(); k++) {
+        int i = survivor_indices[k];
+        int pos[10];
+        decode(states[i], n, pos);
+        auto& fp = fps[k].dists;
+        fp.reserve(n * (n - 1) / 2);
+        for (int a = 0; a < n; a++) {
+            if (pos[a] == EXITED) continue;
+            int ra = pos[a] / N, ca = pos[a] % N;
+            for (int b = a + 1; b < n; b++) {
+                if (pos[b] == EXITED) continue;
+                fp.push_back(std::abs(ra - pos[b]/N) + std::abs(ca - pos[b]%N));
+            }
+        }
+        std::sort(fp.begin(), fp.end());
+    }
+
+    // Bucket by minRawSlides.
+    std::unordered_map<int, std::vector<int>> buckets; // depth → indices into survivor_indices
+    for (int k = 0; k < (int)survivor_indices.size(); k++)
+        buckets[depths[survivor_indices[k]]].push_back(k);
+
+    // Farthest-point sampling within each bucket.
+    auto fp_dist_sq = [](const FP& a, const FP& b) -> int64_t {
+        int64_t total = 0;
+        size_t n = std::max(a.dists.size(), b.dists.size());
+        for (size_t i = 0; i < n; i++) {
+            int va = i < a.dists.size() ? a.dists[i] : 0;
+            int vb = i < b.dists.size() ? b.dists[i] : 0;
+            int64_t d = va - vb;
+            total += d * d;
+        }
+        return total;
+    };
+
+    std::vector<int> kept;
+    kept.reserve(survivor_indices.size());
+    int filtered_count = 0;
+
+    for (auto& [depth, kindices] : buckets) {
+        int bsz = (int)kindices.size();
+        if (bsz <= max_per_bucket) {
+            for (int k : kindices) kept.push_back(survivor_indices[k]);
+            continue;
+        }
+
+        // Farthest-point sampling.
+        // For large buckets, subsample 10*N candidates first.
+        std::vector<int>* pool = &kindices;
+        std::vector<int> subsampled;
+        if (bsz > max_per_bucket * 10) {
+            // Deterministic subsample using hash.
+            subsampled.reserve(max_per_bucket * 10);
+            uint64_t step = (uint64_t)bsz / (max_per_bucket * 10);
+            for (uint64_t j = 0; j < (uint64_t)(max_per_bucket * 10) && j * step < (uint64_t)bsz; j++)
+                subsampled.push_back(kindices[(int)(j * step)]);
+            pool = &subsampled;
+        }
+        int psz = (int)pool->size();
+
+        // Seed: most spread-out position.
+        int best_seed = 0;
+        int best_sum = 0;
+        for (int j = 0; j < psz; j++) {
+            int s = 0;
+            for (int v : fps[(*pool)[j]].dists) s += v;
+            if (s > best_sum) { best_sum = s; best_seed = j; }
+        }
+
+        std::vector<int> selected;
+        selected.push_back(best_seed);
+        std::vector<int64_t> min_dist(psz, INT64_MAX);
+        for (int j = 0; j < psz; j++)
+            min_dist[j] = fp_dist_sq(fps[(*pool)[j]], fps[(*pool)[best_seed]]);
+        min_dist[best_seed] = -1;
+
+        for (int sel = 1; sel < max_per_bucket; sel++) {
+            int best = -1;
+            int64_t best_d = -1;
+            for (int j = 0; j < psz; j++) {
+                if (min_dist[j] > best_d) { best_d = min_dist[j]; best = j; }
+            }
+            if (best < 0 || best_d <= 0) break;
+            selected.push_back(best);
+            for (int j = 0; j < psz; j++) {
+                if (min_dist[j] <= 0) continue;
+                int64_t d = fp_dist_sq(fps[(*pool)[j]], fps[(*pool)[best]]);
+                if (d < min_dist[j]) min_dist[j] = d;
+            }
+            min_dist[best] = -1;
+        }
+
+        for (int j : selected)
+            kept.push_back(survivor_indices[(*pool)[j]]);
+        filtered_count += bsz - (int)selected.size();
+    }
+
+    auto t1 = Clock::now();
+    std::cerr << "  pre-filter: " << survivor_indices.size() << " → " << kept.size()
+              << " (" << filtered_count << " filtered, "
+              << std::chrono::duration<double>(t1 - t0).count() << "s)\n";
+    return kept;
+}
+
 static void emit(const FlatMap& dist, int n, int num_exits,
-                 int min_moves, int max_moves,
+                 int min_moves, int max_moves, int max_per_bucket,
                  int& id, std::unordered_set<uint64_t>& seen_sigs,
                  std::unordered_set<uint64_t>& seen_pruned_canons,
                  std::unordered_set<uint64_t>& seen_dp_sigs,
@@ -1504,6 +1630,17 @@ static void emit(const FlatMap& dist, int n, int num_exits,
     std::cerr << "  pass 2 (greedy dedup): " << local_best.size() << " unique, "
               << dup_count << " deduped, "
               << std::chrono::duration<double>(t2 - t1).count() << "s\n";
+
+    // ── Pre-filter: keep at most max_per_bucket diverse puzzles per raw-slide bucket ──
+    if (max_per_bucket > 0) {
+        std::vector<uint64_t> all_states(recs.size());
+        std::vector<uint8_t>  all_depths(recs.size());
+        for (int i = 0; i < (int)recs.size(); i++) {
+            all_states[i] = recs[i].s;
+            all_depths[i] = recs[i].d;
+        }
+        survivors = prefilter_diverse(survivors, all_states, all_depths, n, max_per_bucket);
+    }
 
     // ── Pass 3: DP trace for survivors → dedup → output ──
     std::vector<std::string> output_lines(survivors.size());
@@ -1811,6 +1948,11 @@ int main(int argc, char* argv[]) {
     // Board variant: standard (default), solitaire, ufo, french, hex, beehive
     std::string variant = "standard";
     if (argc > 5) variant = argv[5];
+
+    // Optional: max puzzles per (exits, helpers, rawSlides) bucket.
+    // 0 = no limit (full enumeration).  Positive value enables pre-filtering
+    // with farthest-point diversity sampling before the expensive DP solve.
+    const int max_per_bucket = argc > 6 ? std::atoi(argv[6]) : 0;
     if (variant == "solitaire")     BLOCKED = make_blocked_solitaire();
     else if (variant == "ufo")      BLOCKED = make_blocked_ufo();
     else if (variant == "french")   BLOCKED = make_blocked_french();
@@ -1890,7 +2032,7 @@ int main(int argc, char* argv[]) {
 
 
             int k_emitted = 0, k_deduped = 0;
-            emit(dist, ne + nh, ne, min_moves, max_moves,
+            emit(dist, ne + nh, ne, min_moves, max_moves, max_per_bucket,
                  id, seen_sigs, seen_pruned_canons, seen_dp_sigs,
                  seen_state_sets, k_emitted, k_deduped);
 
