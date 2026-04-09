@@ -1,16 +1,22 @@
 # Puzzle Statistics
 
-*Generated 2026-04-04*
+*Generated 2026-04-09 — 7-piece runs (square variants), 6-piece runs (hex variants)*
+*Filtered with `filter_puzzles.py --n 1000`*
 
 ## Cross-variant comparison
 
-| Variant | Puzzles | Max Moves | Max Slides | File Size |
-|---------|--------:|----------:|-----------:|----------:|
-| Standard (7×7, 4 directions) | 199,920 | 22 | 36 | 18.2 MB |
-| French (7×7, 4 directions) | 85,181 | 21 | 32 | 7.1 MB |
-| Solitaire (7×7, 4 directions) | 36,736 | 17 | 27 | 2.9 MB |
-| UFO (5×5 center, 4 directions) | 23,433 | 16 | 24 | 1.8 MB |
-| Hex (5×5 diamond, 6 directions) | 125,797 | 16 | 24 | 10.3 MB |
+| Variant | Pieces | Puzzles | Max Moves | Max Slides | File Size |
+|---------|-------:|--------:|----------:|-----------:|----------:|
+| Standard (7×7, 4 directions) | 7 | 124,445 | 36 | 64 | 17 MB |
+| French (7×7 minus inner corners) | 7 | 89,203 | 30 | 54 | 11 MB |
+| Solitaire (7×7 minus 2×2 corners) | 7 | 71,220 | 30 | 44 | 7.7 MB |
+| UFO (5×5 inner) | 7 | 40,598 | 21 | 37 | 3.9 MB |
+| Beehive (7×7 hex diamond, 6 directions) | 6 | 78,260 | 31 | 49 | 9.8 MB |
+| Hex (5×5 inner hex, 6 directions) | 6 | 23,617 | 17 | 27 | 2.1 MB |
+
+**Note:** Square variants run with up to 7 total pieces. Hex variants run with up to 6 total pieces (the additional 2 hex directions create much larger state spaces). Multi-exit puzzles up to 4 exits.
+
+Pre-Filter applied: `max_per_bucket=1000` farthest-point diversity sampling.
 
 ## Standard (7×7, 4 directions)
 
