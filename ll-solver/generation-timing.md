@@ -11,7 +11,7 @@ Pre-filter: `max_per_bucket=1000` (farthest-point diversity sampling)
 | hex | 6 | 28,409 | 50s | 367s | < 1 GB | ~1.4M |
 | beehive | 6 | 116,111 | 79 min | 37,002s | 4.0 GB | ~30M |
 | ufo | 7 | 52,052 | 5m 14s | 39m 37s | < 2 GB | ~1.3M |
-| solitaire | 7 | TBD | TBD | TBD | TBD | TBD |
+| solitaire | 7 | 93,115 | 5m 26s | 40m 6s | < 2 GB | ~3M |
 | french | 7 | TBD | TBD | TBD | TBD | TBD |
 | standard | 7 | TBD | TBD | TBD | TBD | TBD |
 
@@ -42,6 +42,13 @@ The dominant cost was the 4e+2h combo (4 exits, 2 helpers, 6 pieces) — Pass 3 
 - All solutions valid, 0 D4 duplicates
 
 UFO has the smallest playable area among 7-piece variants (only 25 cells vs 49 for standard), so the BFS state space is much smaller.
+
+### solitaire (7 pieces, 33 usable cells)
+
+- Wall time: 5m 26s
+- CPU time: 40m 6s
+- Puzzles: 93,115
+- All solutions valid, 0 D4 duplicates
 
 ## Extrapolation for larger piece counts
 
