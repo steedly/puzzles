@@ -12,7 +12,7 @@ Pre-filter: `max_per_bucket=1000` (farthest-point diversity sampling)
 | beehive | 6 | 116,111 | 79 min | 37,002s | 4.0 GB | ~30M |
 | ufo | 7 | 52,052 | 5m 14s | 39m 37s | < 2 GB | ~1.3M |
 | solitaire | 7 | 93,115 | 5m 26s | 40m 6s | < 2 GB | ~3M |
-| french | 7 | TBD | TBD | TBD | TBD | TBD |
+| french | 7 | 128,188 | 21m 47s | 164m 54s | < 4 GB | ~30M |
 | standard | 7 | TBD | TBD | TBD | TBD | TBD |
 
 ## Per-variant details
@@ -49,6 +49,15 @@ UFO has the smallest playable area among 7-piece variants (only 25 cells vs 49 f
 - CPU time: 40m 6s
 - Puzzles: 93,115
 - All solutions valid, 0 D4 duplicates
+
+### french (7 pieces, 45 usable cells)
+
+- Wall time: 21m 47s
+- CPU time: 164m 54s (7.6x parallel efficiency)
+- Puzzles: 128,188
+- All solutions valid, 0 D4 duplicates
+
+The 2e+5h combo dominated, with ~1.2M Pass 2 survivors filtered to ~25K via the pre-filter. This is the variant with the most BFS states under 7-piece constraints.
 
 ## Extrapolation for larger piece counts
 
