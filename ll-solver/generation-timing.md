@@ -1,5 +1,7 @@
 # Puzzle Generation Timing and Memory Analysis
 
+> Companion to [`README.md`](./README.md). The README explains *what the algorithm does* and *why*; this file is the canonical source for *what it cost on actual hardware*.
+
 Machine: EC2 instance, 8 vCPUs, 15 GB RAM, Amazon Linux 2023
 Binary: PGO-optimized with `-O3 -march=native -flto -fopenmp -fprofile-use`
 Pre-filter: `max_per_bucket=1000` (farthest-point diversity sampling)
