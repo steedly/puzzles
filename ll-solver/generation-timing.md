@@ -10,7 +10,7 @@ Pre-filter: `max_per_bucket=1000` (farthest-point diversity sampling)
 |---------|--------|---------|-----------|----------|----------|------------|
 | hex | 6 | 28,409 | 50s | 367s | < 1 GB | ~1.4M |
 | beehive | 6 | 116,111 | 79 min | 37,002s | 4.0 GB | ~30M |
-| ufo | 7 | TBD | TBD | TBD | TBD | TBD |
+| ufo | 7 | 52,052 | 5m 14s | 39m 37s | < 2 GB | ~1.3M |
 | solitaire | 7 | TBD | TBD | TBD | TBD | TBD |
 | french | 7 | TBD | TBD | TBD | TBD | TBD |
 | standard | 7 | TBD | TBD | TBD | TBD | TBD |
@@ -33,6 +33,15 @@ Pre-filter: `max_per_bucket=1000` (farthest-point diversity sampling)
 - All solutions valid, 0 D4 duplicates
 
 The dominant cost was the 4e+2h combo (4 exits, 2 helpers, 6 pieces) — Pass 3 took ~50 minutes for ~21K filtered puzzles. Multi-exit puzzles have larger forward state spaces because each exit adds independent search dimensions.
+
+### ufo (7 pieces, 5x5 inner area)
+
+- Wall time: 5m 14s
+- CPU time: 39m 37s (7.6x parallel efficiency)
+- Puzzles: 52,052
+- All solutions valid, 0 D4 duplicates
+
+UFO has the smallest playable area among 7-piece variants (only 25 cells vs 49 for standard), so the BFS state space is much smaller.
 
 ## Extrapolation for larger piece counts
 
