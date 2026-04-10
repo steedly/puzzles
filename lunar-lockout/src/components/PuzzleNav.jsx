@@ -44,7 +44,14 @@ function chipClick(prev, value, shiftKey) {
   return new Set([value]);
 }
 
-export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilteredChange, blockedCells, variant, onVariantChange, scoreMode, hideOptimal, filterState, onFilterChange }) {
+const SOLVED_OPTS  = ['all', 'unsolved', 'solved', 'optimal'];
+const SOLVED_LABEL = { all: 'All', unsolved: 'Unsolved', solved: 'Solved', optimal: 'Optimal' };
+const STARRED_OPTS  = ['all', 'starred', 'unstarred'];
+const STARRED_LABEL = { all: 'All', starred: 'Starred', unstarred: 'Unstarred' };
+
+const noop = () => false;
+
+export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilteredChange, blockedCells, variant, onVariantChange, scoreMode, hideOptimal, filterState, onFilterChange, isSolved = noop, isOptimal = noop, isStarred = noop, toggleStar = () => {}, userData = null }) {
   // Derive available options from the puzzle library
   const availableHelpers = useMemo(() =>
     [...new Set(allPuzzles.map(p => p.helpers))].sort((a, b) => a - b),
@@ -73,6 +80,8 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
   const sortBy        = filterState?.sortBy  ?? 'id';
   const sortBy2       = filterState?.sortBy2 ?? 'none';
   const sortAsc       = filterState?.sortAsc ?? true;
+  const solvedFilter  = filterState?.solvedFilter  ?? 'all';
+  const starredFilter = filterState?.starredFilter ?? 'all';
 
   const [page,          setPage]          = useState(0);
   const [jumpId,        setJumpId]        = useState('');
@@ -90,6 +99,8 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
       sortBy,
       sortBy2,
       sortAsc,
+      solvedFilter,
+      starredFilter,
       ...patch,
     });
   }
@@ -103,6 +114,8 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
   function setSortBy(v)        { updateFilter({ sortBy: typeof v === 'function' ? v(sortBy) : v }); }
   function setSortBy2(v)       { updateFilter({ sortBy2: typeof v === 'function' ? v(sortBy2) : v }); }
   function setSortAsc(v)       { updateFilter({ sortAsc: typeof v === 'function' ? v(sortAsc) : v }); }
+  function setSolvedFilter(v)  { updateFilter({ solvedFilter:  typeof v === 'function' ? v(solvedFilter)  : v }); }
+  function setStarredFilter(v) { updateFilter({ starredFilter: typeof v === 'function' ? v(starredFilter) : v }); }
 
   // Preserve compatible filters across variant switches.
   // Only reset values that are no longer valid for the new puzzle set.
@@ -121,6 +134,8 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
       sortBy: filterState.sortBy,
       sortBy2: filterState.sortBy2,
       sortAsc: filterState.sortAsc,
+      solvedFilter: filterState.solvedFilter,
+      starredFilter: filterState.starredFilter,
     });
     setPage(0);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -133,14 +148,22 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
   );
 
   const filteredUnsorted = useMemo(() =>
-    unblocked.filter(p =>
-      activeHelpers.has(p.helpers) &&
-      activeExits.has(p.exits ?? 1) &&
-      activeDiffs.has(p.difficulty) &&
-      p.minMoves >= movesMin &&
-      p.minMoves <= movesMax
-    ),
-    [unblocked, activeHelpers, activeExits, activeDiffs, movesMin, movesMax]
+    unblocked.filter(p => {
+      if (!activeHelpers.has(p.helpers)) return false;
+      if (!activeExits.has(p.exits ?? 1)) return false;
+      if (!activeDiffs.has(p.difficulty)) return false;
+      if (p.minMoves < movesMin || p.minMoves > movesMax) return false;
+      const solved  = isSolved(p.stableId);
+      const optimal = isOptimal(p.stableId);
+      if (solvedFilter === 'solved'   && !solved)  return false;
+      if (solvedFilter === 'optimal'  && !optimal) return false;
+      if (solvedFilter === 'unsolved' &&  solved)  return false;
+      const starred = isStarred(p.stableId);
+      if (starredFilter === 'starred'   && !starred) return false;
+      if (starredFilter === 'unstarred' &&  starred) return false;
+      return true;
+    }),
+    [unblocked, activeHelpers, activeExits, activeDiffs, movesMin, movesMax, solvedFilter, starredFilter, isSolved, isOptimal, isStarred]
   );
 
   const filtered = useMemo(() => {
@@ -204,6 +227,20 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
     e.preventDefault();
     const p = allPuzzles.find(x => x.stableId === jumpId.trim());
     if (p) { onSelect(p); setJumpId(''); }
+  }
+
+  function handleExportProgress() {
+    if (!userData) return;
+    const blob = new Blob([JSON.stringify(userData.data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const stamp = new Date().toISOString().slice(0, 10);
+    a.download = `lunar-lockout-progress-${stamp}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 
   // Dual-range slider handlers
@@ -329,6 +366,28 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
               ))}
             </div>
             <div className="pnav__filter-row">
+              <span className="pnav__label">Solved:</span>
+              {SOLVED_OPTS.map(opt => (
+                <button
+                  key={opt}
+                  className={`pnav__chip${solvedFilter === opt ? ' pnav__chip--on' : ''}`}
+                  title="Filter by your solve progress"
+                  onClick={() => { setSolvedFilter(opt); setPage(0); }}
+                >{SOLVED_LABEL[opt]}</button>
+              ))}
+            </div>
+            <div className="pnav__filter-row">
+              <span className="pnav__label">Starred:</span>
+              {STARRED_OPTS.map(opt => (
+                <button
+                  key={opt}
+                  className={`pnav__chip${starredFilter === opt ? ' pnav__chip--on' : ''}`}
+                  title="Filter by starred status"
+                  onClick={() => { setStarredFilter(opt); setPage(0); }}
+                >{STARRED_LABEL[opt]}</button>
+              ))}
+            </div>
+            <div className="pnav__filter-row">
               <span className="pnav__label">Difficulty:</span>
               {DIFF_OPTS.map(d => (
                 <button
@@ -415,11 +474,20 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
               />
               <button type="submit" className="pnav__nav-btn">Go</button>
             </form>
+            {userData && (
+              <button
+                className="pnav__nav-btn"
+                onClick={handleExportProgress}
+                title="Download your solved & starred puzzles as JSON"
+              >Export</button>
+            )}
           </div>
 
           {/* ── Puzzle list ── */}
           <div className="pnav__list">
             <div className="pnav__list-header" title="Column headers for the puzzle list">
+              <span className="pnav__item-star" title="Starred">★</span>
+              <span className="pnav__item-solved" title="Solved status">✓</span>
               <span className="pnav__item-id" title="Unique puzzle identifier">ID</span>
               <span className="pnav__item-meta" title="Exit robots (E) and helper robots (H)">Cfg</span>
               <span className="pnav__item-fits" title="Which variant boards this puzzle fits on: S=Solitaire U=UFO F=French">Fits</span>
@@ -437,13 +505,29 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
                 ? (typeof sortVal === 'number' && !Number.isInteger(sortVal)
                     ? sortVal.toFixed(2) : sortVal)
                 : null;
+              const starred = isStarred(p.stableId);
+              const solved  = isSolved(p.stableId);
+              const optimal = isOptimal(p.stableId);
+              const solvedClass = optimal ? 'pnav__item-solved pnav__item-solved--optimal'
+                                : solved  ? 'pnav__item-solved pnav__item-solved--on'
+                                          : 'pnav__item-solved';
               return (
                 <button
                   key={p.stableId}
                   className={`pnav__item${active ? ' pnav__item--active' : ''}`}
                   onClick={() => onSelect(p)}
-                  title={`${p.exits} exit${p.exits>1?'s':''}, ${p.helpers} helper${p.helpers>1?'s':''}, ${p.minMoves} moves`}
+                  title={`${p.exits} exit${p.exits>1?'s':''}, ${p.helpers} helper${p.helpers>1?'s':''}, ${p.minMoves} moves${solved ? (optimal ? ' — solved optimally' : ' — solved') : ''}${starred ? ' — starred' : ''}`}
                 >
+                  <span
+                    className={`pnav__item-star${starred ? ' pnav__item-star--on' : ''}`}
+                    role="button"
+                    tabIndex={-1}
+                    title={starred ? 'Unstar' : 'Star this puzzle'}
+                    onClick={(ev) => { ev.stopPropagation(); toggleStar(p.stableId); }}
+                  >{starred ? '★' : '☆'}</span>
+                  <span className={solvedClass} title={optimal ? 'Solved optimally' : (solved ? 'Solved' : '')}>
+                    {optimal ? '✓✓' : (solved ? '✓' : '')}
+                  </span>
                   <span className="pnav__item-id">{p.stableId}</span>
                   <span className="pnav__item-meta">
                     {p.exits > 1 ? `${p.exits}E ` : ''}{p.helpers}H

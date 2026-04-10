@@ -11,6 +11,7 @@ import PuzzleNav from './components/PuzzleNav';
 import BuildPanel from './components/BuildPanel';
 import WinModal from './components/WinModal';
 import { useBuildMode } from './hooks/useBuildMode';
+import { useUserData } from './hooks/useUserData';
 import { boardForVariant } from './logic/boardGeometry';
 
 // Placeholder so useGameState never receives null.
@@ -79,6 +80,24 @@ export default function App() {
   const board = boardForVariant(variant);
 
   const { state, dispatch } = useGameState(currentPuzzle ?? DUMMY_PUZZLE, variantBlocks);
+
+  // Persistent per-browser user state: solved/starred/comments by stableId
+  const userData = useUserData();
+
+  // Mark puzzle as solved on win edge. All wins originate from user-driven SLIDE
+  // actions in the reducer, so any isWon=true is by definition natural play.
+  const wonRef = useRef(false);
+  useEffect(() => {
+    if (state.isWon && !wonRef.current && currentPuzzle?.stableId) {
+      wonRef.current = true;
+      userData.markSolved(currentPuzzle.stableId, {
+        moves:    state.moveCount,
+        minMoves: currentPuzzle.minMoves,
+      });
+    } else if (!state.isWon) {
+      wonRef.current = false;
+    }
+  }, [state.isWon, state.moveCount, currentPuzzle, userData]);
 
   // NOTE: showSolution is intentionally preserved across puzzle changes
   // so users can cycle through puzzles comparing solutions.
@@ -445,6 +464,11 @@ export default function App() {
               hideOptimal={hideOptimal}
               filterState={filterState}
               onFilterChange={handleFilterChange}
+              isSolved={userData.isSolved}
+              isOptimal={userData.isOptimal}
+              isStarred={userData.isStarred}
+              toggleStar={userData.toggleStar}
+              userData={userData}
             />
           )}
         </div>
@@ -461,6 +485,11 @@ export default function App() {
           hasNext={hasNext}
           onNext={handleNext}
           onReplay={handleReplay}
+          stableId={currentPuzzle?.stableId}
+          isStarred={userData.isStarred}
+          toggleStar={userData.toggleStar}
+          getComment={userData.getComment}
+          setComment={userData.setComment}
         />
       )}
     </div>

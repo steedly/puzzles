@@ -739,6 +739,29 @@ button { cursor: pointer; font-family: inherit; }
   text-align: right;
   flex-shrink: 0;
 }
+.pnav__item-star {
+  width: 16px;
+  flex-shrink: 0;
+  font-size: 0.95rem;
+  color: #555;
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+  line-height: 1;
+}
+.pnav__item-star:hover { color: #ffcc44; }
+.pnav__item-star--on { color: #ffcc44; }
+.pnav__item-solved {
+  width: 22px;
+  flex-shrink: 0;
+  font-size: 0.78rem;
+  text-align: center;
+  color: transparent;
+  font-weight: 700;
+  letter-spacing: -1px;
+}
+.pnav__item-solved--on       { color: #4caf50; }
+.pnav__item-solved--optimal  { color: #ffcc44; }
 .pnav__sort-row {
   flex-wrap: nowrap;
 }
@@ -866,6 +889,37 @@ button { cursor: pointer; font-family: inherit; }
   font-size: 1.1rem;
 }
 
+.modal__star-row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  margin: 10px 0 14px;
+  width: 100%;
+}
+.modal__star-btn {
+  align-self: flex-start;
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--cell-border);
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.modal__star-btn:hover { background: var(--btn-bg); }
+.modal__comment {
+  width: 100%;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--cell-border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  resize: vertical;
+  box-sizing: border-box;
+}
 .modal__actions {
   display: flex;
   gap: 10px;

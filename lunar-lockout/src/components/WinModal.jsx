@@ -1,13 +1,20 @@
 // Copyright (c) 2025-2026 Drew Steedly. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-export default function WinModal({ moveCount, slideCount, minMoves, minRawSlides, scoreMode, hideOptimal, hasNext, onNext, onReplay }) {
+export default function WinModal({
+  moveCount, slideCount, minMoves, minRawSlides, scoreMode, hideOptimal,
+  hasNext, onNext, onReplay,
+  stableId, isStarred, toggleStar, getComment, setComment,
+}) {
   const isSlides = scoreMode === 'slides';
   const userCount = isSlides ? slideCount : moveCount;
   const target = isSlides ? minRawSlides : minMoves;
   const unit = isSlides ? 'slide' : 'move';
   const label = isSlides ? 'Minimum Slides' : 'Minimum Moves';
   const perfect = target > 0 && userCount === target;
+
+  const starred = !!(stableId && isStarred && isStarred(stableId));
+  const comment = stableId && getComment ? getComment(stableId) : '';
 
   return (
     <div className="modal-backdrop">
@@ -25,6 +32,24 @@ export default function WinModal({ moveCount, slideCount, minMoves, minRawSlides
             <><br /><span className="modal__optimum">That's the minimum!</span></>
           )}
         </p>
+        {stableId && toggleStar && (
+          <div className="modal__star-row">
+            <button
+              className="modal__star-btn"
+              onClick={() => toggleStar(stableId)}
+              title={starred ? 'Unstar this puzzle' : 'Star this puzzle'}
+            >{starred ? '★ Starred' : '☆ Star'}</button>
+            {starred && setComment && (
+              <textarea
+                className="modal__comment"
+                placeholder="Notes about this puzzle…"
+                value={comment}
+                onChange={e => setComment(stableId, e.target.value)}
+                rows={2}
+              />
+            )}
+          </div>
+        )}
         <div className="modal__actions">
           <button className="modal__btn modal__btn--secondary" onClick={onReplay}>
             Play Again
