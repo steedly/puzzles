@@ -468,6 +468,8 @@ export default function App() {
               isOptimal={userData.isOptimal}
               isStarred={userData.isStarred}
               toggleStar={userData.toggleStar}
+              getComment={userData.getComment}
+              setComment={userData.setComment}
               userData={userData}
             />
           )}

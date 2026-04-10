@@ -762,6 +762,52 @@ button { cursor: pointer; font-family: inherit; }
 }
 .pnav__item-solved--on       { color: #4caf50; }
 .pnav__item-solved--optimal  { color: #ffcc44; }
+.pnav__item-edit {
+  width: 14px;
+  flex-shrink: 0;
+  font-size: 0.85rem;
+  color: #555;
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+  line-height: 1;
+}
+.pnav__item-edit:hover { color: #8ab4ff; }
+.pnav__item-edit--has  { color: #8ab4ff; }
+.pnav__item-edit--on   { color: #8ab4ff; }
+.pnav__item-comment-edit {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  padding: 6px 8px 8px 36px;
+  background: var(--cell-bg, rgba(255,255,255,0.03));
+  border-radius: 0 0 6px 6px;
+  margin-top: -2px;
+  margin-bottom: 4px;
+}
+.pnav__item-comment-textarea {
+  flex: 1;
+  font-family: inherit;
+  font-size: 0.78rem;
+  background: var(--btn-bg);
+  color: var(--text);
+  border: 1px solid var(--cell-border);
+  border-radius: 4px;
+  padding: 4px 6px;
+  resize: vertical;
+  min-height: 1.8em;
+}
+.pnav__item-comment-done {
+  font-size: 0.75rem;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--cell-border);
+  background: var(--btn-bg);
+  color: var(--text);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.pnav__item-comment-done:hover { background: var(--btn-bg-hover, rgba(255,255,255,0.1)); }
 .pnav__sort-row {
   flex-wrap: nowrap;
 }

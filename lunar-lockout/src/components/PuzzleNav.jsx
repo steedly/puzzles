@@ -1,7 +1,7 @@
 // Copyright (c) 2025-2026 Drew Steedly. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { Fragment, useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { filterPuzzles } from '../logic/puzzleFilter';
 
 const PAGE_SIZE   = 20;
@@ -51,7 +51,7 @@ const STARRED_LABEL = { all: 'All', starred: 'Starred', unstarred: 'Unstarred' }
 
 const noop = () => false;
 
-export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilteredChange, blockedCells, variant, onVariantChange, scoreMode, hideOptimal, filterState, onFilterChange, isSolved = noop, isOptimal = noop, isStarred = noop, toggleStar = () => {}, userData = null }) {
+export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilteredChange, blockedCells, variant, onVariantChange, scoreMode, hideOptimal, filterState, onFilterChange, isSolved = noop, isOptimal = noop, isStarred = noop, toggleStar = () => {}, getComment = () => '', setComment = null, userData = null }) {
   // Derive available options from the puzzle library
   const availableHelpers = useMemo(() =>
     [...new Set(allPuzzles.map(p => p.helpers))].sort((a, b) => a - b),
@@ -87,6 +87,7 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
   const [jumpId,        setJumpId]        = useState('');
   const [collapsed,     setCollapsed]     = useState(false);
   const [activeThumb,   setActiveThumb]   = useState('max'); // last-dragged thumb gets higher z-index
+  const [editingCommentId, setEditingCommentId] = useState(null); // stableId of the row whose comment is being edited inline
 
   // Helper to update a single filter field
   function updateFilter(patch) {
@@ -487,6 +488,7 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
           <div className="pnav__list">
             <div className="pnav__list-header" title="Column headers for the puzzle list">
               <span className="pnav__item-star" title="Starred">★</span>
+              <span className="pnav__item-edit" aria-hidden="true">&nbsp;</span>
               <span className="pnav__item-solved" title="Solved status">✓</span>
               <span className="pnav__item-id" title="Unique puzzle identifier">ID</span>
               <span className="pnav__item-meta" title="Exit robots (E) and helper robots (H)">Cfg</span>
@@ -511,20 +513,43 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
               const solvedClass = optimal ? 'pnav__item-solved pnav__item-solved--optimal'
                                 : solved  ? 'pnav__item-solved pnav__item-solved--on'
                                           : 'pnav__item-solved';
+              const editing = editingCommentId === p.stableId;
+              const comment = starred ? getComment(p.stableId) : '';
               return (
+                <Fragment key={p.stableId}>
                 <button
-                  key={p.stableId}
                   className={`pnav__item${active ? ' pnav__item--active' : ''}`}
                   onClick={() => onSelect(p)}
-                  title={`${p.exits} exit${p.exits>1?'s':''}, ${p.helpers} helper${p.helpers>1?'s':''}, ${p.minMoves} moves${solved ? (optimal ? ' — solved optimally' : ' — solved') : ''}${starred ? ' — starred' : ''}`}
+                  title={`${p.exits} exit${p.exits>1?'s':''}, ${p.helpers} helper${p.helpers>1?'s':''}, ${p.minMoves} moves${solved ? (optimal ? ' — solved optimally' : ' — solved') : ''}${starred ? ' — starred' : ''}${comment ? ` — “${comment}”` : ''}`}
                 >
                   <span
                     className={`pnav__item-star${starred ? ' pnav__item-star--on' : ''}`}
                     role="button"
                     tabIndex={-1}
                     title={starred ? 'Unstar' : 'Star this puzzle'}
-                    onClick={(ev) => { ev.stopPropagation(); toggleStar(p.stableId); }}
+                    onClick={(ev) => {
+                      ev.stopPropagation();
+                      toggleStar(p.stableId);
+                      // If we're unstarring the row currently being edited, close the editor.
+                      if (starred && editingCommentId === p.stableId) setEditingCommentId(null);
+                    }}
                   >{starred ? '★' : '☆'}</span>
+                  {setComment ? (
+                    starred ? (
+                      <span
+                        className={`pnav__item-edit${comment ? ' pnav__item-edit--has' : ''}${editing ? ' pnav__item-edit--on' : ''}`}
+                        role="button"
+                        tabIndex={-1}
+                        title={editing ? 'Close note' : (comment ? `Edit note: ${comment}` : 'Add a note')}
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          setEditingCommentId(editing ? null : p.stableId);
+                        }}
+                      >✎</span>
+                    ) : (
+                      <span className="pnav__item-edit" aria-hidden="true">&nbsp;</span>
+                    )
+                  ) : null}
                   <span className={solvedClass} title={optimal ? 'Solved optimally' : (solved ? 'Solved' : '')}>
                     {optimal ? '✓✓' : (solved ? '✓' : '')}
                   </span>
@@ -550,6 +575,27 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
                     style={{ color: DIFF_COLOR[p.difficulty] }}
                   >{DIFF_LABEL[p.difficulty]}</span>
                 </button>
+                {editing && starred && setComment && (
+                  <div className="pnav__item-comment-edit">
+                    <textarea
+                      className="pnav__item-comment-textarea"
+                      placeholder="Notes about this puzzle…"
+                      value={comment}
+                      autoFocus
+                      rows={2}
+                      onChange={(ev) => setComment(p.stableId, ev.target.value)}
+                      onKeyDown={(ev) => {
+                        if (ev.key === 'Escape') { ev.preventDefault(); setEditingCommentId(null); }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="pnav__item-comment-done"
+                      onClick={() => setEditingCommentId(null)}
+                    >Done</button>
+                  </div>
+                )}
+                </Fragment>
               );
             })}
           </div>
