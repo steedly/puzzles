@@ -3,6 +3,7 @@
 
 import { Fragment, useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { filterPuzzles } from '../logic/puzzleFilter';
+import GoldMedal from './GoldMedal';
 
 const PAGE_SIZE   = 20;
 
@@ -551,7 +552,7 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
                     )
                   ) : null}
                   <span className={solvedClass} title={optimal ? 'Solved optimally' : (solved ? 'Solved' : '')}>
-                    {optimal ? '✓✓' : (solved ? '✓' : '')}
+                    {optimal ? <GoldMedal /> : (solved ? '✓' : '')}
                   </span>
                   <span className="pnav__item-id">{p.stableId}</span>
                   <span className="pnav__item-meta">

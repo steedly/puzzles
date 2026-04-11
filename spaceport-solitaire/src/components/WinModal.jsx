@@ -1,6 +1,8 @@
 // Copyright (c) 2025-2026 Drew Steedly. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+import GoldMedal from './GoldMedal';
+
 export default function WinModal({
   moveCount, slideCount, minMoves, minRawSlides, scoreMode, hideOptimal,
   hasNext, onNext, onReplay,
@@ -19,7 +21,9 @@ export default function WinModal({
   return (
     <div className="modal-backdrop">
       <div className="modal">
-        <h2 className="modal__title">{perfect ? '★ Perfect!' : 'Solved!'}</h2>
+        <h2 className="modal__title">
+          {perfect ? (<><GoldMedal className="gold-medal--lg" /> Perfect!</>) : 'Solved!'}
+        </h2>
         <p className="modal__body">
           Solved in <strong>{userCount}</strong> {unit}{userCount !== 1 ? 's' : ''}.
           {!perfect && hideOptimal && (

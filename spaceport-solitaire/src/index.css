@@ -774,6 +774,13 @@ button { cursor: pointer; font-family: inherit; }
 }
 .pnav__item-solved--on       { color: #4caf50; }
 .pnav__item-solved--optimal  { color: #ffcc44; }
+
+.gold-medal {
+  font-size: 18px;
+  vertical-align: middle;
+  filter: drop-shadow(0 0 2px rgba(255, 204, 51, 0.45));
+}
+.gold-medal--lg { font-size: 1.6em; margin-right: 6px; }
 .pnav__item-edit {
   width: 14px;
   flex-shrink: 0;
