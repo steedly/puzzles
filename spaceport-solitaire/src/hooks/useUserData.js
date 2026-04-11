@@ -53,7 +53,7 @@ export function useUserData() {
     } catch (e) {
       if (!warnedRef.current) {
         warnedRef.current = true;
-        console.warn('lunar-lockout: could not persist user data', e);
+        console.warn('spaceport-solitaire: could not persist user data', e);
       }
     }
   }, []);

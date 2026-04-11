@@ -1,10 +1,10 @@
-name: Deploy Lunar Lockout to GitHub Pages
+name: Deploy Spaceport Solitaire to GitHub Pages
 
 on:
   push:
     branches: [main]
     paths:
-      - 'lunar-lockout/**'
+      - 'spaceport-solitaire/**'
       - '.github/workflows/deploy.yml'
   workflow_dispatch:
 
@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: lunar-lockout
+        working-directory: spaceport-solitaire
     steps:
       - uses: actions/checkout@v4
 
@@ -30,14 +30,14 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: lunar-lockout/package-lock.json
+          cache-dependency-path: spaceport-solitaire/package-lock.json
 
       - run: npm ci
       - run: npm run build
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: lunar-lockout/dist
+          path: spaceport-solitaire/dist
 
   deploy:
     needs: build

@@ -237,7 +237,7 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
     const a = document.createElement('a');
     a.href = url;
     const stamp = new Date().toISOString().slice(0, 10);
-    a.download = `lunar-lockout-progress-${stamp}.json`;
+    a.download = `spaceport-solitaire-progress-${stamp}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

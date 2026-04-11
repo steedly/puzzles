@@ -74,7 +74,7 @@ ll-solver/enumerate → full.llp (with solutions)
 ## Testing Requirements
 
 - `make test` in ll-solver/ runs the full pipeline for all four variants: unit tests → generate → validate → D4 check.
-- `npm run lint` in lunar-lockout/ must pass.
+- `npm run lint` in spaceport-solitaire/ must pass.
 - `npm run build` must succeed before pushing — the GitHub Pages deploy depends on it.
 - When changing the enumerator, always re-validate existing puzzle files against the new code.
 - Regression tests should be added for specific bugs found (e.g., the 823/7907/24411 duplicate triple, helper-on-center compaction).

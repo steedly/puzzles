@@ -135,4 +135,4 @@ For HEX, the hex grid is embedded in the rectangular array at 45 degrees. The si
 ## Related projects
 
 - [`ll-solver/`](../ll-solver/) -- C++ reimplementation with retrograde BFS, collision-signature dedup, and CSP compaction
-- [`lunar-lockout/`](../lunar-lockout/) -- React web app that consumes generated puzzle data
+- [`spaceport-solitaire/`](../spaceport-solitaire/) -- React web app that consumes generated puzzle data

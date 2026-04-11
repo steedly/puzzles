@@ -18,7 +18,7 @@ The app loads puzzles from `public/puzzles.llp`. Variant puzzle files (`puzzles-
 ## Project Structure
 
 ```
-lunar-lockout/
+spaceport-solitaire/
 ├── src/
 │   ├── App.jsx                  Root layout (board + puzzle nav)
 │   ├── index.css                Dark-theme styles, robot colors
@@ -91,7 +91,7 @@ for line in sys.stdin:
             print('|'.join(parts[:-1]))
         else:
             print(line)
-" < full.llp > ../lunar-lockout/public/puzzles.llp
+" < full.llp > ../spaceport-solitaire/public/puzzles.llp
 ```
 
 ## On-the-Fly Solver

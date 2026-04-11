@@ -139,9 +139,9 @@ ll-solver/enumerate
 ll-solver/test_enumerate
 ll-solver/test_canonical
 
-# Generated puzzle files (ll-solver produces these; lunar-lockout/public/ has the deployed copies)
+# Generated puzzle files (ll-solver produces these; spaceport-solitaire/public/ has the deployed copies)
 ll-solver/*.llp
 
 # Vite build output
-lunar-lockout/dist/
-lunar-lockout/src/data/puzzles.js
+spaceport-solitaire/dist/
+spaceport-solitaire/src/data/puzzles.js

@@ -8,9 +8,9 @@ A collection of independent puzzle-solving projects, each in its own subdirector
 
 ## Projects and Build Commands
 
-### lunar-lockout/ — React web app (puzzle game UI)
+### spaceport-solitaire/ — React web app (puzzle game UI)
 ```bash
-cd lunar-lockout
+cd spaceport-solitaire
 npm install
 npm run dev          # Vite dev server with hot reload
 npm run build        # Production build to dist/
@@ -23,7 +23,7 @@ npm run lint         # ESLint
 - Hex variants use 2-char direction codes in solutions (Nw, Se, Sw, Ne, No, So) instead of single-char (U, D, L, R)
 - Hex boards are internally the same NxN square grid — the only difference is 2 extra diagonal move directions (-1,+1) and (+1,-1). The diamond rendering is a visual rotation so all 6 neighbors appear equidistant.
 
-### ll-solver/ — C++17 puzzle enumerator (generates .llp files for lunar-lockout)
+### ll-solver/ — C++17 puzzle enumerator (generates .llp files for spaceport-solitaire)
 ```bash
 cd ll-solver
 make                                           # Linux/g++
@@ -95,7 +95,7 @@ python3 elastic_collision.py
 
 ## Architecture Notes
 
-- **lunar-lockout** and **ll-solver** are tightly coupled: ll-solver generates the `.llp` puzzle files that lunar-lockout consumes. The `.llp` format is shared between them.
-- **lunar-lockout** key modules: `src/logic/gameEngine.js` (slide physics), `src/logic/solver.js` (BFS solver for on-demand solutions), `src/hooks/usePuzzleLibrary.js` (.llp parser), `src/logic/puzzleFilter.js` (blocked-cell filtering), `src/logic/boardGeometry.js` (board configs for square and hex variants).
+- **spaceport-solitaire** and **ll-solver** are tightly coupled: ll-solver generates the `.llp` puzzle files that spaceport-solitaire consumes. The `.llp` format is shared between them.
+- **spaceport-solitaire** key modules: `src/logic/gameEngine.js` (slide physics), `src/logic/solver.js` (BFS solver for on-demand solutions), `src/hooks/usePuzzleLibrary.js` (.llp parser), `src/logic/puzzleFilter.js` (blocked-cell filtering), `src/logic/boardGeometry.js` (board configs for square and hex variants).
 - **ll-solver** is a single `enumerate.cpp` with unit tests in `test_enumerate.cpp` (110 tests). Collision signatures are symmetry-normalised across directions. Board type (square/hex) is runtime-configurable via variant parameter.
 - Paths with spaces (`peg game/`, `Elastic Collision/`) require quoting in shell commands.
