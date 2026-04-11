@@ -42,6 +42,14 @@ body {
   padding: 24px 16px 48px;
 }
 
+#root {
+  width: 100%;
+  min-width: 0;
+  max-width: 1120px;
+  display: flex;
+  justify-content: center;
+}
+
 h1, h2, h3 { margin: 0; }
 button { cursor: pointer; font-family: inherit; }
 
@@ -49,6 +57,7 @@ button { cursor: pointer; font-family: inherit; }
 .app {
   width: 100%;
   max-width: 1120px;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -99,6 +108,7 @@ button { cursor: pointer; font-family: inherit; }
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-width: 0;
 }
 
 .app__loading {
@@ -114,13 +124,14 @@ button { cursor: pointer; font-family: inherit; }
   display: flex;
   align-items: flex-start;
   gap: 24px;
+  min-width: 0;
 }
 
 .game-column {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  flex-shrink: 0;
+  min-width: 0;
 }
 
 /* ── Game Area ─────────────────────────────────────────────────────────────── */
@@ -129,12 +140,13 @@ button { cursor: pointer; font-family: inherit; }
   align-items: flex-start;
   gap: 24px;
   flex-wrap: wrap;
+  min-width: 0;
 }
 
 /* ── Board container (for SVG overlay) ─────────────────────────────────────── */
 .board-container {
   position: relative;
-  flex-shrink: 0;
+  min-width: 0;
   max-width: 100%;
 }
 
