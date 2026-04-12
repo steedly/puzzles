@@ -1,7 +1,7 @@
 // Copyright (c) 2025-2026 Drew Steedly. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
 import { usePuzzleLibrary, decodeStableId, computeStableId } from './hooks/usePuzzleLibrary';
 import { useGameState } from './hooks/useGameState';
 import { usePermalink } from './hooks/usePermalink';
@@ -307,6 +307,23 @@ export default function App() {
   const isBuildPlacing = mode === 'build' && buildState.phase !== 'solved';
   const activePuzzle = isBuildPlacing ? null : currentPuzzle;
 
+  // Track the rendered board width so .instructions and .game-area can be
+  // capped to it. The board scales down on narrow viewports and hex variants
+  // have different natural sizes, so a hard-coded width would be wrong.
+  const gameColumnRef = useRef(null);
+  const [boardDisplayW, setBoardDisplayW] = useState(484);
+  useLayoutEffect(() => {
+    const col = gameColumnRef.current;
+    if (!col) return;
+    const bc = col.querySelector('.board-container');
+    if (!bc) return;
+    const update = () => setBoardDisplayW(Math.round(bc.getBoundingClientRect().width));
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(bc);
+    return () => ro.disconnect();
+  }, [isBuildPlacing, currentPuzzle]);
+
   // Handle build variant change: clear pieces when variant changes
   const handleBuildVariantChange = useCallback((v) => {
     switchVariant(v, currentPuzzle?.stableId);
@@ -394,7 +411,11 @@ export default function App() {
 
         <div className="game-layout">
           {/* ── Left: board + controls ── */}
-          <div className="game-column">
+          <div
+            className="game-column"
+            ref={gameColumnRef}
+            style={boardDisplayW ? { '--board-display-w': `${boardDisplayW}px` } : undefined}
+          >
             {isBuildPlacing ? (
               /* Build mode: placement board */
               <div className="game-area">

@@ -141,6 +141,15 @@ button { cursor: pointer; font-family: inherit; }
   gap: 24px;
   flex-wrap: wrap;
   min-width: 0;
+  /* Cap to the rendered board width so HUD always wraps underneath the board
+     and .game-column doesn't claim board+HUD as its max-content (which would
+     steal width from the puzzle list on intermediate viewports). At wide
+     viewports we lift the cap so HUD can sit beside the board. */
+  max-width: var(--board-display-w, 484px);
+}
+
+@media (min-width: 1120px) {
+  .game-area { max-width: none; }
 }
 
 /* ── Board container (for SVG overlay) ─────────────────────────────────────── */
@@ -477,9 +486,8 @@ button { cursor: pointer; font-family: inherit; }
 
 /* ── Puzzle Navigation Panel ───────────────────────────────────────────────── */
 .pnav {
-  width: 300px;
-  min-width: 260px;
-  flex-shrink: 1;
+  flex: 1 1 320px;
+  min-width: 0;
   background: var(--board-bg);
   border: 1px solid var(--cell-border);
   border-radius: var(--border-radius);
@@ -663,6 +671,7 @@ button { cursor: pointer; font-family: inherit; }
   gap: 2px;
   max-height: 320px;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 .pnav__list-header {
   display: flex;
@@ -904,6 +913,7 @@ button { cursor: pointer; font-family: inherit; }
   color: var(--text-muted);
   margin: 0;
   line-height: 1.5;
+  max-width: var(--board-display-w, 100%);
 }
 
 .instructions__target {
