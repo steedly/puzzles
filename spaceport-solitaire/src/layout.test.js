@@ -177,24 +177,37 @@ describe.skipIf(!chromeExists())('Layout regression tests', () => {
     });
   }, 30000);
 
-  it('range slider: max on top when both inputs at min', async () => {
+  it('range slider: clicking track when both at min moves max', async () => {
     await cdpSession(async (send) => {
       await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 2, mobile: false });
       await send('Page.navigate', { url: BASE + '#standard?mv=1-1' });
       await new Promise(r => setTimeout(r, 4000));
-      const expr = `(()=>{
+      // Verify z-index: max should be on top when both at min
+      let expr = `(()=>{
         const inputs=[...document.querySelectorAll('.pnav__native-range')];
         return JSON.stringify(inputs.map(i=>({
           cls:i.className, val:+i.value, min:+i.min, max:+i.max, z:parseInt(i.style.zIndex)||0
         })));
       })()`;
-      const r = await send('Runtime.evaluate', { expression: expr, returnByValue: true });
-      const inputs = JSON.parse(r.result.result.value);
-      const minInput = inputs.find(i => i.cls.includes('--min'));
+      let r = await send('Runtime.evaluate', { expression: expr, returnByValue: true });
+      let inputs = JSON.parse(r.result.result.value);
       const maxInput = inputs.find(i => i.cls.includes('--max'));
-      expect(minInput.val).toBe(minInput.min);
-      expect(maxInput.val).toBe(maxInput.min);
-      expect(maxInput.z, 'max input z-index must be > min when both at min').toBeGreaterThan(minInput.z);
+      const minInput = inputs.find(i => i.cls.includes('--min'));
+      expect(maxInput.z, 'max z-index > min when both at min').toBeGreaterThan(minInput.z);
+      // Simulate click at 75% of the track to move max
+      const clickExpr = `(()=>{
+        const el=document.querySelector('.pnav__dual-range');
+        const r=el.getBoundingClientRect();
+        el.dispatchEvent(new MouseEvent('click',{clientX:r.left+r.width*0.75,clientY:r.top+r.height/2,bubbles:true}));
+        return true;
+      })()`;
+      await send('Runtime.evaluate', { expression: clickExpr, returnByValue: true });
+      await new Promise(r2 => setTimeout(r2, 500));
+      // Re-read values
+      r = await send('Runtime.evaluate', { expression: expr, returnByValue: true });
+      inputs = JSON.parse(r.result.result.value);
+      const maxAfter = inputs.find(i => i.cls.includes('--max'));
+      expect(maxAfter.val, 'clicking right of both thumbs should move max').toBeGreaterThan(1);
     });
   }, 30000);
 });

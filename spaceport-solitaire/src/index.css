@@ -702,6 +702,8 @@ button { cursor: pointer; font-family: inherit; }
 
 .pnav__native-range::-webkit-slider-thumb {
   -webkit-appearance: none;
+  position: relative;
+  z-index: 10;
   width: 16px;
   height: 16px;
   border-radius: 50%;

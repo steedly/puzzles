@@ -369,7 +369,12 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
                   const val = Math.round(movesRange.min + pct * (movesRange.max - movesRange.min));
                   const distMin = Math.abs(val - movesMin);
                   const distMax = Math.abs(val - movesMax);
-                  if (distMin <= distMax) {
+                  if (distMin === distMax) {
+                    if (val > movesMax) setMovesMax(val);
+                    else if (val < movesMin) setMovesMin(val);
+                    else if (val >= (movesMin + movesMax) / 2) setMovesMax(val);
+                    else setMovesMin(val);
+                  } else if (distMin < distMax) {
                     setMovesMin(Math.min(val, movesMax));
                   } else {
                     setMovesMax(Math.max(val, movesMin));
@@ -383,7 +388,7 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
                   min={movesRange.min}
                   max={movesRange.max}
                   value={movesMin}
-                  style={{ zIndex: movesMin === movesMax && movesMin === movesRange.min ? 2 : 4 }}
+                  style={{ zIndex: movesMin === movesMax && movesMin === movesRange.min ? 3 : 5 }}
                   onChange={e => { setMovesMin(Math.min(+e.target.value, movesMax)); setPage(0); }}
                   title="Minimum moves"
                 />
@@ -393,7 +398,7 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
                   min={movesRange.min}
                   max={movesRange.max}
                   value={movesMax}
-                  style={{ zIndex: movesMin === movesMax && movesMin === movesRange.min ? 4 : 2 }}
+                  style={{ zIndex: movesMin === movesMax && movesMin === movesRange.min ? 5 : 3 }}
                   onChange={e => { setMovesMax(Math.max(+e.target.value, movesMin)); setPage(0); }}
                   title="Maximum moves"
                 />
