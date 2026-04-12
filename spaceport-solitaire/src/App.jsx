@@ -68,6 +68,7 @@ export default function App() {
   const [showSolution, setShowSolution] = useState(false);
   const [scoreMode, setScoreMode] = useState('grouped'); // 'grouped' | 'slides'
   const [hideOptimal, setHideOptimal] = useState(true);
+  const [showArrows, setShowArrows] = useState(true);
 
   // Filter state (lifted from PuzzleNav for permalink sync)
   const [filterState, setFilterState] = useState(null); // null = use defaults
@@ -440,7 +441,8 @@ export default function App() {
               <div className="game-area">
                 <Board
                   state={state} dispatch={dispatch} puzzle={currentPuzzle}
-                  showPaths={showSolution}
+                  showPaths={showSolution && showArrows}
+                  scoreMode={scoreMode}
                   variantBlocks={variantBlocks}
                   board={board}
 
@@ -522,6 +524,8 @@ export default function App() {
           onScoreModeChange={setScoreMode}
           hideOptimal={hideOptimal}
           onHideOptimalChange={setHideOptimal}
+          showArrows={showArrows}
+          onShowArrowsChange={setShowArrows}
           onExport={handleExportProgress}
           onImport={handleImportProgress}
           onClose={() => setOpenPanel(null)}

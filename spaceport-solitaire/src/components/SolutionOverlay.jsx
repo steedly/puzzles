@@ -103,7 +103,7 @@ function computeArrows(solution, puzzle, blockedCells, board) {
   return arrows;
 }
 
-export default function SolutionOverlay({ puzzle, blockedCells, board }) {
+export default function SolutionOverlay({ puzzle, blockedCells, board, scoreMode }) {
   const boardRef = useRef(null);
   const [dims, setDims] = useState(null);
 
@@ -137,10 +137,16 @@ export default function SolutionOverlay({ puzzle, blockedCells, board }) {
     return solvePuzzle(puzzle, blockedCells) || [];
   }, [puzzle, hasBlocks, blockKey]);
 
-  const arrows = useMemo(
-    () => computeArrows(solution, puzzle, blockedCells, board),
-    [solution, puzzle, blockedCells, board]
-  );
+  const arrows = useMemo(() => {
+    const raw = computeArrows(solution, puzzle, blockedCells, board);
+    if (scoreMode === 'slides' || !raw.length) return raw;
+    let moveNum = 1;
+    for (let i = 0; i < raw.length; i++) {
+      if (i > 0 && solution[i]?.mover !== solution[i - 1]?.mover) moveNum++;
+      raw[i].step = moveNum;
+    }
+    return raw;
+  }, [solution, puzzle, blockedCells, board, scoreMode]);
 
   if (!dims || arrows.length === 0) return null;
 

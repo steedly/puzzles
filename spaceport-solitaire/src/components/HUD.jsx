@@ -54,7 +54,7 @@ export default function HUD({ state, dispatch, currentPuzzle, showSolution, onTo
               className={`hud__btn${showSolution ? ' hud__btn--active' : ''}`}
               onClick={onToggleSolution}
               title="Show/hide the optimal solution path on the board"
-            >{showSolution ? 'Hide' : 'Solve'}</button>
+            >{showSolution ? 'Hide Solution' : 'Show Solution'}</button>
           )}
           {onEditInBuild && (
             <button
@@ -68,13 +68,35 @@ export default function HUD({ state, dispatch, currentPuzzle, showSolution, onTo
 
       {showSolution && solution.length > 0 && (
         <div className="hud__solution">
-          {solution.map((m, i) => (
-            <span key={i} className="hud__sol-step">
-              <span className="hud__sol-mover">{robotLabel(m.mover)}</span>
-              <span className="hud__sol-dir">{DIR_ARROW[m.dir]}</span>
-              <span className="hud__sol-blocker">/{robotLabel(m.blocker)}</span>
-            </span>
-          ))}
+          {scoreMode === 'slides'
+            ? solution.map((m, i) => (
+                <span key={i} className="hud__sol-step">
+                  <span className="hud__sol-mover">{robotLabel(m.mover)}</span>
+                  <span className="hud__sol-dir">{DIR_ARROW[m.dir] ?? m.dir}</span>
+                  <span className="hud__sol-blocker">/{robotLabel(m.blocker)}</span>
+                </span>
+              ))
+            : (() => {
+                const groups = [];
+                for (const m of solution) {
+                  const last = groups[groups.length - 1];
+                  if (last && last.mover === m.mover) {
+                    last.slides.push(m);
+                  } else {
+                    groups.push({ mover: m.mover, slides: [m] });
+                  }
+                }
+                return groups.map((g, gi) => (
+                  <span key={gi} className="hud__sol-step">
+                    <span className="hud__sol-num">{gi + 1}.</span>
+                    <span className="hud__sol-mover">{robotLabel(g.mover)}</span>
+                    {g.slides.map((s, si) => (
+                      <span key={si} className="hud__sol-dir">{DIR_ARROW[s.dir] ?? s.dir}</span>
+                    ))}
+                  </span>
+                ));
+              })()
+          }
         </div>
       )}
     </div>
