@@ -1258,6 +1258,33 @@ button { cursor: pointer; font-family: inherit; }
   line-height: 1.5;
 }
 
+.build-panel__loadid-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.build-panel__loadid-input {
+  flex: 1;
+  min-width: 80px;
+  padding: 4px 8px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  background: var(--btn-bg);
+  color: var(--text);
+  border: 1px solid var(--cell-border);
+  border-radius: 4px;
+}
+.build-panel__loadid-input:focus {
+  outline: none;
+  border-color: #6666bb;
+}
+.build-panel__loadid-error {
+  flex-basis: 100%;
+  font-size: 0.75rem;
+  color: #f44336;
+}
+
 .build-panel__status-row {
   display: flex;
   align-items: center;

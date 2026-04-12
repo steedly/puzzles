@@ -1,8 +1,9 @@
 // Copyright (c) 2025-2026 Drew Steedly. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { collisionSignature, findMatchingPuzzles, findD4PositionMatches } from '../logic/collisionSignature';
+import { decodeStableId } from '../hooks/usePuzzleLibrary';
 
 const VARIANTS = [
   { key: 'standard',  label: 'Square' },
@@ -21,6 +22,35 @@ export default function BuildPanel({
   const exitCount = pieces.filter(p => p.isExit).length;
   const helperCount = pieces.filter(p => !p.isExit).length;
   const canSolve = exitCount > 0 && helperCount > 0 && phase === 'placing';
+
+  // Stable-ID loader: lets the user paste an ID and load its piece positions.
+  const [loadIdInput, setLoadIdInput] = useState('');
+  const [loadIdError, setLoadIdError] = useState(null);
+  const handleLoadId = (e) => {
+    e.preventDefault();
+    const trimmed = loadIdInput.trim();
+    if (!trimmed) return;
+    const decoded = decodeStableId(trimmed);
+    if (!decoded || decoded.positions.length === 0) {
+      setLoadIdError('Invalid stable ID');
+      return;
+    }
+    if (decoded.positions.length < decoded.numExits) {
+      setLoadIdError('Decoded ID has fewer pieces than declared exits');
+      return;
+    }
+    // Validate against the current board: cells must be in range and unblocked.
+    const N = 7;
+    for (const [r, c] of decoded.positions) {
+      if (r < 0 || r >= N || c < 0 || c >= N) {
+        setLoadIdError('Decoded position outside the board');
+        return;
+      }
+    }
+    buildDispatch({ type: 'LOAD_POSITIONS', numExits: decoded.numExits, positions: decoded.positions });
+    setLoadIdInput('');
+    setLoadIdError(null);
+  };
 
   // The board is showing the built puzzle (not a library preview)
   const showingBuild = phase === 'solved' && !buildPreview;
@@ -56,6 +86,24 @@ export default function BuildPanel({
           {VARIANTS.map(v => <option key={v.key} value={v.key}>{v.label}</option>)}
         </select>
       </div>
+
+      {/* Load by stable ID */}
+      {phase === 'placing' && (
+        <form className="build-panel__loadid-row" onSubmit={handleLoadId}>
+          <span className="pnav__label">Load ID</span>
+          <input
+            className="build-panel__loadid-input"
+            type="text"
+            placeholder="e.g. 1-16o"
+            value={loadIdInput}
+            onChange={e => { setLoadIdInput(e.target.value); setLoadIdError(null); }}
+            spellCheck={false}
+            autoComplete="off"
+          />
+          <button type="submit" className="pnav__nav-btn" disabled={!loadIdInput.trim()}>Load</button>
+          {loadIdError && <span className="build-panel__loadid-error">{loadIdError}</span>}
+        </form>
+      )}
 
       {/* Piece type selector */}
       {phase === 'placing' && (
