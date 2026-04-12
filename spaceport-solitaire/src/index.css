@@ -698,6 +698,8 @@ button { cursor: pointer; font-family: inherit; }
 
 .pnav__slider-thumb {
   display: block;
+  position: relative;
+  z-index: 1;
   width: 18px;
   height: 18px;
   border-radius: 50%;
