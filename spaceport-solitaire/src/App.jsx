@@ -14,7 +14,6 @@ import SettingsPanel from './components/SettingsPanel';
 import InfoPanel from './components/InfoPanel';
 import { useBuildMode } from './hooks/useBuildMode';
 import { useUserData, STORAGE_KEY } from './hooks/useUserData';
-// eslint-disable-next-line no-unused-vars
 import { usePuzzleMetrics } from './hooks/usePuzzleMetrics';
 import { boardForVariant } from './logic/boardGeometry';
 
@@ -341,6 +340,11 @@ export default function App() {
   const isBuildPlacing = mode === 'build' && buildState.phase !== 'solved';
   const isStepMode = mode === 'build' && buildState.phase === 'solved' && !buildPreview;
 
+  // Compute per-step difficulty metrics in a Web Worker — only when in
+  // build-stepper mode. Returns { status, solutionPath: [...] }.
+  const stepperPuzzle = isStepMode ? currentPuzzle : null;
+  const puzzleMetrics = usePuzzleMetrics(stepperPuzzle, variantBlocks, board);
+
   // In solution-stepper mode, auto-select the next mover so the user
   // sees the yellow selection ring + landing cells highlighted.
   const nextMove = isStepMode ? currentPuzzle?.solution?.[state.slideCount] : null;
@@ -469,6 +473,7 @@ export default function App() {
                   stepMode={isStepMode}
                   board={board}
                   variantBlocks={variantBlocks}
+                  puzzleMetrics={isStepMode ? puzzleMetrics : null}
                 />
               </div>
             ) : null}

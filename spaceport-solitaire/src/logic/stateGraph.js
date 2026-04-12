@@ -191,6 +191,7 @@ export function computeMetrics(graph) {
   const solvable        = new Uint8Array(numStates);
   const reachableCount  = new Int32Array(numStates);
   const minMovesToGoal  = new Int32Array(numStates).fill(-1);
+  const trapCount       = new Int32Array(numStates);
 
   // ── Pass 1: minSlidesToGoal + solvable via reverse BFS from goals ──
   const { tOffsets, tTargets } = buildTranspose(graph);
@@ -214,6 +215,23 @@ export function computeMetrics(graph) {
         bfsQueue[qTail++] = pred;
       }
     }
+  }
+
+  // ── Pass 1b: trapCount via single edge scan ──
+  // For each state S with optimal distance D = minSlidesToGoal[S], count
+  // outgoing edges that DON'T decrease the distance. These are "wrong"
+  // moves the player could make — they wander or backtrack instead of
+  // making progress. Trap count is the per-state difficulty signal.
+  for (let s = 0; s < numStates; s++) {
+    const D = minSlidesToGoal[s];
+    if (D === -1) { trapCount[s] = 0; continue; }
+    let wrong = 0;
+    const eStart = edgeOffsets[s], eEnd = edgeOffsets[s + 1];
+    for (let e = eStart; e < eEnd; e++) {
+      const child = edgeTargets[e];
+      if (minSlidesToGoal[child] !== D - 1) wrong++;
+    }
+    trapCount[s] = wrong;
   }
 
   // ── Pass 2: reachableCount via DFS topological reverse-DP ──
@@ -328,7 +346,7 @@ export function computeMetrics(graph) {
     minMovesToGoal[s] = augDist[s * (numRobots + 1) + numRobots];
   }
 
-  return { reachableCount, solvable, minSlidesToGoal, minMovesToGoal, minMovesAug: augDist };
+  return { reachableCount, solvable, minSlidesToGoal, minMovesToGoal, trapCount, minMovesAug: augDist };
 }
 
 /**
@@ -473,5 +491,51 @@ export function queryByPositions(graph, metrics, positions) {
     solvable:        metrics.solvable[idx] === 1,
     minSlidesToGoal: metrics.minSlidesToGoal[idx],
     minMovesToGoal:  metrics.minMovesToGoal[idx],
+    trapCount:       metrics.trapCount[idx],
   };
+}
+
+/**
+ * Walk a puzzle's solution from the start position, looking up the metrics
+ * for each intermediate state. Returns a per-step array suitable for the
+ * solution-stepper UI. Length = solution.length + 1 (start state + each
+ * post-slide state). Returns null if any state is missing from the graph
+ * (which would indicate a stale solution or a bug).
+ */
+export function computeSolutionPathMetrics(graph, metrics, puzzle, blockedCells, board) {
+  if (!puzzle || !puzzle.solution || puzzle.solution.length === 0) return [];
+  const exitIds = new Set(puzzle.robots.filter(r => r.isExit).map(r => r.id));
+  // Initial positions
+  let positions = {};
+  for (const r of puzzle.robots) positions[r.id] = { row: r.row, col: r.col };
+
+  const path = [];
+  for (let step = 0; step <= puzzle.solution.length; step++) {
+    const q = queryByPositions(graph, metrics, positions);
+    if (!q) return null;
+    path.push({ step, ...q });
+    if (step >= puzzle.solution.length) break;
+    const move = puzzle.solution[step];
+    const dirIdx = board.dirs.findIndex(d => d.name === move.dir);
+    if (dirIdx < 0) return null;
+    // Inline slide logic; we don't import slideWithBlocker here to avoid
+    // a circular dep — the caller (worker) does have it but the test path
+    // uses this function too. We use queryByPositions's lookup chain.
+    // Instead, look up the next state in the graph directly via the edge
+    // matching this move's mover and direction.
+    const moverIdx = puzzle.robots.findIndex(r => r.id === move.mover);
+    if (moverIdx < 0) return null;
+    const eStart = graph.edgeOffsets[q.stateIdx];
+    const eEnd = graph.edgeOffsets[q.stateIdx + 1];
+    let nextIdx = -1;
+    for (let e = eStart; e < eEnd; e++) {
+      if (graph.edgeMover[e] === moverIdx && graph.edgeDir[e] === dirIdx) {
+        nextIdx = graph.edgeTargets[e];
+        break;
+      }
+    }
+    if (nextIdx < 0) return null;
+    positions = graph.positionsByIdx[nextIdx];
+  }
+  return path;
 }

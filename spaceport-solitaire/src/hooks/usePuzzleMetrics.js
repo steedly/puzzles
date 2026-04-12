@@ -13,7 +13,7 @@ import { useEffect, useState, useRef } from 'react';
  *     metrics, startIdx, numStates, ms }
  */
 export function usePuzzleMetrics(puzzle, blockedCells, board, { maxStates = 600_000 } = {}) {
-  const [state, setState] = useState({ status: 'idle', metrics: null });
+  const [state, setState] = useState({ status: 'idle', solutionPath: null });
   const workerRef = useRef(null);
 
   useEffect(() => {
@@ -22,11 +22,11 @@ export function usePuzzleMetrics(puzzle, blockedCells, board, { maxStates = 600_
       workerRef.current.terminate();
       workerRef.current = null;
     }
-    if (!puzzle || !puzzle.robots || puzzle.robots.length === 0) {
-      setState({ status: 'idle', metrics: null });
+    if (!puzzle || !puzzle.robots || puzzle.robots.length === 0 || !puzzle.solution || puzzle.solution.length === 0) {
+      setState({ status: 'idle', solutionPath: null });
       return;
     }
-    setState({ status: 'computing', metrics: null });
+    setState({ status: 'computing', solutionPath: null });
 
     const worker = new Worker(new URL('../logic/stateGraph.worker.js', import.meta.url), { type: 'module' });
     workerRef.current = worker;
@@ -36,16 +36,15 @@ export function usePuzzleMetrics(puzzle, blockedCells, board, { maxStates = 600_
       if (data.ok) {
         setState({
           status: 'ready',
-          metrics: data.metrics,
-          startIdx: data.startIdx,
+          solutionPath: data.solutionPath,
           numStates: data.numStates,
           numEdges: data.numEdges,
           ms: data.ms,
         });
       } else if (data.reason === 'too_large') {
-        setState({ status: 'too_large', metrics: null });
+        setState({ status: 'too_large', solutionPath: null });
       } else {
-        setState({ status: 'error', metrics: null, error: data.message });
+        setState({ status: 'error', solutionPath: null, error: data.message });
       }
     };
     worker.onerror = (err) => {

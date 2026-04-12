@@ -7,10 +7,16 @@
 //
 // Protocol:
 //   main →   { puzzle, blockedCells: Array<string>, board, maxStates }
-//   worker → { ok: true, metrics: { reachableCount, solvable, minSlidesToGoal, minMovesToGoal }, startIdx, numStates, numEdges, ms }
+//   worker → { ok: true, solutionPath: [...per-step metric records...], numStates, numEdges, ms }
 //   worker → { ok: false, reason: 'too_large' | 'error', message?: string }
+//
+// We only return the per-step metrics for the puzzle's optimal solution
+// path, not the full per-state arrays. The HUD only needs to display
+// metrics at each playback step, so this is all the data the UI consumes.
+// Avoids posting hundreds of KB of typed arrays back across the worker
+// boundary for every puzzle.
 
-import { buildStateGraph, computeMetrics } from './stateGraph.js';
+import { buildStateGraph, computeMetrics, computeSolutionPathMetrics } from './stateGraph.js';
 
 self.onmessage = (e) => {
   const { puzzle, blockedCells: blockedArr, board, maxStates } = e.data;
@@ -23,27 +29,15 @@ self.onmessage = (e) => {
       return;
     }
     const metrics = computeMetrics(graph);
+    const solutionPath = computeSolutionPathMetrics(graph, metrics, puzzle, blockedCells, board);
     const ms = performance.now() - t0;
-    // Transfer the typed-array buffers to avoid copying.
-    const transfer = [
-      metrics.reachableCount.buffer,
-      metrics.solvable.buffer,
-      metrics.minSlidesToGoal.buffer,
-      metrics.minMovesToGoal.buffer,
-    ];
     self.postMessage({
       ok: true,
-      metrics: {
-        reachableCount:  metrics.reachableCount,
-        solvable:        metrics.solvable,
-        minSlidesToGoal: metrics.minSlidesToGoal,
-        minMovesToGoal:  metrics.minMovesToGoal,
-      },
-      startIdx: 0,
+      solutionPath,
       numStates: graph.numStates,
       numEdges: graph.numEdges,
       ms,
-    }, transfer);
+    });
   } catch (err) {
     self.postMessage({ ok: false, reason: 'error', message: String(err && err.message || err) });
   }

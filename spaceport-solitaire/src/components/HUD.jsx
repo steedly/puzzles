@@ -10,10 +10,21 @@ function robotLabel(id) {
   return id.replace('r', '');
 }
 
+// Map a "wrong moves available at this state" count to a difficulty class.
+// Forced (0): green. Trivial (1-2): light. Moderate (3-5): yellow. Tricky (6-9): orange. Critical (10+): red.
+function trapClass(trapCount) {
+  if (trapCount == null) return '';
+  if (trapCount === 0)  return 'hud__sol-dir--trap0';
+  if (trapCount <= 2)   return 'hud__sol-dir--trap1';
+  if (trapCount <= 5)   return 'hud__sol-dir--trap2';
+  if (trapCount <= 9)   return 'hud__sol-dir--trap3';
+  return 'hud__sol-dir--trap4';
+}
+
 export default function HUD({
   state, dispatch, currentPuzzle, scoreMode, hideOptimal, onEditInBuild,
   // Build-mode solution stepping (only set when in build-solved view)
-  stepMode, board, variantBlocks,
+  stepMode, board, variantBlocks, puzzleMetrics,
 }) {
   const solution = currentPuzzle?.solution ?? [];
   const totalSlides = solution.length;
@@ -22,6 +33,12 @@ export default function HUD({
   const totalExits = exitIds.size;
   const exitedCount = [...exitIds].filter(id => !state.positions[id]).length;
   const showExitProgress = totalExits > 1;
+
+  // The state-graph metrics for the current step (only available in stepMode
+  // when the worker has finished). solutionPath[i] = metrics AT state i,
+  // BEFORE the i-th slide is taken. solutionPath has length totalSlides + 1.
+  const pathReady = stepMode && puzzleMetrics?.status === 'ready' && Array.isArray(puzzleMetrics.solutionPath);
+  const currentMetrics = pathReady ? puzzleMetrics.solutionPath[state.slideCount] : null;
 
   const stepNext = () => {
     if (state.slideCount >= totalSlides) return;
@@ -96,6 +113,29 @@ export default function HUD({
         </div>
       </div>
 
+      {stepMode && currentMetrics && (
+        <div className="hud__metrics" title="Difficulty metrics for the current state">
+          <span className="hud__metric">
+            <span className="hud__metric-label">Reachable</span>
+            <span className="hud__metric-value">{currentMetrics.reachableCount.toLocaleString()}</span>
+          </span>
+          <span className="hud__metric">
+            <span className="hud__metric-label">Remaining</span>
+            <span className="hud__metric-value">{currentMetrics.minSlidesToGoal} sl · {currentMetrics.minMovesToGoal} mv</span>
+          </span>
+          <span className={`hud__metric hud__metric--trap ${trapClass(currentMetrics.trapCount)}`} title="Number of legal slides from here that DON'T make optimal progress">
+            <span className="hud__metric-label">Wrong moves</span>
+            <span className="hud__metric-value">{currentMetrics.trapCount}</span>
+          </span>
+        </div>
+      )}
+      {stepMode && puzzleMetrics?.status === 'computing' && (
+        <div className="hud__metrics hud__metrics--computing">Computing difficulty metrics…</div>
+      )}
+      {stepMode && puzzleMetrics?.status === 'too_large' && (
+        <div className="hud__metrics hud__metrics--unavailable">Puzzle too large for difficulty metrics</div>
+      )}
+
       {stepMode && solution.length > 0 && (
         <div className="hud__solution">
           {(() => {
@@ -114,12 +154,21 @@ export default function HUD({
               <span key={gi} className="hud__sol-step">
                 <span className="hud__sol-num">{gi + 1}.</span>
                 <span className="hud__sol-mover">{robotLabel(g.mover)}</span>
-                {g.slides.map((s) => (
-                  <span
-                    key={s.slideIdx}
-                    className={`hud__sol-dir${s.slideIdx === state.slideCount ? ' hud__sol-dir--current' : ''}${s.slideIdx < state.slideCount ? ' hud__sol-dir--done' : ''}`}
-                  >{DIR_ARROW[s.dir] ?? s.dir}</span>
-                ))}
+                {g.slides.map((s) => {
+                  // Color-code by trap count at THIS slide's pre-state.
+                  const stepMetric = pathReady ? puzzleMetrics.solutionPath[s.slideIdx] : null;
+                  const tcls = stepMetric ? trapClass(stepMetric.trapCount) : '';
+                  const stateClass =
+                    s.slideIdx === state.slideCount ? ' hud__sol-dir--current' :
+                    s.slideIdx <  state.slideCount ? ' hud__sol-dir--done' : '';
+                  return (
+                    <span
+                      key={s.slideIdx}
+                      className={`hud__sol-dir ${tcls}${stateClass}`}
+                      title={stepMetric ? `${stepMetric.trapCount} wrong moves available here` : undefined}
+                    >{DIR_ARROW[s.dir] ?? s.dir}</span>
+                  );
+                })}
               </span>
             ));
           })()}

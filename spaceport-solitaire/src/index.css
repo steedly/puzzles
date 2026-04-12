@@ -587,6 +587,52 @@ button { cursor: pointer; font-family: inherit; }
 }
 .hud__sol-blocker{ color: var(--text-muted); }
 
+/* Trap-count color classes for solution stepper. Higher = harder. */
+.hud__sol-dir--trap0 { color: #66cc88; }              /* forced (0 wrong moves) */
+.hud__sol-dir--trap1 { color: #b8d96f; }              /* easy (1-2)  */
+.hud__sol-dir--trap2 { color: #ffd166; }              /* moderate (3-5) */
+.hud__sol-dir--trap3 { color: #ff9651; }              /* tricky (6-9) */
+.hud__sol-dir--trap4 { color: #ff5b5b; }              /* critical (10+) */
+
+/* Difficulty metrics row in build-stepper mode */
+.hud__metrics {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 6px;
+  border: 1px solid var(--cell-border);
+}
+.hud__metrics--computing,
+.hud__metrics--unavailable {
+  font-style: italic;
+  opacity: 0.7;
+}
+.hud__metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.hud__metric-label {
+  text-transform: uppercase;
+  font-size: 0.62rem;
+  letter-spacing: 0.05em;
+  opacity: 0.7;
+}
+.hud__metric-value {
+  color: var(--text);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.hud__metric--trap.hud__sol-dir--trap0 .hud__metric-value { color: #66cc88; }
+.hud__metric--trap.hud__sol-dir--trap1 .hud__metric-value { color: #b8d96f; }
+.hud__metric--trap.hud__sol-dir--trap2 .hud__metric-value { color: #ffd166; }
+.hud__metric--trap.hud__sol-dir--trap3 .hud__metric-value { color: #ff9651; }
+.hud__metric--trap.hud__sol-dir--trap4 .hud__metric-value { color: #ff5b5b; }
+
 /* ── Puzzle Navigation Panel ───────────────────────────────────────────────── */
 .pnav {
   width: 360px;

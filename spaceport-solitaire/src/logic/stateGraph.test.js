@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect } from 'vitest';
-import { buildStateGraph, computeMetrics, queryByPositions } from './stateGraph.js';
+import { buildStateGraph, computeMetrics, queryByPositions, computeSolutionPathMetrics } from './stateGraph.js';
 import { SQUARE_7x7 } from './boardGeometry.js';
 
 // Build a minimal puzzle object compatible with the rest of the engine.
@@ -161,6 +161,71 @@ describe('stateGraph: ground-truth validation against published .llp metrics', (
       expect(metrics.minSlidesToGoal[0], 'minRawSlides').toBe(p.minRawSlides);
       expect(metrics.minMovesToGoal[0], 'minMoves (grouped)').toBe(p.minMoves);
       expect(metrics.solvable[0], 'solvable').toBe(1);
+      expect(metrics.trapCount[0], 'trapCount must be ≥ 0').toBeGreaterThanOrEqual(0);
     });
   }
+});
+
+// ── Solution-path walker tests ──
+//
+// Parse the puzzle's solution string and assert that walking from start
+// produces the right number of steps and that minSlidesToGoal decreases
+// monotonically by 1 along the optimal path.
+describe('stateGraph: computeSolutionPathMetrics', () => {
+  // Helper to parse the .llp solution string into structured slides.
+  // Square format: each token is "moverDirBlocker" e.g. "AU1" = target up, blocked by helper 1.
+  function parseSolution(solStr, numExits) {
+    const tokens = solStr.trim().split(' ').filter(Boolean);
+    const dirMap = { U: 'up', D: 'down', L: 'left', R: 'right' };
+    function label(ch) {
+      if (ch >= 'A' && ch <= 'Z') {
+        const idx = ch.charCodeAt(0) - 65;
+        return idx === 0 ? 'target' : `exit${idx}`;
+      }
+      return `r${ch}`;
+    }
+    return tokens.map(t => ({
+      mover: label(t[0]),
+      dir: dirMap[t[1]] || t[1],
+      blocker: label(t[2]),
+    }));
+  }
+
+  it('walks the optimal path of puzzle 36 (1E 3H, 4 moves)', () => {
+    const line = '36|1|3|4|4|4|38|4,3 1,3 4,1 4,5|2RA AU1 3L2 AD3';
+    const p = parseLlpLine(line);
+    p.solution = parseSolution(line.split('|')[8], p.numExits);
+    const graph = buildStateGraph(p, EMPTY_BLOCKS, SQUARE_7x7);
+    const metrics = computeMetrics(graph);
+    const path = computeSolutionPathMetrics(graph, metrics, p, EMPTY_BLOCKS, SQUARE_7x7);
+    expect(path).not.toBeNull();
+    expect(path.length).toBe(p.solution.length + 1); // includes start + each post-slide state
+
+    // First entry is start state
+    expect(path[0].minSlidesToGoal).toBe(p.minRawSlides);
+    // Last entry is the goal
+    expect(path[path.length - 1].minSlidesToGoal).toBe(0);
+    expect(path[path.length - 1].solvable).toBe(true);
+
+    // minSlidesToGoal must decrease by exactly 1 each step (optimal path)
+    for (let i = 1; i < path.length; i++) {
+      expect(path[i].minSlidesToGoal).toBe(path[i - 1].minSlidesToGoal - 1);
+    }
+    // reachableCount should be monotonically non-increasing
+    for (let i = 1; i < path.length; i++) {
+      expect(path[i].reachableCount).toBeLessThanOrEqual(path[i - 1].reachableCount);
+    }
+  });
+
+  it('walks puzzle 1 (1E 1H, 1 move) — single slide reaches goal', () => {
+    const line = '1|1|1|1|1|1|3|4,3 2,3|AU1';
+    const p = parseLlpLine(line);
+    p.solution = parseSolution(line.split('|')[8], p.numExits);
+    const graph = buildStateGraph(p, EMPTY_BLOCKS, SQUARE_7x7);
+    const metrics = computeMetrics(graph);
+    const path = computeSolutionPathMetrics(graph, metrics, p, EMPTY_BLOCKS, SQUARE_7x7);
+    expect(path.length).toBe(2); // start + goal
+    expect(path[0].minSlidesToGoal).toBe(1);
+    expect(path[1].minSlidesToGoal).toBe(0);
+  });
 });
