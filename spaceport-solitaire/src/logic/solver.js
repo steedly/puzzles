@@ -6,9 +6,10 @@ import { SQUARE_7x7 } from './boardGeometry.js';
 
 /**
  * Slide robot `robotId` in direction `dirIdx` using the board geometry.
- * Returns { newPositions, blockerId } or null.
+ * Returns { newPositions, blockerId, dirName } or null.
+ * Exported for reuse by stateGraph.js.
  */
-function slideWithBlocker(positions, robotId, dirIdx, exitIds, blockedCells, board) {
+export function slideWithBlocker(positions, robotId, dirIdx, exitIds, blockedCells, board) {
   const start = positions[robotId];
   if (!start) return null;
 

@@ -14,6 +14,8 @@ import SettingsPanel from './components/SettingsPanel';
 import InfoPanel from './components/InfoPanel';
 import { useBuildMode } from './hooks/useBuildMode';
 import { useUserData, STORAGE_KEY } from './hooks/useUserData';
+// eslint-disable-next-line no-unused-vars
+import { usePuzzleMetrics } from './hooks/usePuzzleMetrics';
 import { boardForVariant } from './logic/boardGeometry';
 
 // Placeholder so useGameState never receives null.
