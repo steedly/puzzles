@@ -575,6 +575,7 @@ button { cursor: pointer; font-family: inherit; }
 .pnav {
   flex: 1 1 320px;
   min-width: 0;
+  max-width: 400px;
   background: var(--board-bg);
   border: 1px solid var(--cell-border);
   border-radius: var(--border-radius);
@@ -823,8 +824,10 @@ button { cursor: pointer; font-family: inherit; }
   font-family: monospace;
   font-size: 0.78rem;
   color: var(--text-muted);
-  width: 80px;
-  flex-shrink: 0;
+  min-width: 60px;
+  flex: 1 1 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .pnav__item-meta {
   font-size: 0.8rem;
