@@ -52,7 +52,7 @@ const STARRED_LABEL = { all: 'All', starred: 'Starred', unstarred: 'Unstarred' }
 
 const noop = () => false;
 
-export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilteredChange, blockedCells, variant, onVariantChange, scoreMode, onScoreModeChange, hideOptimal, onHideOptimalChange, filterState, onFilterChange, isSolved = noop, isOptimal = noop, isStarred = noop, toggleStar = () => {}, getComment = () => '', setComment = null, userData = null }) {
+export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilteredChange, blockedCells, variant, onVariantChange, scoreMode, hideOptimal, filterState, onFilterChange, isSolved = noop, isOptimal = noop, isStarred = noop, toggleStar = () => {}, getComment = () => '', setComment = null }) {
   // Derive available options from the puzzle library
   const availableHelpers = useMemo(() =>
     [...new Set(allPuzzles.map(p => p.helpers))].sort((a, b) => a - b),
@@ -229,20 +229,6 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
     e.preventDefault();
     const p = allPuzzles.find(x => x.stableId === jumpId.trim());
     if (p) { onSelect(p); setJumpId(''); }
-  }
-
-  function handleExportProgress() {
-    if (!userData) return;
-    const blob = new Blob([JSON.stringify(userData.data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    const stamp = new Date().toISOString().slice(0, 10);
-    a.download = `spaceport-solitaire-progress-${stamp}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
   }
 
   // Dual-range slider handlers
@@ -446,23 +432,6 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
             >{sortAsc ? '↑' : '↓'}</button>
           </div>
 
-          {/* ── Display toggles ── */}
-          {onScoreModeChange && onHideOptimalChange && (
-            <div className="pnav__filter-row">
-              <span className="pnav__label">Display:</span>
-              <button
-                className={`pnav__chip${scoreMode === 'slides' ? ' pnav__chip--on' : ''}`}
-                onClick={() => onScoreModeChange(scoreMode === 'grouped' ? 'slides' : 'grouped')}
-                title={scoreMode === 'grouped' ? 'Switch to counting individual slides' : 'Switch to counting grouped moves'}
-              >{scoreMode === 'grouped' ? 'Moves' : 'Slides'}</button>
-              <button
-                className={`pnav__chip${!hideOptimal ? ' pnav__chip--on' : ''}`}
-                onClick={() => onHideOptimalChange(!hideOptimal)}
-                title={hideOptimal ? 'Show the minimum move count' : 'Hide the minimum move count'}
-              >{hideOptimal ? 'Min: Off' : 'Min: On'}</button>
-            </div>
-          )}
-
           {/* ── Navigation: Prev / Random / Next + Jump ── */}
           <div className="pnav__nav-row">
             <button className="pnav__nav-btn" onClick={handlePrev}
@@ -478,13 +447,6 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
               />
               <button type="submit" className="pnav__nav-btn">Go</button>
             </form>
-            {userData && (
-              <button
-                className="pnav__nav-btn"
-                onClick={handleExportProgress}
-                title="Download your solved & starred puzzles as JSON"
-              >Export</button>
-            )}
           </div>
 
           {/* ── Puzzle list ── */}

@@ -81,6 +81,145 @@ button { cursor: pointer; font-family: inherit; }
   background-clip: text;
 }
 
+.app__header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app__icon-btn {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--cell-border);
+  border-radius: 50%;
+  background: var(--btn-bg);
+  color: var(--text-muted);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.app__icon-btn:hover {
+  background: var(--btn-hover);
+  border-color: #5555aa;
+  color: var(--text);
+}
+
+/* ── Overlay panels (Settings, Info) ──────────────────────────────────────── */
+.overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 100;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 80px;
+}
+
+.overlay-panel {
+  background: var(--board-bg);
+  border: 1px solid var(--cell-border);
+  border-radius: 12px;
+  padding: 20px 24px;
+  width: 90%;
+  max-width: 360px;
+  color: var(--text);
+}
+
+.overlay-panel__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.overlay-panel__title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.overlay-panel__close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+.overlay-panel__close:hover { color: var(--text); }
+
+.overlay-panel__section {
+  margin-bottom: 16px;
+}
+.overlay-panel__section:last-child { margin-bottom: 0; }
+
+.overlay-panel__label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin: 0 0 8px;
+  font-weight: 600;
+}
+
+.overlay-panel__text {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.overlay-panel__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 0.85rem;
+}
+
+.overlay-panel__toggle-group {
+  display: flex;
+  gap: 4px;
+}
+
+.overlay-panel__toggle {
+  padding: 4px 12px;
+  border: 1px solid var(--cell-border);
+  border-radius: 6px;
+  background: var(--btn-bg);
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.overlay-panel__toggle:hover {
+  background: var(--btn-hover);
+}
+.overlay-panel__toggle--on {
+  background: #2a2a5a;
+  border-color: #a0a0ff;
+  color: #a0a0ff;
+}
+
+.overlay-panel__action-btn {
+  padding: 6px 14px;
+  border: 1px solid var(--cell-border);
+  border-radius: 6px;
+  background: var(--btn-bg);
+  color: var(--text);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.overlay-panel__action-btn:hover {
+  background: var(--btn-hover);
+}
+
 .app__main {
   display: flex;
   flex-direction: column;
@@ -384,46 +523,10 @@ button { cursor: pointer; font-family: inherit; }
   opacity: 0.35;
   cursor: not-allowed;
 }
-
-.hud__tools {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.hud__tool-btn {
-  padding: 6px 14px;
-  border: 1px solid var(--cell-border);
-  border-radius: 6px;
-  background: var(--btn-bg);
-  color: var(--text-muted);
-  font-size: 0.85rem;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
-}
-
-.hud__tool-btn:hover {
-  background: var(--btn-hover);
-  border-color: #5555aa;
-  color: var(--text);
-}
-
-.hud__tool-btn--active {
+.hud__btn--active {
   background: #2a2a5a;
   border-color: #a0a0ff;
   color: #a0a0ff;
-}
-.hud__tool-btn--help {
-  width: 32px;
-  padding: 6px 0;
-  text-align: center;
-  font-weight: 700;
-  border-radius: 50%;
-}
-
-
-.hud__tool-btn--clear {
-  color: #f44336;
-  border-color: rgba(244, 67, 54, 0.4);
 }
 
 /* ── HUD solution display ──────────────────────────────────────────────────── */
@@ -903,20 +1006,6 @@ button { cursor: pointer; font-family: inherit; }
   text-align: center;
 }
 .pnav__jump-input:focus { outline: 2px solid #6666cc; }
-
-/* ── Instructions ──────────────────────────────────────────────────────────── */
-.instructions {
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  margin: 0;
-  line-height: 1.5;
-  max-width: var(--board-natural-w, 484px);
-}
-
-.instructions__target {
-  color: var(--robot-target);
-  font-weight: 600;
-}
 
 /* ── Win Modal ─────────────────────────────────────────────────────────────── */
 .modal-backdrop {

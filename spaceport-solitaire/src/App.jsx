@@ -10,8 +10,10 @@ import HUD from './components/HUD';
 import PuzzleNav from './components/PuzzleNav';
 import BuildPanel from './components/BuildPanel';
 import WinModal from './components/WinModal';
+import SettingsPanel from './components/SettingsPanel';
+import InfoPanel from './components/InfoPanel';
 import { useBuildMode } from './hooks/useBuildMode';
-import { useUserData } from './hooks/useUserData';
+import { useUserData, STORAGE_KEY } from './hooks/useUserData';
 import { boardForVariant } from './logic/boardGeometry';
 
 // Placeholder so useGameState never receives null.
@@ -84,16 +86,36 @@ export default function App() {
   // Persistent per-browser user state: solved/starred/comments by stableId
   const userData = useUserData();
 
-  // Dismissible instructions — shown until first slide, then auto-hidden
-  const [showInstructions, setShowInstructions] = useState(() =>
-    typeof window === 'undefined' || !localStorage.getItem('spaceport-instructions-seen')
-  );
-  useEffect(() => {
-    if (state.slideCount > 0 && showInstructions) {
-      setShowInstructions(false);
-      try { localStorage.setItem('spaceport-instructions-seen', '1'); } catch {}
-    }
-  }, [state.slideCount, showInstructions]);
+  // Overlay panels
+  const [openPanel, setOpenPanel] = useState(null); // 'settings' | 'info' | null
+
+  const handleExportProgress = useCallback(() => {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const blob = new Blob([raw], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `spaceport-solitaire-progress-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, []);
+
+  const handleImportProgress = useCallback((file) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(reader.result);
+        if (parsed && typeof parsed === 'object') {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+          window.location.reload();
+        }
+      } catch { /* ignore bad file */ }
+    };
+    reader.readAsText(file);
+  }, []);
 
   // Mark puzzle as solved on win edge. All wins originate from user-driven SLIDE
   // actions in the reducer, so any isWon=true is by definition natural play.
@@ -369,27 +391,31 @@ export default function App() {
     setBuildPreview(null);
   }, []);
 
-  // Load a library puzzle into Build mode for editing
-  const handleEditInBuild = useCallback(() => {
-    if (!currentPuzzle?.robots) return;
-    buildDispatch({ type: 'LOAD_ROBOTS', robots: currentPuzzle.robots });
-    setBuildPreview(null);
-    setMode('build');
-  }, [currentPuzzle, buildDispatch]);
-
   return (
     <div className="app">
       <header className="app__header">
         <h1 className="app__title">Spaceport Solitaire</h1>
-        <div className="app__mode-toggle">
+        <div className="app__header-right">
+          <div className="app__mode-toggle">
+            <button
+              className={`app__mode-btn${mode === 'library' ? ' app__mode-btn--active' : ''}`}
+              onClick={() => setMode('library')}
+            >Library</button>
+            <button
+              className={`app__mode-btn${mode === 'build' ? ' app__mode-btn--active' : ''}`}
+              onClick={() => setMode('build')}
+            >Build</button>
+          </div>
           <button
-            className={`app__mode-btn${mode === 'library' ? ' app__mode-btn--active' : ''}`}
-            onClick={() => setMode('library')}
-          >Library</button>
+            className="app__icon-btn"
+            onClick={() => setOpenPanel(p => p === 'info' ? null : 'info')}
+            title="How to play"
+          >?</button>
           <button
-            className={`app__mode-btn${mode === 'build' ? ' app__mode-btn--active' : ''}`}
-            onClick={() => setMode('build')}
-          >Build</button>
+            className="app__icon-btn"
+            onClick={() => setOpenPanel(p => p === 'settings' ? null : 'settings')}
+            title="Settings"
+          >⚙</button>
         </div>
       </header>
 
@@ -458,17 +484,9 @@ export default function App() {
                   onToggleSolution={() => setShowSolution(s => !s)}
                   scoreMode={scoreMode}
                   hideOptimal={hideOptimal}
-                  onEditInBuild={currentPuzzle?.robots ? handleEditInBuild : undefined}
-                  onShowHelp={showInstructions ? undefined : () => setShowInstructions(true)}
                 />
               </div>
             ) : null}
-            {!isBuildPlacing && showInstructions && (
-              <p className="instructions">
-                Click a robot to select it, then click a cell or use arrow keys to slide it.
-                Get all <span className="instructions__target">exit robots</span> (A, B, C…) to the glowing center cell.
-              </p>
-            )}
           </div>
 
           {/* ── Right: navigation or build panel ── */}
@@ -495,9 +513,7 @@ export default function App() {
               variant={variant}
               onVariantChange={(v) => switchVariant(v, currentPuzzle?.stableId)}
               scoreMode={scoreMode}
-              onScoreModeChange={setScoreMode}
               hideOptimal={hideOptimal}
-              onHideOptimalChange={setHideOptimal}
               filterState={filterState}
               onFilterChange={handleFilterChange}
               isSolved={userData.isSolved}
@@ -506,7 +522,6 @@ export default function App() {
               toggleStar={userData.toggleStar}
               getComment={userData.getComment}
               setComment={userData.setComment}
-              userData={userData}
             />
           )}
         </div>
@@ -529,6 +544,21 @@ export default function App() {
           getComment={userData.getComment}
           setComment={userData.setComment}
         />
+      )}
+
+      {openPanel === 'settings' && (
+        <SettingsPanel
+          scoreMode={scoreMode}
+          onScoreModeChange={setScoreMode}
+          hideOptimal={hideOptimal}
+          onHideOptimalChange={setHideOptimal}
+          onExport={handleExportProgress}
+          onImport={handleImportProgress}
+          onClose={() => setOpenPanel(null)}
+        />
+      )}
+      {openPanel === 'info' && (
+        <InfoPanel onClose={() => setOpenPanel(null)} />
       )}
     </div>
   );

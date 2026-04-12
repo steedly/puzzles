@@ -10,11 +10,10 @@ function robotLabel(id) {
   return id.replace('r', '');
 }
 
-export default function HUD({ state, dispatch, currentPuzzle, showSolution, onToggleSolution, scoreMode, hideOptimal, onEditInBuild, onShowHelp }) {
+export default function HUD({ state, dispatch, currentPuzzle, showSolution, onToggleSolution, scoreMode, hideOptimal }) {
   const solution = currentPuzzle?.solution ?? [];
   const canSolve = currentPuzzle?.minMoves > 0;
 
-  // Exit progress: how many exit robots have already left the board
   const exitIds = state.exitIds ?? new Set(['target']);
   const totalExits = exitIds.size;
   const exitedCount = [...exitIds].filter(id => !state.positions[id]).length;
@@ -34,7 +33,7 @@ export default function HUD({ state, dispatch, currentPuzzle, showSolution, onTo
             return target > 0 ? <span className="hud__optimum"> ({label}: {target})</span> : null;
           })()}
           {showExitProgress && (
-            <span className="hud__exits"> · {exitedCount}/{totalExits} exits done</span>
+            <span className="hud__exits"> · {exitedCount}/{totalExits} exits</span>
           )}
         </span>
 
@@ -50,31 +49,14 @@ export default function HUD({ state, dispatch, currentPuzzle, showSolution, onTo
             onClick={() => dispatch({ type: 'LOAD_PUZZLE', puzzle: currentPuzzle })}
             title="Reset all robots to starting positions"
           >Restart</button>
+          {canSolve && (
+            <button
+              className={`hud__btn${showSolution ? ' hud__btn--active' : ''}`}
+              onClick={onToggleSolution}
+              title="Show/hide the optimal solution path on the board"
+            >{showSolution ? 'Hide' : 'Solve'}</button>
+          )}
         </div>
-      </div>
-
-      <div className="hud__tools">
-        {canSolve && (
-          <button
-            className={`hud__tool-btn${showSolution ? ' hud__tool-btn--active' : ''}`}
-            onClick={onToggleSolution}
-            title="Show/hide the optimal solution and path arrows on the board"
-          >{showSolution ? 'Hide Solution' : 'Show Solution'}</button>
-        )}
-        {onEditInBuild && (
-          <button
-            className="hud__tool-btn"
-            onClick={onEditInBuild}
-            title="Open this puzzle in Build mode to modify pieces and find similar puzzles"
-          >Edit in Build</button>
-        )}
-        {onShowHelp && (
-          <button
-            className="hud__tool-btn hud__tool-btn--help"
-            onClick={onShowHelp}
-            title="Show instructions"
-          >?</button>
-        )}
       </div>
 
       {showSolution && solution.length > 0 && (
