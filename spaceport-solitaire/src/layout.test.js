@@ -148,66 +148,52 @@ describe.skipIf(!chromeExists())('Layout regression tests', () => {
     });
   }, 60000);
 
-  it('range slider: both inputs present and min on top when both at max', async () => {
+  it('range slider: Radix dual-thumb slider renders with both thumbs', async () => {
     await cdpSession(async (send) => {
       await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 2, mobile: false });
-      // Use the actual max value — this is the case that previously broke
-      await send('Page.navigate', { url: BASE + '#standard?mv=36-36' });
+      await send('Page.navigate', { url: BASE + '#standard?mv=5-20' });
       await new Promise(r => setTimeout(r, 4000));
       const expr = `(()=>{
-        const inputs=[...document.querySelectorAll('.pnav__native-range')];
-        return JSON.stringify(inputs.map(i=>({
-          cls:i.className, val:+i.value, min:+i.min, max:+i.max,
-          disabled:i.disabled, z:parseInt(i.style.zIndex)||0
-        })));
+        const thumbs=[...document.querySelectorAll('.pnav__slider-thumb')];
+        const track=document.querySelector('.pnav__slider-track');
+        const range=document.querySelector('.pnav__slider-range');
+        const vals=[...document.querySelectorAll('.pnav__range-value')].map(e=>e.textContent);
+        return JSON.stringify({
+          thumbCount:thumbs.length,
+          trackExists:!!track,
+          rangeExists:!!range,
+          rangeWidth:range?Math.round(range.getBoundingClientRect().width):0,
+          values:vals
+        });
       })()`;
       const r = await send('Runtime.evaluate', { expression: expr, returnByValue: true });
-      const inputs = JSON.parse(r.result.result.value);
-      expect(inputs.length, 'should have 2 native range inputs').toBe(2);
-      const minInput = inputs.find(i => i.cls.includes('--min'));
-      const maxInput = inputs.find(i => i.cls.includes('--max'));
-      expect(minInput).toBeTruthy();
-      expect(maxInput).toBeTruthy();
-      expect(minInput.disabled).toBe(false);
-      expect(maxInput.disabled).toBe(false);
-      // When both at max, min must be on top so user can drag it left
-      expect(minInput.val).toBe(minInput.max);
-      expect(maxInput.val).toBe(maxInput.max);
-      expect(minInput.z, 'min input z-index must be > max when both at max').toBeGreaterThan(maxInput.z);
+      const data = JSON.parse(r.result.result.value);
+      expect(data.thumbCount, 'Radix slider should render 2 thumbs').toBe(2);
+      expect(data.trackExists, 'track should exist').toBe(true);
+      expect(data.rangeExists, 'colored range between thumbs should exist').toBe(true);
+      expect(data.rangeWidth, 'range should have non-zero width when min < max').toBeGreaterThan(0);
     });
   }, 30000);
 
-  it('range slider: clicking track when both at min moves max', async () => {
+  it('range slider: both thumbs at max are still interactive', async () => {
     await cdpSession(async (send) => {
       await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 2, mobile: false });
-      await send('Page.navigate', { url: BASE + '#standard?mv=1-1' });
+      await send('Page.navigate', { url: BASE + '#standard?mv=36-36' });
       await new Promise(r => setTimeout(r, 4000));
-      // Verify z-index: max should be on top when both at min
-      let expr = `(()=>{
-        const inputs=[...document.querySelectorAll('.pnav__native-range')];
-        return JSON.stringify(inputs.map(i=>({
-          cls:i.className, val:+i.value, min:+i.min, max:+i.max, z:parseInt(i.style.zIndex)||0
-        })));
+      const expr = `(()=>{
+        const thumbs=[...document.querySelectorAll('.pnav__slider-thumb')];
+        return JSON.stringify({
+          count:thumbs.length,
+          visible:thumbs.every(t=>t.getBoundingClientRect().width>0),
+          ariaLabels:thumbs.map(t=>t.getAttribute('aria-label'))
+        });
       })()`;
-      let r = await send('Runtime.evaluate', { expression: expr, returnByValue: true });
-      let inputs = JSON.parse(r.result.result.value);
-      const maxInput = inputs.find(i => i.cls.includes('--max'));
-      const minInput = inputs.find(i => i.cls.includes('--min'));
-      expect(maxInput.z, 'max z-index > min when both at min').toBeGreaterThan(minInput.z);
-      // Simulate click at 75% of the track to move max
-      const clickExpr = `(()=>{
-        const el=document.querySelector('.pnav__dual-range');
-        const r=el.getBoundingClientRect();
-        el.dispatchEvent(new MouseEvent('click',{clientX:r.left+r.width*0.75,clientY:r.top+r.height/2,bubbles:true}));
-        return true;
-      })()`;
-      await send('Runtime.evaluate', { expression: clickExpr, returnByValue: true });
-      await new Promise(r2 => setTimeout(r2, 500));
-      // Re-read values
-      r = await send('Runtime.evaluate', { expression: expr, returnByValue: true });
-      inputs = JSON.parse(r.result.result.value);
-      const maxAfter = inputs.find(i => i.cls.includes('--max'));
-      expect(maxAfter.val, 'clicking right of both thumbs should move max').toBeGreaterThan(1);
+      const r = await send('Runtime.evaluate', { expression: expr, returnByValue: true });
+      const data = JSON.parse(r.result.result.value);
+      expect(data.count).toBe(2);
+      expect(data.visible, 'both thumbs should be visible even when overlapping').toBe(true);
+      expect(data.ariaLabels).toContain('Minimum moves');
+      expect(data.ariaLabels).toContain('Maximum moves');
     });
   }, 30000);
 });

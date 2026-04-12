@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { Fragment, useState, useMemo, useEffect, useCallback } from 'react';
+import * as Slider from '@radix-ui/react-slider';
 import { filterPuzzles } from '../logic/puzzleFilter';
 import GoldMedal from './GoldMedal';
 
@@ -87,7 +88,7 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
   const [page,          setPage]          = useState(0);
   const [jumpId,        setJumpId]        = useState('');
   const [collapsed,     setCollapsed]     = useState(false);
-  // activeThumb removed — native range inputs handle their own interaction
+
   const [editingCommentId, setEditingCommentId] = useState(null); // stableId of the row whose comment is being edited inline
 
   // Helper to update a single filter field
@@ -231,19 +232,6 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
     if (p) { onSelect(p); setJumpId(''); }
   }
 
-  // Dual-range slider handlers
-  function handleSliderMin(val) {
-    const n = Math.max(movesRange.min, Math.min(val, movesMax));
-    setMovesMin(n); setPage(0);
-  }
-  function handleSliderMax(val) {
-    const n = Math.max(movesMin, Math.min(val, movesRange.max));
-    setMovesMax(n); setPage(0);
-  }
-
-  // Native dual-range slider: two <input type="range"> stacked via CSS.
-  // The browser handles thumb interaction, touch, keyboard, and accessibility.
-
   function handleKeyDown(e) {
     if (e.target.tagName === 'INPUT') return;
     if (e.key === 'ArrowUp') {
@@ -357,52 +345,24 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
               ))}
             </div>
 
-            {/* ── Moves range slider (native dual-range) ── */}
+            {/* ── Moves range slider (Radix dual-thumb) ── */}
             <div className="pnav__filter-row">
               <span className="pnav__label">Moves:</span>
               <span className="pnav__range-value">{movesMin}</span>
-              <div
-                className="pnav__dual-range"
-                onClick={e => {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  const pct = (e.clientX - rect.left) / rect.width;
-                  const val = Math.round(movesRange.min + pct * (movesRange.max - movesRange.min));
-                  const distMin = Math.abs(val - movesMin);
-                  const distMax = Math.abs(val - movesMax);
-                  if (distMin === distMax) {
-                    if (val > movesMax) setMovesMax(val);
-                    else if (val < movesMin) setMovesMin(val);
-                    else if (val >= (movesMin + movesMax) / 2) setMovesMax(val);
-                    else setMovesMin(val);
-                  } else if (distMin < distMax) {
-                    setMovesMin(Math.min(val, movesMax));
-                  } else {
-                    setMovesMax(Math.max(val, movesMin));
-                  }
-                  setPage(0);
-                }}
+              <Slider.Root
+                className="pnav__slider"
+                min={movesRange.min}
+                max={movesRange.max}
+                step={1}
+                value={[movesMin, movesMax]}
+                onValueChange={([lo, hi]) => { setMovesMin(lo); setMovesMax(hi); setPage(0); }}
               >
-                <input
-                  type="range"
-                  className="pnav__native-range pnav__native-range--min"
-                  min={movesRange.min}
-                  max={movesRange.max}
-                  value={movesMin}
-                  style={{ zIndex: movesMin === movesMax && movesMin === movesRange.min ? 3 : 5 }}
-                  onChange={e => { setMovesMin(Math.min(+e.target.value, movesMax)); setPage(0); }}
-                  title="Minimum moves"
-                />
-                <input
-                  type="range"
-                  className="pnav__native-range pnav__native-range--max"
-                  min={movesRange.min}
-                  max={movesRange.max}
-                  value={movesMax}
-                  style={{ zIndex: movesMin === movesMax && movesMin === movesRange.min ? 5 : 3 }}
-                  onChange={e => { setMovesMax(Math.max(+e.target.value, movesMin)); setPage(0); }}
-                  title="Maximum moves"
-                />
-              </div>
+                <Slider.Track className="pnav__slider-track">
+                  <Slider.Range className="pnav__slider-range" />
+                </Slider.Track>
+                <Slider.Thumb className="pnav__slider-thumb" aria-label="Minimum moves" />
+                <Slider.Thumb className="pnav__slider-thumb" aria-label="Maximum moves" />
+              </Slider.Root>
               <span className="pnav__range-value">{movesMax}</span>
             </div>
           </div>

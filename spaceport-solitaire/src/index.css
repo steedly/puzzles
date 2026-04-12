@@ -660,7 +660,7 @@ button { cursor: pointer; font-family: inherit; }
 .pnav__chip:hover { background: var(--btn-hover); }
 .pnav__chip:active { transform: scale(0.95); }
 
-/* Dual-range slider for moves filter — two native range inputs stacked */
+/* Radix dual-thumb slider */
 .pnav__range-value {
   font-size: 0.75rem;
   color: var(--text-muted);
@@ -669,76 +669,54 @@ button { cursor: pointer; font-family: inherit; }
   font-variant-numeric: tabular-nums;
 }
 
-.pnav__dual-range {
-  flex: 1;
+.pnav__slider {
   position: relative;
-  height: 24px;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  height: 20px;
   min-width: 60px;
   margin: 0 4px;
+  touch-action: none;
+  user-select: none;
 }
 
-.pnav__native-range {
-  -webkit-appearance: none;
-  appearance: none;
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  background: transparent;
-  pointer-events: none;
-  outline: none;
-}
-
-.pnav__native-range::-webkit-slider-runnable-track {
+.pnav__slider-track {
+  position: relative;
+  flex-grow: 1;
   height: 4px;
   background: var(--cell-border);
   border-radius: 2px;
 }
 
-.pnav__native-range--max::-webkit-slider-runnable-track {
-  background: transparent;
+.pnav__slider-range {
+  position: absolute;
+  height: 100%;
+  background: #6666bb;
+  border-radius: 2px;
 }
 
-.pnav__native-range::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  position: relative;
-  z-index: 10;
-  width: 16px;
-  height: 16px;
+.pnav__slider-thumb {
+  display: block;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   background: #6666bb;
   border: 2px solid #8888cc;
-  cursor: pointer;
-  pointer-events: auto;
-  margin-top: -6px;
+  cursor: grab;
+  outline: none;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
 }
-.pnav__native-range::-webkit-slider-thumb:hover {
+.pnav__slider-thumb:hover {
   background: #7777cc;
   border-color: #aaaadd;
 }
-.pnav__native-range::-webkit-slider-thumb:active {
+.pnav__slider-thumb:active {
+  cursor: grabbing;
   background: #8888dd;
 }
-
-.pnav__native-range::-moz-range-track {
-  height: 4px;
-  background: var(--cell-border);
-  border-radius: 2px;
-  border: none;
-}
-.pnav__native-range--max::-moz-range-track {
-  background: transparent;
-}
-.pnav__native-range::-moz-range-thumb {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #6666bb;
-  border: 2px solid #8888cc;
-  cursor: pointer;
-  pointer-events: auto;
+.pnav__slider-thumb:focus-visible {
+  box-shadow: 0 0 0 3px rgba(102, 102, 187, 0.4);
 }
 
 /* Nav row */
