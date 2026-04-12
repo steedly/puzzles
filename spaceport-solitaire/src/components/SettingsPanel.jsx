@@ -1,7 +1,7 @@
 // Copyright (c) 2025-2026 Drew Steedly. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-export default function SettingsPanel({ scoreMode, onScoreModeChange, hideOptimal, onHideOptimalChange, showArrows, onShowArrowsChange, onExport, onImport, onClose }) {
+export default function SettingsPanel({ scoreMode, onScoreModeChange, hideOptimal, onHideOptimalChange, onExport, onImport, onClose }) {
   return (
     <div className="overlay-backdrop" onClick={onClose}>
       <div className="overlay-panel" onClick={e => e.stopPropagation()}>
@@ -23,19 +23,6 @@ export default function SettingsPanel({ scoreMode, onScoreModeChange, hideOptima
                 className={`overlay-panel__toggle${scoreMode === 'slides' ? ' overlay-panel__toggle--on' : ''}`}
                 onClick={() => onScoreModeChange('slides')}
               >Slides</button>
-            </div>
-          </div>
-          <div className="overlay-panel__row">
-            <span>Solution arrows</span>
-            <div className="overlay-panel__toggle-group">
-              <button
-                className={`overlay-panel__toggle${showArrows ? ' overlay-panel__toggle--on' : ''}`}
-                onClick={() => onShowArrowsChange(true)}
-              >On</button>
-              <button
-                className={`overlay-panel__toggle${!showArrows ? ' overlay-panel__toggle--on' : ''}`}
-                onClick={() => onShowArrowsChange(false)}
-              >Off</button>
             </div>
           </div>
           <div className="overlay-panel__row">

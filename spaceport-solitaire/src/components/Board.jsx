@@ -5,7 +5,6 @@ import { useState, useRef, useEffect } from 'react';
 import { slideRobot } from '../logic/gameEngine';
 import { SQUARE_7x7 } from '../logic/boardGeometry';
 import Cell from './Cell';
-import SolutionOverlay from './SolutionOverlay';
 
 // ── Hex geometry helpers ──────────────────────────────────────────────────────
 
@@ -100,7 +99,7 @@ function ScaledBoard({ naturalWidth, naturalHeight, children }) {
 
 // ── Board component ───────────────────────────────────────────────────────────
 
-export default function Board({ state, dispatch, puzzle, showPaths, scoreMode, variantBlocks, buildMode, buildPieces, onBuildClick, board = SQUARE_7x7 }) {
+export default function Board({ state, dispatch, puzzle, variantBlocks, buildMode, buildPieces, onBuildClick, board = SQUARE_7x7 }) {
   const N = board.N;
   const isHex = board.type === 'hex';
   // Adjacent hex cells are R√3 apart; match square spacing (cell-size 62 + gap 5 = 67).
@@ -247,9 +246,6 @@ export default function Board({ state, dispatch, puzzle, showPaths, scoreMode, v
         <div className="board">
           {cells}
         </div>
-        {showPaths && (
-          <SolutionOverlay puzzle={puzzle} blockedCells={variantBlocks} board={board} scoreMode={scoreMode} />
-        )}
       </ScaledBoard>
     </div>
   );

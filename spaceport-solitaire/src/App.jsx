@@ -65,10 +65,8 @@ export default function App() {
   const pendingBuildSolveRef = useRef(false);
   const [buildPreview, setBuildPreview] = useState(null); // library puzzle being previewed from build mode
 
-  const [showSolution, setShowSolution] = useState(false);
   const [scoreMode, setScoreMode] = useState('grouped'); // 'grouped' | 'slides'
   const [hideOptimal, setHideOptimal] = useState(true);
-  const [showArrows, setShowArrows] = useState(true);
 
   // Filter state (lifted from PuzzleNav for permalink sync)
   const [filterState, setFilterState] = useState(null); // null = use defaults
@@ -441,21 +439,19 @@ export default function App() {
               <div className="game-area">
                 <Board
                   state={state} dispatch={dispatch} puzzle={currentPuzzle}
-                  showPaths={showSolution && showArrows}
-                  scoreMode={scoreMode}
                   variantBlocks={variantBlocks}
                   board={board}
-
                 />
                 <HUD
                   state={state}
                   dispatch={dispatch}
                   currentPuzzle={currentPuzzle}
-                  showSolution={showSolution}
-                  onToggleSolution={() => setShowSolution(s => !s)}
                   scoreMode={scoreMode}
                   hideOptimal={hideOptimal}
-                  onEditInBuild={currentPuzzle?.robots ? handleEditInBuild : undefined}
+                  onEditInBuild={mode === 'library' && currentPuzzle?.robots ? handleEditInBuild : undefined}
+                  stepMode={mode === 'build' && buildState.phase === 'solved' && !buildPreview}
+                  board={board}
+                  variantBlocks={variantBlocks}
                 />
               </div>
             ) : null}
@@ -524,8 +520,6 @@ export default function App() {
           onScoreModeChange={setScoreMode}
           hideOptimal={hideOptimal}
           onHideOptimalChange={setHideOptimal}
-          showArrows={showArrows}
-          onShowArrowsChange={setShowArrows}
           onExport={handleExportProgress}
           onImport={handleImportProgress}
           onClose={() => setOpenPanel(null)}
