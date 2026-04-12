@@ -376,12 +376,14 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
               <span className="pnav__label">Moves:</span>
               <span className="pnav__range-value">{movesMin}</span>
               <div className="pnav__dual-range">
+                {/* When both at max: min on top (user drags left). When both at min: max on top (user drags right). Otherwise: min on top when overlapping. */}
                 <input
                   type="range"
                   className="pnav__native-range pnav__native-range--min"
                   min={movesRange.min}
                   max={movesRange.max}
                   value={movesMin}
+                  style={{ zIndex: movesMin === movesMax && movesMin === movesRange.min ? 2 : 4 }}
                   onChange={e => { setMovesMin(Math.min(+e.target.value, movesMax)); setPage(0); }}
                   title="Minimum moves"
                 />
@@ -391,6 +393,7 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
                   min={movesRange.min}
                   max={movesRange.max}
                   value={movesMax}
+                  style={{ zIndex: movesMin === movesMax && movesMin === movesRange.min ? 4 : 2 }}
                   onChange={e => { setMovesMax(Math.max(+e.target.value, movesMin)); setPage(0); }}
                   title="Maximum moves"
                 />

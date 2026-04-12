@@ -148,27 +148,53 @@ describe.skipIf(!chromeExists())('Layout regression tests', () => {
     });
   }, 60000);
 
-  it('range slider: both native range inputs are present and adjustable', async () => {
+  it('range slider: both inputs present and min on top when both at max', async () => {
     await cdpSession(async (send) => {
       await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 2, mobile: false });
-      await send('Page.navigate', { url: BASE + '#standard?mv=35-35' });
+      // Use the actual max value — this is the case that previously broke
+      await send('Page.navigate', { url: BASE + '#standard?mv=36-36' });
       await new Promise(r => setTimeout(r, 4000));
       const expr = `(()=>{
         const inputs=[...document.querySelectorAll('.pnav__native-range')];
-        return JSON.stringify(inputs.map(i=>({cls:i.className,val:+i.value,min:+i.min,max:+i.max,disabled:i.disabled})));
+        return JSON.stringify(inputs.map(i=>({
+          cls:i.className, val:+i.value, min:+i.min, max:+i.max,
+          disabled:i.disabled, z:parseInt(i.style.zIndex)||0
+        })));
       })()`;
       const r = await send('Runtime.evaluate', { expression: expr, returnByValue: true });
       const inputs = JSON.parse(r.result.result.value);
       expect(inputs.length, 'should have 2 native range inputs').toBe(2);
       const minInput = inputs.find(i => i.cls.includes('--min'));
       const maxInput = inputs.find(i => i.cls.includes('--max'));
-      expect(minInput, 'min input should exist').toBeTruthy();
-      expect(maxInput, 'max input should exist').toBeTruthy();
-      expect(minInput.disabled, 'min input should not be disabled').toBe(false);
-      expect(maxInput.disabled, 'max input should not be disabled').toBe(false);
-      expect(minInput.val).toBe(35);
-      expect(maxInput.val).toBe(35);
-      expect(minInput.min).toBeLessThan(35);
+      expect(minInput).toBeTruthy();
+      expect(maxInput).toBeTruthy();
+      expect(minInput.disabled).toBe(false);
+      expect(maxInput.disabled).toBe(false);
+      // When both at max, min must be on top so user can drag it left
+      expect(minInput.val).toBe(minInput.max);
+      expect(maxInput.val).toBe(maxInput.max);
+      expect(minInput.z, 'min input z-index must be > max when both at max').toBeGreaterThan(maxInput.z);
+    });
+  }, 30000);
+
+  it('range slider: max on top when both inputs at min', async () => {
+    await cdpSession(async (send) => {
+      await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 2, mobile: false });
+      await send('Page.navigate', { url: BASE + '#standard?mv=1-1' });
+      await new Promise(r => setTimeout(r, 4000));
+      const expr = `(()=>{
+        const inputs=[...document.querySelectorAll('.pnav__native-range')];
+        return JSON.stringify(inputs.map(i=>({
+          cls:i.className, val:+i.value, min:+i.min, max:+i.max, z:parseInt(i.style.zIndex)||0
+        })));
+      })()`;
+      const r = await send('Runtime.evaluate', { expression: expr, returnByValue: true });
+      const inputs = JSON.parse(r.result.result.value);
+      const minInput = inputs.find(i => i.cls.includes('--min'));
+      const maxInput = inputs.find(i => i.cls.includes('--max'));
+      expect(minInput.val).toBe(minInput.min);
+      expect(maxInput.val).toBe(maxInput.min);
+      expect(maxInput.z, 'max input z-index must be > min when both at min').toBeGreaterThan(minInput.z);
     });
   }, 30000);
 });
