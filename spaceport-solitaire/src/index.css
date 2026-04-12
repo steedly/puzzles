@@ -652,65 +652,33 @@ button { cursor: pointer; font-family: inherit; }
 .pnav__chip:hover { background: var(--btn-hover); }
 .pnav__chip:active { transform: scale(0.95); }
 
-/* Radix dual-thumb slider */
-.pnav__range-value {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  min-width: 2em;
-  text-align: center;
+/* Moves range — two number inputs */
+.pnav__range-input {
+  width: 56px;
+  padding: 4px 6px;
+  font-size: 0.85rem;
+  font-family: inherit;
   font-variant-numeric: tabular-nums;
+  background: var(--btn-bg);
+  color: var(--text);
+  border: 1px solid var(--cell-border);
+  border-radius: 4px;
+  text-align: center;
 }
-
-.pnav__slider {
-  position: relative;
-  display: flex;
-  align-items: center;
-  flex: 1;
-  height: 20px;
-  min-width: 60px;
-  margin: 0 4px;
-  touch-action: none;
-  user-select: none;
-}
-
-.pnav__slider-track {
-  position: relative;
-  flex-grow: 1;
-  height: 4px;
-  background: var(--cell-border);
-  border-radius: 2px;
-}
-
-.pnav__slider-range {
-  position: absolute;
-  height: 100%;
-  background: #6666bb;
-  border-radius: 2px;
-}
-
-.pnav__slider-thumb {
-  display: block;
-  position: relative;
-  z-index: 1;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: #6666bb;
-  border: 2px solid #8888cc;
-  cursor: grab;
+.pnav__range-input:focus {
   outline: none;
-  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+  border-color: #6666bb;
 }
-.pnav__slider-thumb:hover {
-  background: #7777cc;
-  border-color: #aaaadd;
+.pnav__range-dash {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin: 0 2px;
 }
-.pnav__slider-thumb:active {
-  cursor: grabbing;
-  background: #8888dd;
-}
-.pnav__slider-thumb:focus-visible {
-  box-shadow: 0 0 0 3px rgba(102, 102, 187, 0.4);
+.pnav__range-hint {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Nav row */

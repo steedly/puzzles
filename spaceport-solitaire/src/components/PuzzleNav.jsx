@@ -2,7 +2,6 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { Fragment, useState, useMemo, useEffect, useCallback } from 'react';
-import * as Slider from '@radix-ui/react-slider';
 import { filterPuzzles } from '../logic/puzzleFilter';
 import GoldMedal from './GoldMedal';
 
@@ -345,25 +344,35 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
               ))}
             </div>
 
-            {/* ── Moves range slider (Radix dual-thumb) ── */}
+            {/* ── Moves range (two number inputs) ── */}
             <div className="pnav__filter-row">
               <span className="pnav__label">Moves:</span>
-              <span className="pnav__range-value">{movesMin}</span>
-              <Slider.Root
-                className="pnav__slider"
+              <input
+                type="number"
+                className="pnav__range-input"
                 min={movesRange.min}
+                max={movesMax}
+                value={movesMin}
+                onChange={e => {
+                  const v = +e.target.value;
+                  if (!Number.isNaN(v)) { setMovesMin(Math.max(movesRange.min, Math.min(v, movesMax))); setPage(0); }
+                }}
+                aria-label="Minimum moves"
+              />
+              <span className="pnav__range-dash">–</span>
+              <input
+                type="number"
+                className="pnav__range-input"
+                min={movesMin}
                 max={movesRange.max}
-                step={1}
-                value={[movesMin, movesMax]}
-                onValueChange={([lo, hi]) => { setMovesMin(lo); setMovesMax(hi); setPage(0); }}
-              >
-                <Slider.Track className="pnav__slider-track">
-                  <Slider.Range className="pnav__slider-range" />
-                </Slider.Track>
-                <Slider.Thumb className="pnav__slider-thumb" aria-label="Minimum moves" />
-                <Slider.Thumb className="pnav__slider-thumb" aria-label="Maximum moves" />
-              </Slider.Root>
-              <span className="pnav__range-value">{movesMax}</span>
+                value={movesMax}
+                onChange={e => {
+                  const v = +e.target.value;
+                  if (!Number.isNaN(v)) { setMovesMax(Math.min(movesRange.max, Math.max(v, movesMin))); setPage(0); }
+                }}
+                aria-label="Maximum moves"
+              />
+              <span className="pnav__range-hint">of {movesRange.min}–{movesRange.max}</span>
             </div>
           </div>
 

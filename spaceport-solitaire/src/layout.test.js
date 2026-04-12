@@ -148,52 +148,66 @@ describe.skipIf(!chromeExists())('Layout regression tests', () => {
     });
   }, 60000);
 
-  it('range slider: Radix dual-thumb slider renders with both thumbs', async () => {
+  it('moves range: both number inputs render and can change values', async () => {
     await cdpSession(async (send) => {
       await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 2, mobile: false });
       await send('Page.navigate', { url: BASE + '#standard?mv=5-20' });
       await new Promise(r => setTimeout(r, 4000));
-      const expr = `(()=>{
-        const thumbs=[...document.querySelectorAll('.pnav__slider-thumb')];
-        const track=document.querySelector('.pnav__slider-track');
-        const range=document.querySelector('.pnav__slider-range');
-        const vals=[...document.querySelectorAll('.pnav__range-value')].map(e=>e.textContent);
-        return JSON.stringify({
-          thumbCount:thumbs.length,
-          trackExists:!!track,
-          rangeExists:!!range,
-          rangeWidth:range?Math.round(range.getBoundingClientRect().width):0,
-          values:vals
-        });
+      // Verify both inputs render with correct initial values
+      let expr = `(()=>{
+        const inputs=[...document.querySelectorAll('.pnav__range-input')];
+        return JSON.stringify(inputs.map(i=>({
+          val:+i.value, min:+i.min, max:+i.max, disabled:i.disabled,
+          label:i.getAttribute('aria-label'),
+          width:Math.round(i.getBoundingClientRect().width),
+          visible:i.offsetParent !== null
+        })));
       })()`;
-      const r = await send('Runtime.evaluate', { expression: expr, returnByValue: true });
-      const data = JSON.parse(r.result.result.value);
-      expect(data.thumbCount, 'Radix slider should render 2 thumbs').toBe(2);
-      expect(data.trackExists, 'track should exist').toBe(true);
-      expect(data.rangeExists, 'colored range between thumbs should exist').toBe(true);
-      expect(data.rangeWidth, 'range should have non-zero width when min < max').toBeGreaterThan(0);
+      let r = await send('Runtime.evaluate', { expression: expr, returnByValue: true });
+      let inputs = JSON.parse(r.result.result.value);
+      expect(inputs.length, 'should have 2 number inputs').toBe(2);
+      expect(inputs[0].val).toBe(5);
+      expect(inputs[1].val).toBe(20);
+      expect(inputs.every(i => i.visible && !i.disabled && i.width > 0), 'both inputs visible and enabled').toBe(true);
+      expect(inputs[0].label).toBe('Minimum moves');
+      expect(inputs[1].label).toBe('Maximum moves');
+
+      // Programmatically change min input value via React's native input setter
+      const changeExpr = `(()=>{
+        const inputs=document.querySelectorAll('.pnav__range-input');
+        const minInput=inputs[0];
+        const setter=Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set;
+        setter.call(minInput,'10');
+        minInput.dispatchEvent(new Event('input',{bubbles:true}));
+        minInput.dispatchEvent(new Event('change',{bubbles:true}));
+        return true;
+      })()`;
+      await send('Runtime.evaluate', { expression: changeExpr, returnByValue: true });
+      await new Promise(r2 => setTimeout(r2, 500));
+      r = await send('Runtime.evaluate', { expression: expr, returnByValue: true });
+      inputs = JSON.parse(r.result.result.value);
+      expect(inputs[0].val, 'min value should update after input change').toBe(10);
     });
   }, 30000);
 
-  it('range slider: both thumbs at max are still interactive', async () => {
+  it('moves range: both inputs at extremes are still editable', async () => {
     await cdpSession(async (send) => {
       await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 2, mobile: false });
       await send('Page.navigate', { url: BASE + '#standard?mv=36-36' });
       await new Promise(r => setTimeout(r, 4000));
       const expr = `(()=>{
-        const thumbs=[...document.querySelectorAll('.pnav__slider-thumb')];
-        return JSON.stringify({
-          count:thumbs.length,
-          visible:thumbs.every(t=>t.getBoundingClientRect().width>0),
-          ariaLabels:thumbs.map(t=>t.getAttribute('aria-label'))
-        });
+        const inputs=[...document.querySelectorAll('.pnav__range-input')];
+        return JSON.stringify(inputs.map(i=>({
+          val:+i.value, disabled:i.disabled, readOnly:i.readOnly,
+          width:Math.round(i.getBoundingClientRect().width)
+        })));
       })()`;
       const r = await send('Runtime.evaluate', { expression: expr, returnByValue: true });
-      const data = JSON.parse(r.result.result.value);
-      expect(data.count).toBe(2);
-      expect(data.visible, 'both thumbs should be visible even when overlapping').toBe(true);
-      expect(data.ariaLabels).toContain('Minimum moves');
-      expect(data.ariaLabels).toContain('Maximum moves');
+      const inputs = JSON.parse(r.result.result.value);
+      expect(inputs.length).toBe(2);
+      expect(inputs[0].val).toBe(36);
+      expect(inputs[1].val).toBe(36);
+      expect(inputs.every(i => !i.disabled && !i.readOnly && i.width > 0)).toBe(true);
     });
   }, 30000);
 });
