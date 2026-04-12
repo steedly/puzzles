@@ -96,13 +96,33 @@ export default function HUD({
         </div>
       </div>
 
-      {stepMode && solution.length > 0 && state.slideCount < totalSlides && (
+      {stepMode && solution.length > 0 && (
         <div className="hud__solution">
-          <span className="hud__sol-step">
-            <span className="hud__sol-num">Next:</span>
-            <span className="hud__sol-mover">{robotLabel(solution[state.slideCount].mover)}</span>
-            <span className="hud__sol-dir">{DIR_ARROW[solution[state.slideCount].dir] ?? solution[state.slideCount].dir}</span>
-          </span>
+          {(() => {
+            // Group consecutive slides by mover (1 grouped move = 1 group)
+            const groups = [];
+            for (let i = 0; i < solution.length; i++) {
+              const m = solution[i];
+              const last = groups[groups.length - 1];
+              if (last && last.mover === m.mover) {
+                last.slides.push({ ...m, slideIdx: i });
+              } else {
+                groups.push({ mover: m.mover, slides: [{ ...m, slideIdx: i }] });
+              }
+            }
+            return groups.map((g, gi) => (
+              <span key={gi} className="hud__sol-step">
+                <span className="hud__sol-num">{gi + 1}.</span>
+                <span className="hud__sol-mover">{robotLabel(g.mover)}</span>
+                {g.slides.map((s) => (
+                  <span
+                    key={s.slideIdx}
+                    className={`hud__sol-dir${s.slideIdx === state.slideCount ? ' hud__sol-dir--current' : ''}${s.slideIdx < state.slideCount ? ' hud__sol-dir--done' : ''}`}
+                  >{DIR_ARROW[s.dir] ?? s.dir}</span>
+                ))}
+              </span>
+            ));
+          })()}
         </div>
       )}
     </div>

@@ -372,6 +372,21 @@ button { cursor: pointer; font-family: inherit; }
 .cell--landing:hover {
   background: rgba(255, 215, 0, 0.16);
 }
+
+/* Solution-stepper destination — bolder than landing cells */
+.cell--next-target {
+  background: rgba(255, 215, 0, 0.32) !important;
+  border-color: #ffd700 !important;
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.55), inset 0 0 8px rgba(255, 215, 0, 0.35);
+  animation: next-target-pulse 1.4s ease-in-out infinite;
+}
+.cell--hex.cell--next-target::before {
+  background: rgba(255, 215, 0, 0.32);
+}
+@keyframes next-target-pulse {
+  0%, 100% { box-shadow: 0 0 12px rgba(255, 215, 0, 0.55), inset 0 0 8px rgba(255, 215, 0, 0.35); }
+  50%      { box-shadow: 0 0 18px rgba(255, 215, 0, 0.85), inset 0 0 10px rgba(255, 215, 0, 0.50); }
+}
 .cell--hex.cell--landing:hover {
   background: rgba(255, 215, 0, 0.45);
 }
@@ -562,6 +577,14 @@ button { cursor: pointer; font-family: inherit; }
 .hud__sol-num    { color: var(--text-muted); margin-right: 2px; }
 .hud__sol-mover  { color: #a0a0ff; font-weight: 700; }
 .hud__sol-dir    { color: var(--text); }
+.hud__sol-dir--done { color: var(--text-muted); opacity: 0.55; }
+.hud__sol-dir--current {
+  color: #ffd700;
+  font-weight: 700;
+  background: rgba(255, 215, 0, 0.18);
+  border-radius: 3px;
+  padding: 0 4px;
+}
 .hud__sol-blocker{ color: var(--text-muted); }
 
 /* ── Puzzle Navigation Panel ───────────────────────────────────────────────── */

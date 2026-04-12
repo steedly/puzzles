@@ -336,6 +336,19 @@ export default function App() {
   }, [buildPreview]);
 
   const isBuildPlacing = mode === 'build' && buildState.phase !== 'solved';
+  const isStepMode = mode === 'build' && buildState.phase === 'solved' && !buildPreview;
+
+  // In solution-stepper mode, auto-select the next mover so the user
+  // sees the yellow selection ring + landing cells highlighted.
+  const nextMove = isStepMode ? currentPuzzle?.solution?.[state.slideCount] : null;
+  useEffect(() => {
+    if (!isStepMode) return;
+    if (nextMove && state.selectedRobotId !== nextMove.mover) {
+      dispatch({ type: 'SELECT_ROBOT', robotId: nextMove.mover });
+    } else if (!nextMove && state.selectedRobotId) {
+      dispatch({ type: 'DESELECT' });
+    }
+  }, [isStepMode, nextMove, state.selectedRobotId, dispatch]);
 
   const handleEditInBuild = useCallback(() => {
     if (!currentPuzzle?.robots) return;
@@ -441,6 +454,7 @@ export default function App() {
                   state={state} dispatch={dispatch} puzzle={currentPuzzle}
                   variantBlocks={variantBlocks}
                   board={board}
+                  nextMove={nextMove}
                 />
                 <HUD
                   state={state}
@@ -449,7 +463,7 @@ export default function App() {
                   scoreMode={scoreMode}
                   hideOptimal={hideOptimal}
                   onEditInBuild={mode === 'library' && currentPuzzle?.robots ? handleEditInBuild : undefined}
-                  stepMode={mode === 'build' && buildState.phase === 'solved' && !buildPreview}
+                  stepMode={isStepMode}
                   board={board}
                   variantBlocks={variantBlocks}
                 />

@@ -99,7 +99,7 @@ function ScaledBoard({ naturalWidth, naturalHeight, children }) {
 
 // ── Board component ───────────────────────────────────────────────────────────
 
-export default function Board({ state, dispatch, puzzle, variantBlocks, buildMode, buildPieces, onBuildClick, board = SQUARE_7x7 }) {
+export default function Board({ state, dispatch, puzzle, variantBlocks, buildMode, buildPieces, onBuildClick, board = SQUARE_7x7, nextMove }) {
   const N = board.N;
   const isHex = board.type === 'hex';
   // Adjacent hex cells are R√3 apart; match square spacing (cell-size 62 + gap 5 = 67).
@@ -149,6 +149,19 @@ export default function Board({ state, dispatch, puzzle, variantBlocks, buildMod
       } else {
         landingCells.add(`${board.centerRow},${board.centerCol}`);
       }
+    }
+  }
+
+  // ── Compute the next-target cell for solution stepping ──
+  let nextTargetKey = null;
+  if (!buildMode && nextMove && state.positions[nextMove.mover]) {
+    const newPositions = slideRobot(
+      state.positions, nextMove.mover, nextMove.dir, state.exitIds ?? null, variantBlocks ?? null, board
+    );
+    if (newPositions) {
+      const newPos = newPositions[nextMove.mover];
+      if (newPos) nextTargetKey = `${newPos.row},${newPos.col}`;
+      else nextTargetKey = `${board.centerRow},${board.centerCol}`;
     }
   }
 
@@ -218,6 +231,7 @@ export default function Board({ state, dispatch, puzzle, variantBlocks, buildMod
           robotMeta={robotId ? robotMeta[robotId] : null}
           selectedRobotId={buildMode ? null : state.selectedRobotId}
           isLandingCell={landingCells.has(key)}
+          isNextTarget={key === nextTargetKey}
           isVariantBlocked={variantBlocks && variantBlocks.has(key)}
           isUnreachable={!buildMode && maxR >= 0 && (r < minR || r > maxR || c < minC || c > maxC)}
           isBuildMode={buildMode}
