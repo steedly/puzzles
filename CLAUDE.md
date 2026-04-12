@@ -102,11 +102,12 @@ python3 elastic_collision.py
 
 ## Critical Design Properties (spaceport-solitaire)
 
-### Stateless layout
-The layout MUST be a pure function of (viewport dimensions, variant) — never dependent on resize history. Do NOT use measured element sizes in CSS constraints that feed back into the measured element's own size. The `--board-natural-w` CSS variable is computed from the variant's grid geometry (a constant), not from a ResizeObserver. ScaledBoard's CSS transform handles responsive scaling without feedback loops.
+### Fixed-size layout with single breakpoint
+The board (484px) and filter panel (360px) have fixed sizes — no dynamic scaling up, no CSS variables, no measured-width feedback. One breakpoint at 900px controls side-by-side vs stacked layout:
+- **≥900px:** board (484) + filter (360) side-by-side, 16px gap, centered
+- **<900px:** stacked vertically, board centered (max 484px), filter full-width (max 484px)
 
-### Sidebar panel sizing
-The puzzle list panel (`.pnav`) is a compact sidebar: `flex: 1 1 320px; max-width: 400px`. It should never stretch beyond ~400px — filter chips, column headers, and puzzle rows are designed for tight layout. At wide viewports, extra space belongs to the board area, not the sidebar. On mobile (≤640px) it switches to full-width stacked layout.
+On phones narrower than 484px, ScaledBoard scales the board DOWN via `Math.min(1, parentWidth/naturalWidth)` — it never scales up. Do NOT add fillWidth, matchMedia hooks, or CSS variables for layout sizing. The layout MUST be a pure function of viewport width — no resize history, no measured-width feedback loops.
 
 ### Regression testing
 Every bug fix MUST include a regression test. Player-data tests go in `useUserData.test.js`. Layout tests go in `layout.test.js` (headless Chrome + CDP, 12 viewports covering iPhones, iPads, and Mac window sizes). Run `npm test` to execute all tests.
