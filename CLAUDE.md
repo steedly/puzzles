@@ -105,5 +105,8 @@ python3 elastic_collision.py
 ### Stateless layout
 The layout MUST be a pure function of (viewport dimensions, variant) — never dependent on resize history. Do NOT use measured element sizes in CSS constraints that feed back into the measured element's own size. The `--board-natural-w` CSS variable is computed from the variant's grid geometry (a constant), not from a ResizeObserver. ScaledBoard's CSS transform handles responsive scaling without feedback loops.
 
+### Sidebar panel sizing
+The puzzle list panel (`.pnav`) is a compact sidebar: `flex: 1 1 320px; max-width: 400px`. It should never stretch beyond ~400px — filter chips, column headers, and puzzle rows are designed for tight layout. At wide viewports, extra space belongs to the board area, not the sidebar. On mobile (≤640px) it switches to full-width stacked layout.
+
 ### Regression testing
 Every bug fix MUST include a regression test. Player-data tests go in `useUserData.test.js`. Layout tests go in `layout.test.js` (headless Chrome + CDP, 12 viewports covering iPhones, iPads, and Mac window sizes). Run `npm test` to execute all tests.
