@@ -338,6 +338,13 @@ export default function App() {
 
   const isBuildPlacing = mode === 'build' && buildState.phase !== 'solved';
 
+  const handleEditInBuild = useCallback(() => {
+    if (!currentPuzzle?.robots) return;
+    buildDispatch({ type: 'LOAD_ROBOTS', robots: currentPuzzle.robots });
+    setBuildPreview(null);
+    setMode('build');
+  }, [currentPuzzle, buildDispatch]);
+
   // Handle build variant change: clear pieces when variant changes
   const handleBuildVariantChange = useCallback((v) => {
     switchVariant(v, currentPuzzle?.stableId);
@@ -446,6 +453,7 @@ export default function App() {
                   onToggleSolution={() => setShowSolution(s => !s)}
                   scoreMode={scoreMode}
                   hideOptimal={hideOptimal}
+                  onEditInBuild={currentPuzzle?.robots ? handleEditInBuild : undefined}
                 />
               </div>
             ) : null}

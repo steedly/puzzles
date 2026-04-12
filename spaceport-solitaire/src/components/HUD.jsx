@@ -10,7 +10,7 @@ function robotLabel(id) {
   return id.replace('r', '');
 }
 
-export default function HUD({ state, dispatch, currentPuzzle, showSolution, onToggleSolution, scoreMode, hideOptimal }) {
+export default function HUD({ state, dispatch, currentPuzzle, showSolution, onToggleSolution, scoreMode, hideOptimal, onEditInBuild }) {
   const solution = currentPuzzle?.solution ?? [];
   const canSolve = currentPuzzle?.minMoves > 0;
 
@@ -55,6 +55,13 @@ export default function HUD({ state, dispatch, currentPuzzle, showSolution, onTo
               onClick={onToggleSolution}
               title="Show/hide the optimal solution path on the board"
             >{showSolution ? 'Hide' : 'Solve'}</button>
+          )}
+          {onEditInBuild && (
+            <button
+              className="hud__btn"
+              onClick={onEditInBuild}
+              title="Edit this puzzle in Build mode"
+            >✎</button>
           )}
         </div>
       </div>
