@@ -328,22 +328,30 @@ export default function App() {
     return () => mq.removeEventListener('change', update);
   }, []);
 
-  // Track the rendered board width so .instructions and .game-area can be
-  // capped to it. The board scales down on narrow viewports and hex variants
-  // have different natural sizes, so a hard-coded width would be wrong.
-  const gameColumnRef = useRef(null);
-  const [boardDisplayW, setBoardDisplayW] = useState(484);
-  useLayoutEffect(() => {
-    const col = gameColumnRef.current;
-    if (!col) return;
-    const bc = col.querySelector('.board-container');
-    if (!bc) return;
-    const update = () => setBoardDisplayW(Math.round(bc.getBoundingClientRect().width));
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(bc);
-    return () => ro.disconnect();
-  }, [isBuildPlacing, currentPuzzle]);
+  // Compute the board's natural (un-scaled) width from the variant geometry.
+  // This is a pure function of variant — no feedback loops from measured sizes.
+  const boardNaturalW = useMemo(() => {
+    const N = board.N;
+    if (board.type === 'hex') {
+      const hexR = 67 / Math.sqrt(3);
+      let minX = Infinity, maxX = -Infinity;
+      for (let r = 0; r < N; r++) {
+        for (let c = 0; c < N; c++) {
+          const bx = 1.5 * hexR * c;
+          const by = Math.sqrt(3) * hexR * (r + c / 2);
+          const mid = (N - 1) / 2;
+          const cx = 1.5 * hexR * mid;
+          const cy = Math.sqrt(3) * hexR * (mid + mid / 2);
+          const cos60 = 0.5, sin60 = Math.sqrt(3) / 2;
+          const x = cos60 * (bx - cx) + sin60 * (by - cy);
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+        }
+      }
+      return Math.ceil(maxX - minX + hexR * 1.1 * 2);
+    }
+    return N * 62 + (N - 1) * 5 + 20;
+  }, [board]);
 
   // Handle build variant change: clear pieces when variant changes
   const handleBuildVariantChange = useCallback((v) => {
@@ -418,8 +426,7 @@ export default function App() {
           {/* ── Left: board + controls ── */}
           <div
             className="game-column"
-            ref={gameColumnRef}
-            style={boardDisplayW ? { '--board-display-w': `${boardDisplayW}px` } : undefined}
+            style={{ '--board-natural-w': `${boardNaturalW}px` }}
           >
             {isBuildPlacing ? (
               /* Build mode: placement board */

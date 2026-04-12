@@ -99,3 +99,11 @@ python3 elastic_collision.py
 - **spaceport-solitaire** key modules: `src/logic/gameEngine.js` (slide physics), `src/logic/solver.js` (BFS solver for on-demand solutions), `src/hooks/usePuzzleLibrary.js` (.llp parser), `src/logic/puzzleFilter.js` (blocked-cell filtering), `src/logic/boardGeometry.js` (board configs for square and hex variants).
 - **ll-solver** is a single `enumerate.cpp` with unit tests in `test_enumerate.cpp` (110 tests). Collision signatures are symmetry-normalised across directions. Board type (square/hex) is runtime-configurable via variant parameter.
 - Paths with spaces (`peg game/`, `Elastic Collision/`) require quoting in shell commands.
+
+## Critical Design Properties (spaceport-solitaire)
+
+### Stateless layout
+The layout MUST be a pure function of (viewport dimensions, variant) — never dependent on resize history. Do NOT use measured element sizes in CSS constraints that feed back into the measured element's own size. The `--board-natural-w` CSS variable is computed from the variant's grid geometry (a constant), not from a ResizeObserver. ScaledBoard's CSS transform handles responsive scaling without feedback loops.
+
+### Regression testing
+Every bug fix MUST include a regression test. Player-data tests go in `useUserData.test.js`. Layout tests go in `layout.test.js` (headless Chrome + CDP, 12 viewports covering iPhones, iPads, and Mac window sizes). Run `npm test` to execute all tests.

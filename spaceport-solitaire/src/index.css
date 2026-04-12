@@ -122,7 +122,7 @@ button { cursor: pointer; font-family: inherit; }
      and .game-column doesn't claim board+HUD as its max-content (which would
      steal width from the puzzle list on intermediate viewports). At wide
      viewports we lift the cap so HUD can sit beside the board. */
-  max-width: var(--board-display-w, 484px);
+  max-width: var(--board-natural-w, 484px);
 }
 
 @media (min-width: 1120px) {
@@ -897,7 +897,7 @@ button { cursor: pointer; font-family: inherit; }
   color: var(--text-muted);
   margin: 0;
   line-height: 1.5;
-  max-width: var(--board-display-w, 100%);
+  max-width: var(--board-natural-w, 484px);
 }
 
 .instructions__target {
@@ -1245,7 +1245,7 @@ button { cursor: pointer; font-family: inherit; }
 
 /* ── Responsive ────────────────────────────────────────────────────────────── */
 @media (min-width: 641px) and (max-width: 1119px) {
-  .game-column { flex: 0 1 auto; max-width: var(--board-display-w, 484px); }
+  .game-column { flex: 0 1 auto; max-width: var(--board-natural-w, 484px); }
   .game-layout { gap: 16px; }
   .pnav { min-width: 320px; }
 }
