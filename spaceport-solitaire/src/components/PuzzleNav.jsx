@@ -375,8 +375,22 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
             <div className="pnav__filter-row">
               <span className="pnav__label">Moves:</span>
               <span className="pnav__range-value">{movesMin}</span>
-              <div className="pnav__dual-range">
-                {/* When both at max: min on top (user drags left). When both at min: max on top (user drags right). Otherwise: min on top when overlapping. */}
+              <div
+                className="pnav__dual-range"
+                onClick={e => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const pct = (e.clientX - rect.left) / rect.width;
+                  const val = Math.round(movesRange.min + pct * (movesRange.max - movesRange.min));
+                  const distMin = Math.abs(val - movesMin);
+                  const distMax = Math.abs(val - movesMax);
+                  if (distMin <= distMax) {
+                    setMovesMin(Math.min(val, movesMax));
+                  } else {
+                    setMovesMax(Math.max(val, movesMin));
+                  }
+                  setPage(0);
+                }}
+              >
                 <input
                   type="range"
                   className="pnav__native-range pnav__native-range--min"
