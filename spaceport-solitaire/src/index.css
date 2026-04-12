@@ -556,7 +556,7 @@ button { cursor: pointer; font-family: inherit; }
 .pnav__chip:hover { background: var(--btn-hover); }
 .pnav__chip:active { transform: scale(0.95); }
 
-/* Dual-range slider for moves filter */
+/* Dual-range slider for moves filter — two native range inputs stacked */
 .pnav__range-value {
   font-size: 0.75rem;
   color: var(--text-muted);
@@ -565,61 +565,74 @@ button { cursor: pointer; font-family: inherit; }
   font-variant-numeric: tabular-nums;
 }
 
-.pnav__range-track {
+.pnav__dual-range {
   flex: 1;
   position: relative;
   height: 24px;
-  min-width: 80px;
-  margin: 0 6px;
-  touch-action: none;
+  min-width: 60px;
+  margin: 0 4px;
 }
 
-.pnav__range-rail {
+.pnav__native-range {
+  -webkit-appearance: none;
+  appearance: none;
   position: absolute;
-  top: 10px;
+  top: 0;
   left: 0;
-  right: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  background: transparent;
+  pointer-events: none;
+  outline: none;
+}
+
+.pnav__native-range::-webkit-slider-runnable-track {
   height: 4px;
   background: var(--cell-border);
   border-radius: 2px;
-  pointer-events: none;
 }
 
-.pnav__range-fill {
-  position: absolute;
-  top: 10px;
-  height: 4px;
+.pnav__native-range--max::-webkit-slider-runnable-track {
+  background: transparent;
+}
+
+.pnav__native-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
   background: #6666bb;
+  border: 2px solid #8888cc;
+  cursor: pointer;
+  pointer-events: auto;
+  margin-top: -6px;
+}
+.pnav__native-range::-webkit-slider-thumb:hover {
+  background: #7777cc;
+  border-color: #aaaadd;
+}
+.pnav__native-range::-webkit-slider-thumb:active {
+  background: #8888dd;
+}
+
+.pnav__native-range::-moz-range-track {
+  height: 4px;
+  background: var(--cell-border);
   border-radius: 2px;
-  pointer-events: none;
+  border: none;
 }
-
-.pnav__range-thumb {
-  position: absolute;
-  top: 2px;
-  width: 18px;
-  height: 20px;
-  font-size: 10px;
-  line-height: 20px;
-  text-align: center;
-  color: #ccc;
-  cursor: grab;
-  user-select: none;
-  -webkit-user-select: none;
-  z-index: 2;
+.pnav__native-range--max::-moz-range-track {
+  background: transparent;
 }
-
-.pnav__range-thumb:active {
-  cursor: grabbing;
-  color: #fff;
-}
-
-.pnav__range-thumb--min {
-  transform: translateX(-50%);
-}
-
-.pnav__range-thumb--max {
-  transform: translateX(-50%);
+.pnav__native-range::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #6666bb;
+  border: 2px solid #8888cc;
+  cursor: pointer;
+  pointer-events: auto;
 }
 
 /* Nav row */

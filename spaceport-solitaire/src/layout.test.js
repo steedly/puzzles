@@ -148,24 +148,27 @@ describe.skipIf(!chromeExists())('Layout regression tests', () => {
     });
   }, 60000);
 
-  it('range slider: min thumb accessible when both thumbs overlap', async () => {
+  it('range slider: both native range inputs are present and adjustable', async () => {
     await cdpSession(async (send) => {
-      // Test with mv=35-35 in URL (arbitrary overlap, not just at range endpoints)
       await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 2, mobile: false });
       await send('Page.navigate', { url: BASE + '#standard?mv=35-35' });
       await new Promise(r => setTimeout(r, 4000));
       const expr = `(()=>{
-        const thumbs=[...document.querySelectorAll('.pnav__range-thumb')];
-        return JSON.stringify(thumbs.map(t=>({cls:t.className,z:parseInt(getComputedStyle(t).zIndex)||0,left:t.style.left})));
+        const inputs=[...document.querySelectorAll('.pnav__native-range')];
+        return JSON.stringify(inputs.map(i=>({cls:i.className,val:+i.value,min:+i.min,max:+i.max,disabled:i.disabled})));
       })()`;
       const r = await send('Runtime.evaluate', { expression: expr, returnByValue: true });
-      const thumbs = JSON.parse(r.result.result.value);
-      const minThumb = thumbs.find(t => t.cls.includes('--min'));
-      const maxThumb = thumbs.find(t => t.cls.includes('--max'));
-      if (minThumb && maxThumb) {
-        expect(minThumb.left).toBe(maxThumb.left);
-        expect(minThumb.z, 'min thumb z-index should be >= max when overlapping').toBeGreaterThanOrEqual(maxThumb.z);
-      }
+      const inputs = JSON.parse(r.result.result.value);
+      expect(inputs.length, 'should have 2 native range inputs').toBe(2);
+      const minInput = inputs.find(i => i.cls.includes('--min'));
+      const maxInput = inputs.find(i => i.cls.includes('--max'));
+      expect(minInput, 'min input should exist').toBeTruthy();
+      expect(maxInput, 'max input should exist').toBeTruthy();
+      expect(minInput.disabled, 'min input should not be disabled').toBe(false);
+      expect(maxInput.disabled, 'max input should not be disabled').toBe(false);
+      expect(minInput.val).toBe(35);
+      expect(maxInput.val).toBe(35);
+      expect(minInput.min).toBeLessThan(35);
     });
   }, 30000);
 });

@@ -1,7 +1,7 @@
 // Copyright (c) 2025-2026 Drew Steedly. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { Fragment, useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { Fragment, useState, useMemo, useEffect, useCallback } from 'react';
 import { filterPuzzles } from '../logic/puzzleFilter';
 import GoldMedal from './GoldMedal';
 
@@ -87,7 +87,7 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
   const [page,          setPage]          = useState(0);
   const [jumpId,        setJumpId]        = useState('');
   const [collapsed,     setCollapsed]     = useState(false);
-  const [activeThumb,   setActiveThumb]   = useState('max'); // last-dragged thumb gets higher z-index
+  // activeThumb removed — native range inputs handle their own interaction
   const [editingCommentId, setEditingCommentId] = useState(null); // stableId of the row whose comment is being edited inline
 
   // Helper to update a single filter field
@@ -255,39 +255,8 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
     setMovesMax(n); setPage(0);
   }
 
-  const sliderTotal = movesRange.max - movesRange.min || 1;
-  const sliderLeftPct  = ((movesMin - movesRange.min) / sliderTotal) * 100;
-  const sliderRightPct = ((movesMax - movesRange.min) / sliderTotal) * 100;
-  const trackRef = useRef(null);
-
-  function thumbDrag(setter, clampLo, clampHi, thumbName) {
-    return (e) => {
-      e.preventDefault();
-      setActiveThumb(thumbName);
-      const track = trackRef.current;
-      if (!track) return;
-      const move = (clientX) => {
-        const rect = track.getBoundingClientRect();
-        const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-        const val = Math.round(movesRange.min + pct * (movesRange.max - movesRange.min));
-        const clamped = Math.max(clampLo(), Math.min(val, clampHi()));
-        setter(clamped);
-        setPage(0);
-      };
-      const onMove = (ev) => move(ev.touches ? ev.touches[0].clientX : ev.clientX);
-      const onUp = () => {
-        document.removeEventListener('mousemove', onMove);
-        document.removeEventListener('mouseup', onUp);
-        document.removeEventListener('touchmove', onMove);
-        document.removeEventListener('touchend', onUp);
-      };
-      document.addEventListener('mousemove', onMove);
-      document.addEventListener('mouseup', onUp);
-      document.addEventListener('touchmove', onMove, { passive: false });
-      document.addEventListener('touchend', onUp);
-      move(e.touches ? e.touches[0].clientX : e.clientX);
-    };
-  }
+  // Native dual-range slider: two <input type="range"> stacked via CSS.
+  // The browser handles thumb interaction, touch, keyboard, and accessibility.
 
   function handleKeyDown(e) {
     if (e.target.tagName === 'INPUT') return;
@@ -402,30 +371,29 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
               ))}
             </div>
 
-            {/* ── Moves range slider ── */}
+            {/* ── Moves range slider (native dual-range) ── */}
             <div className="pnav__filter-row">
               <span className="pnav__label">Moves:</span>
               <span className="pnav__range-value">{movesMin}</span>
-              <div className="pnav__range-track" ref={trackRef}>
-                <div className="pnav__range-rail" />
-                <div
-                  className="pnav__range-fill"
-                  style={{ left: `${sliderLeftPct}%`, right: `${100 - sliderRightPct}%` }}
+              <div className="pnav__dual-range">
+                <input
+                  type="range"
+                  className="pnav__native-range pnav__native-range--min"
+                  min={movesRange.min}
+                  max={movesRange.max}
+                  value={movesMin}
+                  onChange={e => { setMovesMin(Math.min(+e.target.value, movesMax)); setPage(0); }}
+                  title="Minimum moves"
                 />
-                <div
-                  className="pnav__range-thumb pnav__range-thumb--min"
-                  style={{ left: `${sliderLeftPct}%`, zIndex: activeThumb === 'min' ? 3 : (movesMin === movesMax ? 3 : 2) }}
-                  onMouseDown={thumbDrag(setMovesMin, () => movesRange.min, () => movesMax, 'min')}
-                  onTouchStart={thumbDrag(setMovesMin, () => movesRange.min, () => movesMax, 'min')}
-                  title="Min moves"
-                >◀</div>
-                <div
-                  className="pnav__range-thumb pnav__range-thumb--max"
-                  style={{ left: `${sliderRightPct}%`, zIndex: activeThumb === 'max' ? 3 : 2 }}
-                  onMouseDown={thumbDrag(setMovesMax, () => movesMin, () => movesRange.max, 'max')}
-                  onTouchStart={thumbDrag(setMovesMax, () => movesMin, () => movesRange.max, 'max')}
-                  title="Max moves"
-                >▶</div>
+                <input
+                  type="range"
+                  className="pnav__native-range pnav__native-range--max"
+                  min={movesRange.min}
+                  max={movesRange.max}
+                  value={movesMax}
+                  onChange={e => { setMovesMax(Math.max(+e.target.value, movesMin)); setPage(0); }}
+                  title="Maximum moves"
+                />
               </div>
               <span className="pnav__range-value">{movesMax}</span>
             </div>
