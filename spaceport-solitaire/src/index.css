@@ -236,36 +236,28 @@ button { cursor: pointer; font-family: inherit; }
 .app__loading--error { color: #f44336; }
 
 /* ── Two-column layout ─────────────────────────────────────────────────────── */
+/* Side-by-side above 860px: board (484) + gap (16) + filter (360) = 860.
+   Below 860px the media query stacks them vertically. */
 .game-layout {
   display: flex;
   align-items: flex-start;
-  gap: 24px;
+  gap: 16px;
   min-width: 0;
 }
 
 .game-column {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  min-width: 0;
+  gap: 8px;
+  flex: 0 0 auto;
 }
 
 /* ── Game Area ─────────────────────────────────────────────────────────────── */
 .game-area {
   display: flex;
-  align-items: flex-start;
-  gap: 24px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 8px;
   min-width: 0;
-  /* Cap to the rendered board width so HUD always wraps underneath the board
-     and .game-column doesn't claim board+HUD as its max-content (which would
-     steal width from the puzzle list on intermediate viewports). At wide
-     viewports we lift the cap so HUD can sit beside the board. */
-  max-width: var(--board-natural-w, 484px);
-}
-
-@media (min-width: 1120px) {
-  .game-area { max-width: none; }
 }
 
 /* ── Board container (for SVG overlay) ─────────────────────────────────────── */
@@ -573,9 +565,8 @@ button { cursor: pointer; font-family: inherit; }
 
 /* ── Puzzle Navigation Panel ───────────────────────────────────────────────── */
 .pnav {
-  flex: 1 1 320px;
-  min-width: 0;
-  max-width: 400px;
+  width: 360px;
+  flex-shrink: 0;
   background: var(--board-bg);
   border: 1px solid var(--cell-border);
   border-radius: var(--border-radius);
@@ -1331,21 +1322,15 @@ button { cursor: pointer; font-family: inherit; }
 }
 
 /* ── Responsive ────────────────────────────────────────────────────────────── */
-@media (min-width: 641px) and (max-width: 1119px) {
-  .game-column { flex: 0 1 auto; max-width: var(--board-natural-w, 484px); }
-  .game-layout { gap: 16px; }
-  .pnav { min-width: 320px; }
-}
-
-@media (max-width: 640px) {
-  .game-layout { flex-direction: column; }
-  .game-column { width: 100%; }
-  .game-area { max-width: none; }
-  .pnav { width: 100%; max-width: 100%; }
+/* Single breakpoint: side-by-side (≥900) vs stacked (<900).
+   484 (board) + 16 (gap) + 360 (filter) + 32 (body padding) = 892, rounded to 900. */
+@media (max-width: 899px) {
+  .game-layout { flex-direction: column; align-items: center; }
+  .game-column { width: 100%; max-width: 484px; }
+  .pnav { width: 100%; max-width: 484px; }
   .pnav__list { max-height: 200px; }
 }
 
 @media (max-width: 520px) {
   .app__title { font-size: 1.4rem; }
-  .game-area { justify-content: center; }
 }

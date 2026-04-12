@@ -56,7 +56,7 @@ function hexBoardDimensions(N, hexR) {
  * Scales its children to fit within the parent container width.
  * Used by both square and hex boards so responsive behavior is consistent.
  */
-function ScaledBoard({ naturalWidth, naturalHeight, fillWidth, children }) {
+function ScaledBoard({ naturalWidth, naturalHeight, children }) {
   const containerRef = useRef(null);
   const [scale, setScale] = useState(1);
 
@@ -65,9 +65,7 @@ function ScaledBoard({ naturalWidth, naturalHeight, fillWidth, children }) {
       if (!containerRef.current) return;
       const parentWidth = containerRef.current.parentElement?.clientWidth ?? naturalWidth;
       setScale(prev => {
-        const next = fillWidth
-          ? parentWidth / naturalWidth
-          : Math.min(1, parentWidth / naturalWidth);
+        const next = Math.min(1, parentWidth / naturalWidth);
         return next === prev ? prev : next;
       });
     }
@@ -75,14 +73,14 @@ function ScaledBoard({ naturalWidth, naturalHeight, fillWidth, children }) {
     const ro = new ResizeObserver(measure);
     if (parent) ro.observe(parent);
     return () => ro.disconnect();
-  }, [naturalWidth, fillWidth]);
+  }, [naturalWidth]);
 
   return (
     <div
       ref={containerRef}
       style={{
         width: '100%',
-        maxWidth: fillWidth ? undefined : naturalWidth,
+        maxWidth: naturalWidth,
         height: naturalHeight * scale,
         overflow: 'hidden',
       }}
@@ -102,7 +100,7 @@ function ScaledBoard({ naturalWidth, naturalHeight, fillWidth, children }) {
 
 // ── Board component ───────────────────────────────────────────────────────────
 
-export default function Board({ state, dispatch, puzzle, showPaths, variantBlocks, buildMode, buildPieces, onBuildClick, board = SQUARE_7x7, fillWidth }) {
+export default function Board({ state, dispatch, puzzle, showPaths, variantBlocks, buildMode, buildPieces, onBuildClick, board = SQUARE_7x7 }) {
   const N = board.N;
   const isHex = board.type === 'hex';
   // Adjacent hex cells are R√3 apart; match square spacing (cell-size 62 + gap 5 = 67).
@@ -234,7 +232,7 @@ export default function Board({ state, dispatch, puzzle, showPaths, variantBlock
   if (isHex) {
     return (
       <div className="board-container">
-        <ScaledBoard naturalWidth={hexDims.width} naturalHeight={hexDims.height} fillWidth={fillWidth}>
+        <ScaledBoard naturalWidth={hexDims.width} naturalHeight={hexDims.height}>
           {cells}
         </ScaledBoard>
       </div>
@@ -245,7 +243,7 @@ export default function Board({ state, dispatch, puzzle, showPaths, variantBlock
   const squareNatural = N * 62 + (N - 1) * 5 + 20; // cell-size + gaps + padding
   return (
     <div className="board-container">
-      <ScaledBoard naturalWidth={squareNatural} naturalHeight={squareNatural} fillWidth={fillWidth}>
+      <ScaledBoard naturalWidth={squareNatural} naturalHeight={squareNatural}>
         <div className="board">
           {cells}
         </div>

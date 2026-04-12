@@ -1,7 +1,7 @@
 // Copyright (c) 2025-2026 Drew Steedly. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { usePuzzleLibrary, decodeStableId, computeStableId } from './hooks/usePuzzleLibrary';
 import { useGameState } from './hooks/useGameState';
 import { usePermalink } from './hooks/usePermalink';
@@ -338,43 +338,6 @@ export default function App() {
 
   const isBuildPlacing = mode === 'build' && buildState.phase !== 'solved';
 
-  // When the layout stacks vertically (mobile), let the board scale up to
-  // fill the full column width rather than capping at its natural size.
-  const [fillBoard, setFillBoard] = useState(() =>
-    typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches
-  );
-  useLayoutEffect(() => {
-    const mq = window.matchMedia('(max-width: 640px)');
-    const update = () => setFillBoard(mq.matches);
-    mq.addEventListener('change', update);
-    return () => mq.removeEventListener('change', update);
-  }, []);
-
-  // Compute the board's natural (un-scaled) width from the variant geometry.
-  // This is a pure function of variant — no feedback loops from measured sizes.
-  const boardNaturalW = useMemo(() => {
-    const N = board.N;
-    if (board.type === 'hex') {
-      const hexR = 67 / Math.sqrt(3);
-      let minX = Infinity, maxX = -Infinity;
-      for (let r = 0; r < N; r++) {
-        for (let c = 0; c < N; c++) {
-          const bx = 1.5 * hexR * c;
-          const by = Math.sqrt(3) * hexR * (r + c / 2);
-          const mid = (N - 1) / 2;
-          const cx = 1.5 * hexR * mid;
-          const cy = Math.sqrt(3) * hexR * (mid + mid / 2);
-          const cos60 = 0.5, sin60 = Math.sqrt(3) / 2;
-          const x = cos60 * (bx - cx) + sin60 * (by - cy);
-          if (x < minX) minX = x;
-          if (x > maxX) maxX = x;
-        }
-      }
-      return Math.ceil(maxX - minX + hexR * 1.1 * 2);
-    }
-    return N * 62 + (N - 1) * 5 + 20;
-  }, [board]);
-
   // Handle build variant change: clear pieces when variant changes
   const handleBuildVariantChange = useCallback((v) => {
     switchVariant(v, currentPuzzle?.stableId);
@@ -452,7 +415,6 @@ export default function App() {
           {/* ── Left: board + controls ── */}
           <div
             className="game-column"
-            style={{ '--board-natural-w': `${boardNaturalW}px` }}
           >
             {isBuildPlacing ? (
               /* Build mode: placement board */
@@ -463,7 +425,7 @@ export default function App() {
                   onBuildClick={(row, col) => buildDispatch({ type: 'CLICK_CELL', row, col, blockedCells: variantBlocks, board })}
                   variantBlocks={variantBlocks}
                   board={board}
-                  fillWidth={fillBoard}
+
                 />
               </div>
             ) : currentPuzzle ? (
@@ -474,7 +436,7 @@ export default function App() {
                   showPaths={showSolution}
                   variantBlocks={variantBlocks}
                   board={board}
-                  fillWidth={fillBoard}
+
                 />
                 <HUD
                   state={state}
