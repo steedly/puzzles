@@ -10,7 +10,7 @@ function robotLabel(id) {
   return id.replace('r', '');
 }
 
-export default function HUD({ state, dispatch, currentPuzzle, showSolution, onToggleSolution, scoreMode, onScoreModeChange, hideOptimal, onHideOptimalChange, onEditInBuild }) {
+export default function HUD({ state, dispatch, currentPuzzle, showSolution, onToggleSolution, scoreMode, hideOptimal, onEditInBuild, onShowHelp }) {
   const solution = currentPuzzle?.solution ?? [];
   const canSolve = currentPuzzle?.minMoves > 0;
 
@@ -61,22 +61,19 @@ export default function HUD({ state, dispatch, currentPuzzle, showSolution, onTo
             title="Show/hide the optimal solution and path arrows on the board"
           >{showSolution ? 'Hide Solution' : 'Show Solution'}</button>
         )}
-        <button
-          className={`hud__tool-btn${scoreMode === 'slides' ? ' hud__tool-btn--active' : ''}`}
-          onClick={() => onScoreModeChange(scoreMode === 'grouped' ? 'slides' : 'grouped')}
-          title={scoreMode === 'grouped' ? 'Scoring: grouped moves' : 'Scoring: individual slides'}
-        >{scoreMode === 'grouped' ? 'Scoring: Moves' : 'Scoring: Slides'}</button>
-        <button
-          className={`hud__tool-btn${hideOptimal ? ' hud__tool-btn--active' : ''}`}
-          onClick={() => onHideOptimalChange(!hideOptimal)}
-          title={hideOptimal ? 'Minimum hidden' : 'Minimum shown'}
-        >{hideOptimal ? 'Min: Hidden' : 'Min: Shown'}</button>
         {onEditInBuild && (
           <button
             className="hud__tool-btn"
             onClick={onEditInBuild}
             title="Open this puzzle in Build mode to modify pieces and find similar puzzles"
           >Edit in Build</button>
+        )}
+        {onShowHelp && (
+          <button
+            className="hud__tool-btn hud__tool-btn--help"
+            onClick={onShowHelp}
+            title="Show instructions"
+          >?</button>
         )}
       </div>
 

@@ -81,29 +81,6 @@ button { cursor: pointer; font-family: inherit; }
   background-clip: text;
 }
 
-/* ── Puzzle info badges ─────────────────────────────────────────────────────── */
-.app__puzzle-info {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.pinfo-badge {
-  padding: 3px 9px;
-  border-radius: 12px;
-  font-size: 0.78rem;
-  font-weight: 600;
-  background: var(--btn-bg);
-  border: 1px solid var(--cell-border);
-  color: var(--text-muted);
-}
-
-.pinfo-badge--easy   { color: #4caf50; border-color: #4caf5055; }
-.pinfo-badge--medium { color: #ffc107; border-color: #ffc10755; }
-.pinfo-badge--hard   { color: #f44336; border-color: #f4433655; }
-.pinfo-badge--expert { color: #ce93d8; border-color: #ce93d855; }
-
 .app__main {
   display: flex;
   flex-direction: column;
@@ -434,6 +411,13 @@ button { cursor: pointer; font-family: inherit; }
   background: #2a2a5a;
   border-color: #a0a0ff;
   color: #a0a0ff;
+}
+.hud__tool-btn--help {
+  width: 32px;
+  padding: 6px 0;
+  text-align: center;
+  font-weight: 700;
+  border-radius: 50%;
 }
 
 
@@ -1260,6 +1244,12 @@ button { cursor: pointer; font-family: inherit; }
 }
 
 /* ── Responsive ────────────────────────────────────────────────────────────── */
+@media (min-width: 641px) and (max-width: 1119px) {
+  .game-column { flex: 0 1 auto; max-width: var(--board-display-w, 484px); }
+  .game-layout { gap: 16px; }
+  .pnav { min-width: 320px; }
+}
+
 @media (max-width: 640px) {
   .game-layout { flex-direction: column; }
   .game-column { width: 100%; }

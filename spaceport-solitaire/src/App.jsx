@@ -84,6 +84,17 @@ export default function App() {
   // Persistent per-browser user state: solved/starred/comments by stableId
   const userData = useUserData();
 
+  // Dismissible instructions — shown until first slide, then auto-hidden
+  const [showInstructions, setShowInstructions] = useState(() =>
+    typeof window === 'undefined' || !localStorage.getItem('spaceport-instructions-seen')
+  );
+  useEffect(() => {
+    if (state.slideCount > 0 && showInstructions) {
+      setShowInstructions(false);
+      try { localStorage.setItem('spaceport-instructions-seen', '1'); } catch {}
+    }
+  }, [state.slideCount, showInstructions]);
+
   // Mark puzzle as solved on win edge. All wins originate from user-driven SLIDE
   // actions in the reducer, so any isWon=true is by definition natural play.
   const wonRef = useRef(false);
@@ -303,9 +314,7 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [buildPreview]);
 
-  // The puzzle to show in the header — build-solved or library puzzle
   const isBuildPlacing = mode === 'build' && buildState.phase !== 'solved';
-  const activePuzzle = isBuildPlacing ? null : currentPuzzle;
 
   // When the layout stacks vertically (mobile), let the board scale up to
   // fill the full column width rather than capping at its natural size.
@@ -374,22 +383,6 @@ export default function App() {
             onClick={() => setMode('build')}
           >Build</button>
         </div>
-        {activePuzzle && (
-          <div className="app__puzzle-info">
-            <span className="pinfo-badge">{activePuzzle.stableId}</span>
-            <span className="pinfo-badge">{activePuzzle.exits ?? 1}E {activePuzzle.helpers}H</span>
-            <span className="pinfo-badge" title="Minimum grouped moves">{activePuzzle.minMoves}M</span>
-            {activePuzzle.rawSlides != null && (
-              <span className="pinfo-badge" title="Raw slides in solution">{activePuzzle.rawSlides}S</span>
-            )}
-            {activePuzzle.minRawSlides != null && (
-              <span className="pinfo-badge" title="Min possible raw slides">{activePuzzle.minRawSlides}mS</span>
-            )}
-            {activePuzzle.forwardStates != null && (
-              <span className="pinfo-badge" title="Reachable states">{activePuzzle.forwardStates}R</span>
-            )}
-          </div>
-        )}
       </header>
 
       <main className="app__main">
@@ -457,14 +450,13 @@ export default function App() {
                   showSolution={showSolution}
                   onToggleSolution={() => setShowSolution(s => !s)}
                   scoreMode={scoreMode}
-                  onScoreModeChange={setScoreMode}
                   hideOptimal={hideOptimal}
-                  onHideOptimalChange={setHideOptimal}
                   onEditInBuild={currentPuzzle?.robots ? handleEditInBuild : undefined}
+                  onShowHelp={showInstructions ? undefined : () => setShowInstructions(true)}
                 />
               </div>
             ) : null}
-            {!isBuildPlacing && (
+            {!isBuildPlacing && showInstructions && (
               <p className="instructions">
                 Click a robot to select it, then click a cell or use arrow keys to slide it.
                 Get all <span className="instructions__target">exit robots</span> (A, B, C…) to the glowing center cell.
@@ -496,7 +488,9 @@ export default function App() {
               variant={variant}
               onVariantChange={(v) => switchVariant(v, currentPuzzle?.stableId)}
               scoreMode={scoreMode}
+              onScoreModeChange={setScoreMode}
               hideOptimal={hideOptimal}
+              onHideOptimalChange={setHideOptimal}
               filterState={filterState}
               onFilterChange={handleFilterChange}
               isSolved={userData.isSolved}

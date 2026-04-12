@@ -6,9 +6,9 @@ import { useCallback, useState, useRef } from 'react';
 // Stable, unversioned localStorage key. The format version lives *inside* the
 // payload (`version` field) so future code can read older data and old code
 // gracefully ignores unknown fields.
-const STORAGE_KEY = 'lunar-lockout/userdata';
-const FORMAT_VERSION = 1;
-const MAX_COMMENT_LEN = 2000;
+export const STORAGE_KEY = 'lunar-lockout/userdata';
+export const FORMAT_VERSION = 1;
+export const MAX_COMMENT_LEN = 2000;
 
 /**
  * Stored shape (intentionally minimal & forward-compatible):
@@ -26,7 +26,7 @@ const MAX_COMMENT_LEN = 2000;
  *   - Truthy `starred[id]` means starred. Comment is a plain string.
  *   - The on-disk key is unversioned; only the JSON payload carries `version`.
  */
-function readInitial() {
+export function readInitial() {
   if (typeof window === 'undefined' || !window.localStorage) {
     return { version: FORMAT_VERSION, solved: {}, starred: {} };
   }

@@ -52,7 +52,7 @@ const STARRED_LABEL = { all: 'All', starred: 'Starred', unstarred: 'Unstarred' }
 
 const noop = () => false;
 
-export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilteredChange, blockedCells, variant, onVariantChange, scoreMode, hideOptimal, filterState, onFilterChange, isSolved = noop, isOptimal = noop, isStarred = noop, toggleStar = () => {}, getComment = () => '', setComment = null, userData = null }) {
+export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilteredChange, blockedCells, variant, onVariantChange, scoreMode, onScoreModeChange, hideOptimal, onHideOptimalChange, filterState, onFilterChange, isSolved = noop, isOptimal = noop, isStarred = noop, toggleStar = () => {}, getComment = () => '', setComment = null, userData = null }) {
   // Derive available options from the puzzle library
   const availableHelpers = useMemo(() =>
     [...new Set(allPuzzles.map(p => p.helpers))].sort((a, b) => a - b),
@@ -414,14 +414,14 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
                 />
                 <div
                   className="pnav__range-thumb pnav__range-thumb--min"
-                  style={{ left: `${sliderLeftPct}%`, zIndex: activeThumb === 'min' ? 3 : 2 }}
+                  style={{ left: `${sliderLeftPct}%`, zIndex: activeThumb === 'min' ? 3 : (movesMin === movesMax && movesMax === movesRange.max ? 3 : 2) }}
                   onMouseDown={thumbDrag(setMovesMin, () => movesRange.min, () => movesMax, 'min')}
                   onTouchStart={thumbDrag(setMovesMin, () => movesRange.min, () => movesMax, 'min')}
                   title="Min moves"
                 >◀</div>
                 <div
                   className="pnav__range-thumb pnav__range-thumb--max"
-                  style={{ left: `${sliderRightPct}%`, zIndex: activeThumb === 'max' ? 3 : 2 }}
+                  style={{ left: `${sliderRightPct}%`, zIndex: activeThumb === 'max' ? 3 : (movesMin === movesMax && movesMin === movesRange.min ? 3 : 2) }}
                   onMouseDown={thumbDrag(setMovesMax, () => movesMin, () => movesRange.max, 'max')}
                   onTouchStart={thumbDrag(setMovesMax, () => movesMin, () => movesRange.max, 'max')}
                   title="Max moves"
@@ -460,6 +460,23 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
               title={sortAsc ? 'Ascending' : 'Descending'}
             >{sortAsc ? '↑' : '↓'}</button>
           </div>
+
+          {/* ── Display toggles ── */}
+          {onScoreModeChange && onHideOptimalChange && (
+            <div className="pnav__filter-row">
+              <span className="pnav__label">Display:</span>
+              <button
+                className={`pnav__chip${scoreMode === 'slides' ? ' pnav__chip--on' : ''}`}
+                onClick={() => onScoreModeChange(scoreMode === 'grouped' ? 'slides' : 'grouped')}
+                title={scoreMode === 'grouped' ? 'Switch to counting individual slides' : 'Switch to counting grouped moves'}
+              >{scoreMode === 'grouped' ? 'Moves' : 'Slides'}</button>
+              <button
+                className={`pnav__chip${!hideOptimal ? ' pnav__chip--on' : ''}`}
+                onClick={() => onHideOptimalChange(!hideOptimal)}
+                title={hideOptimal ? 'Show the minimum move count' : 'Hide the minimum move count'}
+              >{hideOptimal ? 'Min: Off' : 'Min: On'}</button>
+            </div>
+          )}
 
           {/* ── Navigation: Prev / Random / Next + Jump ── */}
           <div className="pnav__nav-row">
