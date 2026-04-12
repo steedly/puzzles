@@ -307,6 +307,18 @@ export default function App() {
   const isBuildPlacing = mode === 'build' && buildState.phase !== 'solved';
   const activePuzzle = isBuildPlacing ? null : currentPuzzle;
 
+  // When the layout stacks vertically (mobile), let the board scale up to
+  // fill the full column width rather than capping at its natural size.
+  const [fillBoard, setFillBoard] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches
+  );
+  useLayoutEffect(() => {
+    const mq = window.matchMedia('(max-width: 640px)');
+    const update = () => setFillBoard(mq.matches);
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+
   // Track the rendered board width so .instructions and .game-area can be
   // capped to it. The board scales down on narrow viewports and hex variants
   // have different natural sizes, so a hard-coded width would be wrong.
@@ -425,6 +437,7 @@ export default function App() {
                   onBuildClick={(row, col) => buildDispatch({ type: 'CLICK_CELL', row, col, blockedCells: variantBlocks, board })}
                   variantBlocks={variantBlocks}
                   board={board}
+                  fillWidth={fillBoard}
                 />
               </div>
             ) : currentPuzzle ? (
@@ -435,6 +448,7 @@ export default function App() {
                   showPaths={showSolution}
                   variantBlocks={variantBlocks}
                   board={board}
+                  fillWidth={fillBoard}
                 />
                 <HUD
                   state={state}
