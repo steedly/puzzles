@@ -148,17 +148,23 @@ describe.skipIf(!chromeExists())('Layout regression tests', () => {
     });
   }, 60000);
 
-  it('range slider: min thumb accessible when both at max', async () => {
+  it('range slider: min thumb accessible when both thumbs overlap', async () => {
     await cdpSession(async (send) => {
-      const m = await measureViewport(send, 1280, 900);
-      if (m.thumbs.length >= 2) {
-        const minThumb = m.thumbs.find(t => t.cls.includes('--min'));
-        const maxThumb = m.thumbs.find(t => t.cls.includes('--max'));
-        if (minThumb && maxThumb && minThumb.left === maxThumb.left) {
-          const minZ = parseInt(minThumb.z, 10);
-          const maxZ = parseInt(maxThumb.z, 10);
-          expect(minZ, 'min thumb should be accessible (higher z-index) when both at same position at max').toBeGreaterThanOrEqual(maxZ);
-        }
+      // Test with mv=35-35 in URL (arbitrary overlap, not just at range endpoints)
+      await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 2, mobile: false });
+      await send('Page.navigate', { url: BASE + '#standard?mv=35-35' });
+      await new Promise(r => setTimeout(r, 4000));
+      const expr = `(()=>{
+        const thumbs=[...document.querySelectorAll('.pnav__range-thumb')];
+        return JSON.stringify(thumbs.map(t=>({cls:t.className,z:parseInt(getComputedStyle(t).zIndex)||0,left:t.style.left})));
+      })()`;
+      const r = await send('Runtime.evaluate', { expression: expr, returnByValue: true });
+      const thumbs = JSON.parse(r.result.result.value);
+      const minThumb = thumbs.find(t => t.cls.includes('--min'));
+      const maxThumb = thumbs.find(t => t.cls.includes('--max'));
+      if (minThumb && maxThumb) {
+        expect(minThumb.left).toBe(maxThumb.left);
+        expect(minThumb.z, 'min thumb z-index should be >= max when overlapping').toBeGreaterThanOrEqual(maxThumb.z);
       }
     });
   }, 30000);

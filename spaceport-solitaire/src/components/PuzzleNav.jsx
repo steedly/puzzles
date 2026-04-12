@@ -414,14 +414,14 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
                 />
                 <div
                   className="pnav__range-thumb pnav__range-thumb--min"
-                  style={{ left: `${sliderLeftPct}%`, zIndex: activeThumb === 'min' ? 3 : (movesMin === movesMax && movesMax === movesRange.max ? 3 : 2) }}
+                  style={{ left: `${sliderLeftPct}%`, zIndex: activeThumb === 'min' ? 3 : (movesMin === movesMax ? 3 : 2) }}
                   onMouseDown={thumbDrag(setMovesMin, () => movesRange.min, () => movesMax, 'min')}
                   onTouchStart={thumbDrag(setMovesMin, () => movesRange.min, () => movesMax, 'min')}
                   title="Min moves"
                 >◀</div>
                 <div
                   className="pnav__range-thumb pnav__range-thumb--max"
-                  style={{ left: `${sliderRightPct}%`, zIndex: activeThumb === 'max' ? 3 : (movesMin === movesMax && movesMin === movesRange.min ? 3 : 2) }}
+                  style={{ left: `${sliderRightPct}%`, zIndex: activeThumb === 'max' ? 3 : 2 }}
                   onMouseDown={thumbDrag(setMovesMax, () => movesMin, () => movesRange.max, 'max')}
                   onTouchStart={thumbDrag(setMovesMax, () => movesMin, () => movesRange.max, 'max')}
                   title="Max moves"
