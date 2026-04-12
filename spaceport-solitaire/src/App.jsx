@@ -116,11 +116,12 @@ export default function App() {
     reader.readAsText(file);
   }, []);
 
-  // Mark puzzle as solved on win edge. All wins originate from user-driven SLIDE
-  // actions in the reducer, so any isWon=true is by definition natural play.
+  // Mark puzzle as solved on win edge — but NOT when stepping through a
+  // build-mode solution playback (the user didn't actually solve it).
   const wonRef = useRef(false);
+  const isStepModeForWin = mode === 'build' && buildState.phase === 'solved' && !buildPreview;
   useEffect(() => {
-    if (state.isWon && !wonRef.current && currentPuzzle?.stableId) {
+    if (state.isWon && !wonRef.current && currentPuzzle?.stableId && !isStepModeForWin) {
       wonRef.current = true;
       userData.markSolved(currentPuzzle.stableId, {
         moves:    state.moveCount,
@@ -129,7 +130,7 @@ export default function App() {
     } else if (!state.isWon) {
       wonRef.current = false;
     }
-  }, [state.isWon, state.moveCount, currentPuzzle, userData]);
+  }, [state.isWon, state.moveCount, currentPuzzle, userData, isStepModeForWin]);
 
   // NOTE: showSolution is intentionally preserved across puzzle changes
   // so users can cycle through puzzles comparing solutions.
@@ -509,7 +510,7 @@ export default function App() {
         </div>
       </main>
 
-      {state.isWon && (
+      {state.isWon && !isStepMode && (
         <WinModal
           moveCount={state.moveCount}
           slideCount={state.slideCount}
