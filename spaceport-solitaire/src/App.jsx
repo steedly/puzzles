@@ -15,6 +15,7 @@ import InfoPanel from './components/InfoPanel';
 import { useBuildMode } from './hooks/useBuildMode';
 import { useUserData, STORAGE_KEY } from './hooks/useUserData';
 import { usePuzzleMetrics } from './hooks/usePuzzleMetrics';
+import { usePersistentState } from './hooks/usePersistentState';
 import { boardForVariant } from './logic/boardGeometry';
 
 // Placeholder so useGameState never receives null.
@@ -66,8 +67,8 @@ export default function App() {
   const pendingBuildSolveRef = useRef(false);
   const [buildPreview, setBuildPreview] = useState(null); // library puzzle being previewed from build mode
 
-  const [scoreMode, setScoreMode] = useState('grouped'); // 'grouped' | 'slides'
-  const [hideOptimal, setHideOptimal] = useState(true);
+  const [scoreMode, setScoreMode] = usePersistentState('scoreMode', 'grouped'); // 'grouped' | 'slides'
+  const [hideOptimal, setHideOptimal] = usePersistentState('hideOptimal', true);
 
   // Filter state (lifted from PuzzleNav for permalink sync)
   const [filterState, setFilterState] = useState(null); // null = use defaults
