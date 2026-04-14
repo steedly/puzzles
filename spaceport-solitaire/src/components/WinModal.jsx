@@ -12,7 +12,6 @@ export default function WinModal({
   const userCount = isSlides ? slideCount : moveCount;
   const target = isSlides ? minRawSlides : minMoves;
   const unit = isSlides ? 'slide' : 'move';
-  const label = isSlides ? 'Minimum Slides' : 'Minimum Moves';
   const perfect = target > 0 && userCount === target;
 
   const starred = !!(stableId && isStarred && isStarred(stableId));
@@ -30,7 +29,7 @@ export default function WinModal({
             <><br /><span className="modal__optimum">Can you find a shorter solution?</span></>
           )}
           {!perfect && !hideOptimal && target > 0 && (
-            <><br /><span className="modal__optimum">{label}: {target}</span></>
+            <><br /><span className="modal__optimum">Minimum: {target}</span></>
           )}
           {perfect && hideOptimal && (
             <><br /><span className="modal__optimum">That's the minimum!</span></>

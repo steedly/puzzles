@@ -65,8 +65,7 @@ export default function HUD({
             <strong>{scoreMode === 'slides' ? state.slideCount : state.moveCount}</strong>
             {!hideOptimal && (() => {
               const target = scoreMode === 'slides' ? currentPuzzle?.minRawSlides : currentPuzzle?.minMoves;
-              const label = scoreMode === 'slides' ? 'Minimum Slides' : 'Minimum Moves';
-              return target > 0 ? <span className="hud__optimum"> ({label}: {target})</span> : null;
+              return target > 0 ? <span className="hud__optimum"> (minimum: {target})</span> : null;
             })()}
             {showExitProgress && (
               <span className="hud__exits"> · {exitedCount}/{totalExits} exits</span>
