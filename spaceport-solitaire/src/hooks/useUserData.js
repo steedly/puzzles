@@ -122,3 +122,106 @@ export function useUserData() {
     getComment,
   };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Merge helpers — pure functions, used by the Import flow.
+//
+// Merge policy:
+//  - solved: union keyed by stableId. On conflict, keep the lower moves count
+//    and OR the optimal flag (once optimal, always optimal). Unknown fields on
+//    either side are preserved.
+//  - starred: union keyed by stableId. On conflict, both are kept. If the two
+//    comments differ AND both are non-empty, it's a "comment conflict" — the
+//    merge result uses the current comment by default and lists the conflict
+//    for the UI to resolve (apply_conflict_resolutions patches the result).
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Merge two user-data payloads. Returns { merged, conflicts }.
+ * conflicts: Array<{ stableId, currentComment, importedComment }>
+ *   — entries where both sides have non-empty distinct comments.
+ */
+export function mergeUserData(current, imported) {
+  const safeCurrent  = { solved: {}, starred: {}, ...current };
+  const safeImported = { solved: {}, starred: {}, ...imported };
+
+  // ── solved: best-of-both per puzzle ──
+  const mergedSolved = { ...(safeCurrent.solved || {}) };
+  for (const [id, iEntry] of Object.entries(safeImported.solved || {})) {
+    const cEntry = mergedSolved[id];
+    if (!cEntry) {
+      mergedSolved[id] = { ...iEntry };
+      continue;
+    }
+    const cMoves = typeof cEntry.moves === 'number' ? cEntry.moves : Infinity;
+    const iMoves = typeof iEntry.moves === 'number' ? iEntry.moves : Infinity;
+    const lower = Math.min(cMoves, iMoves);
+    mergedSolved[id] = {
+      // preserve unknown fields from both sides; imported overrides current,
+      // then we patch the known fields back with the merged values.
+      ...cEntry,
+      ...iEntry,
+      moves: Number.isFinite(lower) ? lower : (cEntry.moves ?? iEntry.moves),
+      optimal: cEntry.optimal === true || iEntry.optimal === true,
+    };
+  }
+
+  // ── starred: union, with comment conflict detection ──
+  const mergedStarred = { ...(safeCurrent.starred || {}) };
+  const conflicts = [];
+  for (const [id, iEntry] of Object.entries(safeImported.starred || {})) {
+    const cEntry = mergedStarred[id];
+    if (!cEntry) {
+      mergedStarred[id] = { ...iEntry };
+      continue;
+    }
+    const cComment = (cEntry.comment ?? '').trim();
+    const iComment = (iEntry.comment ?? '').trim();
+    if (cComment !== iComment && cComment !== '' && iComment !== '') {
+      // Real conflict — record it, but leave the merged comment as "current"
+      // so the default behavior when the user cancels/defers is no-op.
+      conflicts.push({ stableId: id, currentComment: cEntry.comment ?? '', importedComment: iEntry.comment ?? '' });
+      mergedStarred[id] = {
+        ...iEntry,
+        ...cEntry,
+        comment: cEntry.comment ?? '',
+      };
+    } else {
+      // Non-conflicting: prefer the non-empty comment.
+      const preferredComment = cComment !== '' ? (cEntry.comment ?? '') : (iEntry.comment ?? '');
+      mergedStarred[id] = {
+        ...cEntry,
+        ...iEntry,
+        comment: preferredComment,
+      };
+    }
+  }
+
+  const merged = {
+    // preserve unknown top-level fields from both sides
+    ...safeImported,
+    ...safeCurrent,
+    version: safeCurrent.version ?? safeImported.version ?? FORMAT_VERSION,
+    solved: mergedSolved,
+    starred: mergedStarred,
+  };
+
+  return { merged, conflicts };
+}
+
+/**
+ * Apply per-puzzle conflict resolutions on top of a merged payload.
+ * @param {Object} merged  Result of mergeUserData().merged
+ * @param {Array}  conflicts  Result of mergeUserData().conflicts
+ * @param {Object} resolutions  Map stableId → 'current' | 'imported'
+ */
+export function applyConflictResolutions(merged, conflicts, resolutions) {
+  const out = { ...merged, starred: { ...merged.starred } };
+  for (const c of conflicts) {
+    const choice = resolutions[c.stableId];
+    if (!out.starred[c.stableId]) continue;
+    const pick = choice === 'imported' ? c.importedComment : c.currentComment;
+    out.starred[c.stableId] = { ...out.starred[c.stableId], comment: pick };
+  }
+  return out;
+}

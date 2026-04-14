@@ -12,8 +12,9 @@ import BuildPanel from './components/BuildPanel';
 import WinModal from './components/WinModal';
 import SettingsPanel from './components/SettingsPanel';
 import InfoPanel from './components/InfoPanel';
+import ImportMergeModal from './components/ImportMergeModal';
 import { useBuildMode } from './hooks/useBuildMode';
-import { useUserData, STORAGE_KEY } from './hooks/useUserData';
+import { useUserData, STORAGE_KEY, mergeUserData, applyConflictResolutions } from './hooks/useUserData';
 import { usePuzzleMetrics } from './hooks/usePuzzleMetrics';
 import { usePersistentState } from './hooks/usePersistentState';
 import { boardForVariant } from './logic/boardGeometry';
@@ -90,6 +91,10 @@ export default function App() {
   // Overlay panels
   const [openPanel, setOpenPanel] = useState(null); // 'settings' | 'info' | null
 
+  // Import merge flow: holds a pending merge waiting for conflict resolution.
+  const [pendingMerge, setPendingMerge] = useState(null);
+  // pendingMerge shape: { merged, conflicts } | null
+
   const handleExportProgress = useCallback(() => {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
@@ -104,19 +109,41 @@ export default function App() {
     URL.revokeObjectURL(url);
   }, []);
 
+  // Write the final merged payload and reload so the rest of the app picks
+  // up the new userData cleanly.
+  const applyMergedProgress = useCallback((merged) => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+      window.location.reload();
+    } catch (e) {
+      console.warn('spaceport-solitaire: could not write merged progress', e);
+    }
+  }, []);
+
   const handleImportProgress = useCallback((file) => {
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const parsed = JSON.parse(reader.result);
-        if (parsed && typeof parsed === 'object') {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
-          window.location.reload();
+        const imported = JSON.parse(reader.result);
+        if (!imported || typeof imported !== 'object') return;
+        // Merge with current data (read from userData hook — fresh snapshot)
+        const currentRaw = localStorage.getItem(STORAGE_KEY);
+        const current = currentRaw ? JSON.parse(currentRaw) : { version: 1, solved: {}, starred: {} };
+        const { merged, conflicts } = mergeUserData(current, imported);
+        if (conflicts.length === 0) {
+          applyMergedProgress(merged);
+        } else {
+          // Show the conflict resolution modal — App.jsx holds the pending
+          // merge until the user resolves or cancels.
+          setPendingMerge({ merged, conflicts });
+          setOpenPanel(null); // close settings panel while the modal is up
         }
-      } catch { /* ignore bad file */ }
+      } catch (e) {
+        console.warn('spaceport-solitaire: could not parse imported file', e);
+      }
     };
     reader.readAsText(file);
-  }, []);
+  }, [applyMergedProgress]);
 
   // Mark puzzle as solved on win edge — but NOT when stepping through a
   // build-mode solution playback (the user didn't actually solve it).
@@ -550,6 +577,18 @@ export default function App() {
       )}
       {openPanel === 'info' && (
         <InfoPanel onClose={() => setOpenPanel(null)} />
+      )}
+
+      {pendingMerge && (
+        <ImportMergeModal
+          conflicts={pendingMerge.conflicts}
+          onCancel={() => setPendingMerge(null)}
+          onApply={(resolutions) => {
+            const finalMerged = applyConflictResolutions(pendingMerge.merged, pendingMerge.conflicts, resolutions);
+            setPendingMerge(null);
+            applyMergedProgress(finalMerged);
+          }}
+        />
       )}
     </div>
   );

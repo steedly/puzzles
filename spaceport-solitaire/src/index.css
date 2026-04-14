@@ -219,6 +219,79 @@ button { cursor: pointer; font-family: inherit; }
 .overlay-panel__action-btn:hover {
   background: var(--btn-hover);
 }
+.overlay-panel__action-btn--primary {
+  background: #2a2a5a;
+  border-color: #a0a0ff;
+  color: #a0a0ff;
+}
+.overlay-panel__action-btn--primary:hover {
+  background: #3a3a6a;
+}
+
+.overlay-panel--wide {
+  max-width: 560px;
+}
+
+/* Import-merge conflict resolver */
+.import-merge__presets {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.import-merge__list {
+  max-height: 360px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.import-merge__row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--cell-border);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.02);
+}
+.import-merge__row-id {
+  font-family: monospace;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.import-merge__choice {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 8px;
+  align-items: start;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.82rem;
+}
+.import-merge__choice:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+.import-merge__choice--on {
+  background: rgba(160, 160, 255, 0.08);
+  outline: 1px solid rgba(160, 160, 255, 0.4);
+}
+.import-merge__choice-label {
+  font-weight: 600;
+  color: var(--text);
+  min-width: 62px;
+}
+.import-merge__choice-text {
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.import-merge__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
 
 .app__main {
   display: flex;

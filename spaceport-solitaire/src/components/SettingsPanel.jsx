@@ -44,8 +44,8 @@ export default function SettingsPanel({ scoreMode, onScoreModeChange, hideOptima
           <h4 className="overlay-panel__label">Data</h4>
           <div className="overlay-panel__row">
             <button className="overlay-panel__action-btn" onClick={onExport}>Export Progress</button>
-            <label className="overlay-panel__action-btn">
-              Import Progress
+            <label className="overlay-panel__action-btn" title="Merges imported progress with current — never overwrites">
+              Import & Merge
               <input type="file" accept=".json" style={{ display: 'none' }} onChange={e => {
                 const file = e.target.files?.[0];
                 if (file && onImport) onImport(file);
