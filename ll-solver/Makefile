@@ -50,9 +50,19 @@ ifndef NO_OPENMP
 endif
 
 # ── Targets ──────────────────────────────────────────────────────────────────
-.PHONY: all clean run test
+.PHONY: all clean run test unified
 
 all: enumerate
+
+# Unified beehive-based library with per-puzzle variant flags. Output is
+# puzzles-unified.llp so the legacy per-variant .llp files in the web app's
+# public/ dir stay untouched. MAX_TOTAL defaults to 5 for fast calibration;
+# override for the production run (e.g. `make unified MAX_TOTAL=7`).
+MAX_TOTAL ?= 5
+UNIFIED_CAP ?= 500
+unified: enumerate
+	./enumerate 4 $(MAX_TOTAL) 1 99 beehive $(UNIFIED_CAP) > puzzles-unified.llp 2>unified.log
+	@tail -40 unified.log
 
 enumerate: enumerate.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)

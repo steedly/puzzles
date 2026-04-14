@@ -136,6 +136,13 @@ static int SYM_INDICES[8] = {0,1,2,3,4,5,6,7};
 // Set once in main() before any BFS runs; 0 = standard 7x7 or any hex.
 static uint64_t BLOCKED = 0;
 
+// Per-variant block masks, initialized once in main(). Used by
+// compute_variant_flags() to decide which variants a given puzzle position
+// is valid for when emitting output. Independent of the active BLOCKED mask.
+static uint64_t BLOCKED_MASK_SOLITAIRE = 0;
+static uint64_t BLOCKED_MASK_UFO       = 0;
+static uint64_t BLOCKED_MASK_FRENCH    = 0;
+
 static uint64_t make_blocked_solitaire() {
     // 2x2 corners: (0,0)(0,1)(1,0)(1,1) and 3 symmetric copies
     uint64_t b = 0;
@@ -1307,6 +1314,38 @@ static int sum_manhattan(const int* pos, int n) {
     return sum;
 }
 
+// ── Variant flags for unified output ─────────────────────────────────────────
+// Each bit indicates which variant this puzzle is valid for. Bits are:
+//   0: fits standard   (always 1 — no blocks)
+//   1: fits solitaire  (pieces avoid solitaire corner masks)
+//   2: fits ufo        (pieces all in the 5x5 inner)
+//   3: fits french     (pieces avoid french corner masks)
+//   4: fits hex        (same geometric constraint as ufo: 5x5 inner)
+//   5: fits beehive    (always 1 — full 7x7 hex diamond)
+//   6: requires diagonal (solution uses dir >= 4; disqualifies cardinal variants)
+// The web app's runtime filter combines these — cardinal variants
+// (standard/solitaire/ufo/french) additionally require !requires_diagonal.
+static int compute_variant_flags(const int* pos, int n,
+                                  const std::vector<Move>& final_sol) {
+    int flags = 0;
+    auto fits_blocks = [&](uint64_t blocked) {
+        for (int i = 0; i < n; i++) {
+            if (pos[i] == EXITED) continue;
+            if (blocked & ((uint64_t)1 << pos[i])) return false;
+        }
+        return true;
+    };
+    flags |= 1 << 0;                                            // fits standard
+    if (fits_blocks(BLOCKED_MASK_SOLITAIRE)) flags |= 1 << 1;   // fits solitaire
+    if (fits_blocks(BLOCKED_MASK_UFO))       flags |= 1 << 2;   // fits ufo
+    if (fits_blocks(BLOCKED_MASK_FRENCH))    flags |= 1 << 3;   // fits french
+    if (fits_blocks(BLOCKED_MASK_UFO))       flags |= 1 << 4;   // fits hex (same as ufo)
+    flags |= 1 << 5;                                            // fits beehive
+    for (const auto& m : final_sol)
+        if ((int)m.dir >= 4) { flags |= 1 << 6; break; }
+    return flags;
+}
+
 
 // ── Output helpers ──────────────────────────────────────────────────────────
 
@@ -1397,8 +1436,13 @@ static std::vector<int> prefilter_diverse(
     auto t0 = Clock::now();
 
     // Compute position fingerprints: sorted pairwise Manhattan distances.
+    // Also compute centered odd square size per puzzle — used as a second
+    // bucket dimension so 5x5-fitting puzzles get their own sub-bucket
+    // rather than being crowded out by 7x7-spread puzzles in the same
+    // minRawSlides bucket.
     struct FP { std::vector<int> dists; };
     std::vector<FP> fps(survivor_indices.size());
+    std::vector<int8_t> square_sizes(survivor_indices.size(), 7);
 #ifdef _OPENMP
     #pragma omp parallel for schedule(dynamic, 256)
 #endif
@@ -1408,21 +1452,30 @@ static std::vector<int> prefilter_diverse(
         decode(states[i], n, pos);
         auto& fp = fps[k].dists;
         fp.reserve(n * (n - 1) / 2);
+        int max_cheb = 0;
+        const int cr = CTR / N, cc = CTR % N;
         for (int a = 0; a < n; a++) {
             if (pos[a] == EXITED) continue;
             int ra = pos[a] / N, ca = pos[a] % N;
+            int ch = std::max(std::abs(ra - cr), std::abs(ca - cc));
+            if (ch > max_cheb) max_cheb = ch;
             for (int b = a + 1; b < n; b++) {
                 if (pos[b] == EXITED) continue;
                 fp.push_back(std::abs(ra - pos[b]/N) + std::abs(ca - pos[b]%N));
             }
         }
         std::sort(fp.begin(), fp.end());
+        square_sizes[k] = (int8_t)(2 * max_cheb + 1);
     }
 
-    // Bucket by minRawSlides.
-    std::unordered_map<int, std::vector<int>> buckets; // depth → indices into survivor_indices
+    // Bucket by (minRawSlides, square_size). Packing both into a 16-bit key:
+    // high 12 bits = depth, low 4 bits = square_size (1, 3, 5, or 7).
+    auto bucket_key = [&](int k) -> int {
+        return ((int)depths[survivor_indices[k]] << 4) | (int)square_sizes[k];
+    };
+    std::unordered_map<int, std::vector<int>> buckets;
     for (int k = 0; k < (int)survivor_indices.size(); k++)
-        buckets[depths[survivor_indices[k]]].push_back(k);
+        buckets[bucket_key(k)].push_back(k);
 
     // Farthest-point sampling within each bucket.
     auto fp_dist_sq = [](const FP& a, const FP& b) -> int64_t {
@@ -1441,7 +1494,7 @@ static std::vector<int> prefilter_diverse(
     kept.reserve(survivor_indices.size());
     int filtered_count = 0;
 
-    for (auto& [depth, kindices] : buckets) {
+    for (auto& [bkey, kindices] : buckets) {
         int bsz = (int)kindices.size();
         if (bsz <= max_per_bucket) {
             for (int k : kindices) kept.push_back(survivor_indices[k]);
@@ -1656,6 +1709,12 @@ static void emit(const FlatMap& dist, int n, int num_exits,
     // Bounding area + Manhattan for picking most compact representative.
     std::vector<int> bounding_areas(survivors.size(), 99);
     std::vector<int> manhattan_sums(survivors.size(), 999);
+    // Post-Stage-4 re-bucket fields: pruned helper count, min raw slides,
+    // centered odd square of pruned positions, and variant flag byte.
+    std::vector<int8_t> survivor_new_h(survivors.size(), 0);
+    std::vector<uint8_t> survivor_min_raw(survivors.size(), 0);
+    std::vector<int8_t> survivor_square_size(survivors.size(), 7);
+    std::vector<int16_t> survivor_variant_flags(survivors.size(), 0);
 
     std::atomic<int> p3_done{0};
     auto p3_start = Clock::now();
@@ -1701,14 +1760,10 @@ static void emit(const FlatMap& dist, int n, int num_exits,
         int raw_slides = (int)pruned.size();
         int min_raw_slides = (int)recs[i].d;  // BFS depth (unpruned)
 
-        // Skip hex puzzles whose solution uses only cardinal directions —
-        // these are playable on a square board and belong in square variants.
-        if (BOARD_TYPE == BOARD_HEX) {
-            bool uses_diagonal = false;
-            for (const auto& m : pruned)
-                if (m.dir >= 4) { uses_diagonal = true; break; }
-            if (!uses_diagonal) continue;
-        }
+        // Previously: hex puzzles whose solution used only cardinal directions
+        // were skipped because they belonged in square variants. In the unified
+        // pipeline we keep them and tag each puzzle with a "requires_diagonal"
+        // flag so the web app can filter at runtime. No skip here.
 
         // Compute forward reachable states from pruned starting position.
         int pruned_pos[10];
@@ -1755,9 +1810,21 @@ static void emit(const FlatMap& dist, int n, int num_exits,
         bounding_areas[j] = compute_bounding_area(pruned_pos, ci);
         manhattan_sums[j] = sum_manhattan(pruned_pos, ci);
 
+        // Compute per-puzzle variant flags from pruned positions and the
+        // DP-optimal solution. Bits indicate which variants this puzzle is
+        // valid for; bit 6 = requires_diagonal (any slide in dir >= 4).
+        const int variant_flags = compute_variant_flags(pruned_pos, ci, pruned);
+
+        // Populate per-survivor arrays used by the post-Stage-4 re-bucket pass.
+        // (Stored by position index j — each slot is owned by a distinct loop iter.)
+        survivor_new_h[j]         = (int8_t)new_h;
+        survivor_min_raw[j]       = (uint8_t)min_raw_slides;
+        survivor_square_size[j]   = (int8_t)compute_board_size(init_pos, used, n);
+        survivor_variant_flags[j] = (int16_t)variant_flags;
+
         // Format output line (ID assigned sequentially below).
         // forwardStates placeholder "0" — filled in after dedup for surviving puzzles.
-        // Format: exits|helpers|groupedMoves|rawSlides|minRawSlides|forwardStates|positions|solution
+        // Format: exits|helpers|groupedMoves|rawSlides|minRawSlides|forwardStates|variantFlags|positions|solution
         std::string line;
         line.reserve(160);
         line += std::to_string(num_exits);       line += '|';
@@ -1766,6 +1833,7 @@ static void emit(const FlatMap& dist, int n, int num_exits,
         line += std::to_string(raw_slides);      line += '|';
         line += std::to_string(min_raw_slides);  line += '|';
         line += "0|"; // placeholder for forwardStates
+        line += std::to_string(variant_flags);   line += '|';
 
         line += std::to_string(init_pos[0]/N); line += ',';
         line += std::to_string(init_pos[0]%N);
@@ -1908,11 +1976,55 @@ static void emit(const FlatMap& dist, int n, int num_exits,
         }
     }
 
-    // Emit winners — fill in forwardStates count (was placeholder "0").
+    // Collect winners from the third dedup layer.
     std::unordered_set<int> winners;
     for (auto& [h, j] : best_for_hash) {
         if (j >= 0) winners.insert(j);
     }
+
+    // ── Post-Stage-4 re-bucket pass (unified pipeline) ──
+    // Split winners into (helpers, minRawSlides, square_size, requires_diagonal)
+    // sub-buckets and cap each at max_per_bucket. This is what makes each
+    // variant's runtime-filter slice hit full saturation in the unified library.
+    // Use bounding_areas + manhattan_sums as a tiebreaker to keep the most
+    // compact representatives when the bucket overflows. Deterministic order.
+    int rebucket_dup_count = 0;
+    if (max_per_bucket > 0 && !winners.empty()) {
+        struct Key { int h, mrs, sq, diag; };
+        auto pack_key = [](int h, int mrs, int sq, int diag) -> uint64_t {
+            return ((uint64_t)h << 32) | ((uint64_t)mrs << 16)
+                 | ((uint64_t)sq << 4)  | (uint64_t)diag;
+        };
+        std::unordered_map<uint64_t, std::vector<int>> sub_buckets;
+        for (int j : winners) {
+            const int diag = (survivor_variant_flags[j] >> 6) & 1;
+            const uint64_t k = pack_key(
+                survivor_new_h[j], survivor_min_raw[j],
+                survivor_square_size[j], diag);
+            sub_buckets[k].push_back(j);
+        }
+        std::unordered_set<int> kept;
+        for (auto& [k, js] : sub_buckets) {
+            if ((int)js.size() <= max_per_bucket) {
+                for (int j : js) kept.insert(j);
+                continue;
+            }
+            // Sort by compactness (smaller bounding area, then smaller manhattan,
+            // then lower j for determinism). Keep the first max_per_bucket.
+            std::sort(js.begin(), js.end(), [&](int a, int b) {
+                if (bounding_areas[a] != bounding_areas[b])
+                    return bounding_areas[a] < bounding_areas[b];
+                if (manhattan_sums[a] != manhattan_sums[b])
+                    return manhattan_sums[a] < manhattan_sums[b];
+                return a < b;
+            });
+            for (int i = 0; i < max_per_bucket; i++) kept.insert(js[i]);
+            rebucket_dup_count += (int)js.size() - max_per_bucket;
+        }
+        winners.swap(kept);
+    }
+
+    // Emit winners — fill in forwardStates count (was placeholder "0").
     for (int j = 0; j < (int)output_lines.size(); j++) {
         if (!winners.count(j)) continue;
         auto& line = output_lines[j];
@@ -1935,6 +2047,8 @@ static void emit(const FlatMap& dist, int n, int num_exits,
         std::cerr << ", " << dp_sig_dup_count << " DP collision-sig dups removed";
     if (state_set_dup_count > 0)
         std::cerr << ", " << state_set_dup_count << " state-set dups removed";
+    if (rebucket_dup_count > 0)
+        std::cerr << ", " << rebucket_dup_count << " post-rebucket cap drops";
     std::cerr << ", " << std::chrono::duration<double>(t3 - t2).count() << "s\n";
 }
 
@@ -1953,6 +2067,13 @@ int main(int argc, char* argv[]) {
     // 0 = no limit (full enumeration).  Positive value enables pre-filtering
     // with farthest-point diversity sampling before the expensive DP solve.
     const int max_per_bucket = argc > 6 ? std::atoi(argv[6]) : 0;
+
+    // Per-variant block masks — computed once regardless of the active variant
+    // so compute_variant_flags() can tag each puzzle with cross-variant validity.
+    BLOCKED_MASK_SOLITAIRE = make_blocked_solitaire();
+    BLOCKED_MASK_UFO       = make_blocked_ufo();
+    BLOCKED_MASK_FRENCH    = make_blocked_french();
+
     if (variant == "solitaire")     BLOCKED = make_blocked_solitaire();
     else if (variant == "ufo")      BLOCKED = make_blocked_ufo();
     else if (variant == "french")   BLOCKED = make_blocked_french();
@@ -1997,7 +2118,9 @@ int main(int argc, char* argv[]) {
         "# Exit robots disappear when they reach center; helpers are blockers only.\n"
         "# Deduplicated by collision signature.\n"
         "#\n"
-        "# Format: id|exits|helpers|groupedMoves|rawSlides|minRawSlides|forwardStates|positions|solution\n"
+        "# Format: id|exits|helpers|groupedMoves|rawSlides|minRawSlides|forwardStates|variantFlags|positions|solution\n"
+        "# variantFlags: bit0=fits_standard, bit1=fits_solitaire, bit2=fits_ufo,\n"
+        "#               bit3=fits_french, bit4=fits_hex, bit5=fits_beehive, bit6=requires_diagonal\n"
         "# positions: exit0_r,c [exit1...] [helper...]\n"
         "# solution: space-separated moves, each = moverDIRblocker\n"
         "#   A,B,C = exit robots (by ascending initial position)\n"

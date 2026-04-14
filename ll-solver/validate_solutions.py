@@ -60,8 +60,16 @@ def parse_puzzle(line):
     if not line or line.startswith('#'):
         return None
     parts = line.split('|')
-    if len(parts) == 9:
-        # New format: id|exits|helpers|groupedMoves|rawSlides|minRawSlides|forwardStates|positions|solution
+    if len(parts) == 10:
+        # Unified format: id|exits|helpers|groupedMoves|rawSlides|minRawSlides|forwardStates|variantFlags|positions|solution
+        pid = int(parts[0])
+        num_exits = int(parts[1])
+        num_helpers = int(parts[2])
+        min_moves = int(parts[3])
+        positions_str = parts[8]
+        solution_str = parts[9]
+    elif len(parts) == 9:
+        # Per-variant format: id|exits|helpers|groupedMoves|rawSlides|minRawSlides|forwardStates|positions|solution
         pid = int(parts[0])
         num_exits = int(parts[1])
         num_helpers = int(parts[2])
