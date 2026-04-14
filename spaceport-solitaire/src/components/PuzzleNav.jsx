@@ -372,7 +372,7 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
                 }}
                 aria-label="Maximum moves"
               />
-              <span className="pnav__range-hint">of {movesRange.min}–{movesRange.max}</span>
+              <span className="pnav__range-hint">of {movesRange.max}</span>
             </div>
           </div>
 
