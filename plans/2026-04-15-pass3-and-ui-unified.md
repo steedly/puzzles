@@ -165,3 +165,51 @@ Monitoring plan:
 
 Expected wall time: 4-6 hours (conservative). 3E+4H Layer 3 is the longest
 pole — serial cap took ~4 hours in v7 before being killed.
+
+### 2026-04-15T14:07Z — Phase 4 4×4 fix committed; session paused
+
+User redirected: **do not defer Phase 4**. Goal: an optimized enumerate
+binary that fully utilizes 16 cores while fitting in 32 GB, for both
+hex + square 7×7 with 7 max pieces.
+
+Killed the serial-revert full run (PID 5277, had been running ~3 minutes).
+
+Applied the 4×4 fix in commit `b7cb53b`:
+- Fixed the capacity pre-grow in `forward_bfs_states_parallel` from
+  `cur.size() * 8` to `cur.size() * (NUM_DIRS*n + 4) + 64`. The old factor
+  was wildly too small for hex 6-piece branching (max 36) — when the
+  FlatMap filled to 100% load mid-parallel, `atomic_emplace` spun forever.
+  With the panic guards from `4295551` in place, any future capacity
+  under-estimate would now abort loudly instead of hanging.
+- Re-enabled the 4×4 call site in `emit()`: 4 outer puzzle slots × 4
+  inner BFS threads each (`omp_set_max_active_levels(2)` + nested
+  parallel for). Same memory bound as the old 4-thread serial cap, but
+  16-core utilization.
+
+**Validated** on the v8 repro: `./enumerate 4 6 1 99 beehive 500 --only=1,5`
+completes in ~11s, emits 12240 puzzles, validates clean, no panics.
+
+**Session paused — user is closing laptop.** The scheduled wakeup is
+irrelevant now (it was only valid while this terminal was connected).
+When resuming, prompt:
+
+> Continue the plan at `plans/2026-04-15-pass3-and-ui-unified.md`. Phase 4
+> 4×4 fix is committed (b7cb53b) and validated on `--only=1,5`. Next: run
+> the smoke ladder on the fixed binary, then launch the full
+> hex + square 7-piece unified run.
+
+Open items when resuming:
+1. **Re-run smoke ladder** (`ll-solver/runs/smoke-ladder.sh`) to sanity-
+   check the 4×4 binary on the graduated combo sequence, including a
+   harder 7-piece rung with a more generous timeout.
+2. **Scope clarification for "unified hex+square".** Today `enumerate`
+   takes a single variant argument. The v7 partial only had beehive. For
+   a truly unified library covering both hex and square boards we need
+   either (a) separate runs per board-type + merge, or (b) an in-binary
+   multi-variant run. Need to decide before Phase 5 launches.
+3. **Launch the full run** with the 4×4 binary. Target: <2h wall-time
+   per board type (4× speedup over v7's 4-6h serial-cap baseline).
+4. **Phase 6 cutover** unchanged.
+
+No enumerate processes running. No tmux sessions. Branch state:
+`wip/pass3-and-ui-unified` at `b7cb53b` on origin.
