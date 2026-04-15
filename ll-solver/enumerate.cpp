@@ -1936,6 +1936,34 @@ static void emit(FlatMap dist, int n, int num_exits,
     log_mem("recs_shrunk");
     reset_peak_rss();
 
+    // ── LPT (Longest Processing Time First) scheduling ──
+    // Sort survivor_states + survivor_min_rs descending by retrograde BFS
+    // depth (raw slides to goal), which is a direct proxy for solver
+    // hardness. Benefits:
+    //   * Early failure detection — OOM on hard puzzles surfaces in minutes
+    //     instead of after 20+ min of solve work.
+    //   * Monotonically decreasing memory profile — peak hits early, then
+    //     drops as easier puzzles take over.
+    //   * Better OpenMP dynamic-scheduling tail packing.
+    // All other per-j arrays below are allocated AFTER this sort and written
+    // inside the pass 3 loop at the post-sort index j, so no other arrays
+    // need reordering. Downstream dedup loops also iterate by post-sort j.
+    {
+        std::vector<int> order(survivor_states.size());
+        std::iota(order.begin(), order.end(), 0);
+        std::sort(order.begin(), order.end(), [&](int a, int b) {
+            return survivor_min_rs[a] > survivor_min_rs[b];
+        });
+        std::vector<State>   sorted_states(survivor_states.size());
+        std::vector<uint8_t> sorted_min_rs(survivor_min_rs.size());
+        for (int j = 0; j < (int)order.size(); j++) {
+            sorted_states[j] = survivor_states[order[j]];
+            sorted_min_rs[j] = survivor_min_rs[order[j]];
+        }
+        survivor_states = std::move(sorted_states);
+        survivor_min_rs = std::move(sorted_min_rs);
+    }
+
     // ── Pass 3: DP trace for survivors → dedup → output ──
     std::vector<std::string> output_lines(survivors.size());
     // D4-canonical form of pruned positions (with num_exits packed in bits 60-63).
