@@ -364,3 +364,34 @@ Verified on `--only=1,5`: 12240 puzzles, 217 MB peak, tests pass.
   > runs/v11-beehive.llp 2> runs/v11-beehive.log
 ```
 PID 1001303, tmux session `beehive`.
+
+### 2026-04-15T23:47Z — Hourly cadence start; v11 at 6h11m on combo 17/18 (4+2)
+
+Switching to hourly status reports (committed + pushed each hour) so
+you can track the run from any device.
+
+**3+4 completed successfully.** Peak RSS 27.6 GB (well under 32 GB
+cap). 27,817 puzzles emitted, 853 state-set dups removed by Layer 3.
+Pass 3 wall time for 3+4: 3h18m (Layer 3 alone ~3h under 4-wide
+serial forward_bfs_states for heavy puzzles).
+
+**Currently: 4+2, pass 3 solve tail.** Combos 1+1..4+1 all done
+(16/18). Output file 19 MB with 133,626 puzzles (vs v7-partial's 105K).
+
+Pass 3 solve of 4+2 has been running ~1h41m, which is much longer
+than 3+3/3+4 took (6-20 min). Thread inspection shows only 3 of 16
+threads active (state R); the other 13 are in `futex_do_wait`
+(OpenMP barrier). This is LPT tail latency — a handful of
+extraordinarily hard 4-exit puzzles are still solving while the other
+~15000 puzzles finished. The 4-exit DP state space is dramatically
+larger than 3-exit, so per-puzzle worst-case solve time scales up.
+Progress lines aren't printing because `done % 500 == 0` checks are
+gated on `omp_get_thread_num() == 0`, and the main thread is itself
+stuck inside a long-running `solve_min_grouped` call.
+
+**Memory is fine** (10 GB RSS, 20 GB free). **No OOM risk.** Just
+slow tail. No intervention — killing would lose 6h of progress for
+marginal benefit. Letting v11 finish.
+
+After v11 completes: validate, note 4-exit tail latency as a
+follow-up optimization (see open items below), do Phase 6 UI cutover.
