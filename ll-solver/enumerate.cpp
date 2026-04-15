@@ -2344,36 +2344,33 @@ static void emit(FlatMap dist, int n, int num_exits,
         for (auto& [sig, j] : best_for_dp_sig)
             if (j >= 0) need_bfs.push_back(j);
         // Layer 3 forward BFS allocates a per-puzzle reachable-state set. For
-        // hard 7-piece puzzles this can reach 10M+ states per call. The
-        // previous fix (cap to 4 threads × serial BFS) bounded memory but
-        // wasted 12 cores. The 4×4 nested-parallelism scheme below uses all
-        // 16 cores at the same memory cap by parallelizing each puzzle's
-        // forward BFS internally rather than running 16 independent BFSs.
+        // hard 7-piece puzzles this can reach 10M+ states per call. At 16
+        // threads × hundreds of MB per call, peak memory could hit OOM
+        // (observed: 3E+4H with max_per_bucket=500 OOM'd here in v6). Cap
+        // thread count to bound per-phase peak. Overall wall-time impact
+        // is modest because this phase is typically short relative to
+        // pass 3 solve.
+        //
+        // A 4×4 nested-parallelism experiment (forward_bfs_states_parallel)
+        // was prototyped to use all 16 cores by parallelizing each puzzle's
+        // BFS internally, but it hung in testing (likely an
+        // atomic_emplace/ensure_parallel_capacity interaction that needs
+        // more debugging). Reverted to the simple 4-thread cap for
+        // correctness until the parallel variant is fixed.
 #ifdef _OPENMP
-        // 4×4 nested: 4 outer puzzle slots × 4 inner BFS threads each.
-        // Memory bound = 4 concurrent seen-sets (same as old 4-thread cap).
-        // Wall-time bound = parallel BFS speedup × 4-puzzle concurrency.
         const int saved_threads = omp_get_max_threads();
-        const int outer_slots   = std::min(saved_threads, 4);
-        const int inner_threads = (saved_threads >= 16) ? 4
-                                : std::max(1, saved_threads / outer_slots);
-        const int saved_levels  = omp_get_max_active_levels();
-        omp_set_max_active_levels(2);
-        omp_set_num_threads(outer_slots);
-        #pragma omp parallel for schedule(dynamic, 1)
-#else
-        const int inner_threads = 1;
+        const int layer3_threads = std::min(saved_threads, 4);
+        omp_set_num_threads(layer3_threads);
+        #pragma omp parallel for schedule(dynamic, 64)
 #endif
         for (int k = 0; k < (int)need_bfs.size(); k++) {
             int j = need_bfs[k];
-            auto fwd = forward_bfs_states_parallel(
-                pruned_starts[j], pruned_ns[j], num_exits, inner_threads);
+            auto fwd = forward_bfs_states(pruned_starts[j], pruned_ns[j], num_exits);
             state_set_hashes[j] = forward_state_set_hash(fwd);
             fwd_state_counts[j] = (int)fwd.size();
         }
 #ifdef _OPENMP
         omp_set_num_threads(saved_threads);
-        omp_set_max_active_levels(saved_levels);
 #endif
     }
     log_mem("layer3_done");
