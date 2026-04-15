@@ -2095,6 +2095,27 @@ static void emit(FlatMap dist, int n, int num_exits,
             }
             std::cerr << "\n";
         }
+        // Top-N hardest puzzles: the specific survivor_states and their solve
+        // times, for targeted replay in bench_solver. Partial-sort via
+        // nth_element is O(survivors) vs O(survivors log survivors) for a
+        // full sort. Extra memory: one int per survivor (~120 KB for
+        // 30K candidates) — negligible.
+        if (ns > 0) {
+            const int TOP_N = 20;
+            int k = std::min((int)ns, TOP_N);
+            std::vector<int> top_idx(ns);
+            std::iota(top_idx.begin(), top_idx.end(), 0);
+            std::nth_element(top_idx.begin(), top_idx.begin() + k, top_idx.end(),
+                [&](int a, int b) { return solve_times_us[a] > solve_times_us[b]; });
+            top_idx.resize(k);
+            std::sort(top_idx.begin(), top_idx.end(),
+                [&](int a, int b) { return solve_times_us[a] > solve_times_us[b]; });
+            std::cerr << "  solve times top-" << k << " (us=state):";
+            for (int j : top_idx)
+                std::cerr << " " << (int64_t)solve_times_us[j]
+                          << "=" << survivor_states[j];
+            std::cerr << "\n";
+        }
     }
     log_mem("pass3_solve_done");
 
