@@ -1,10 +1,27 @@
 // Copyright (c) 2025-2026 Drew Steedly. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 
 const SQUARE_DIR_MAP = { U: 'up', D: 'down', L: 'left', R: 'right' };
 const HEX_DIR_MAP = { Nw: 'nw', Se: 'se', Sw: 'sw', Ne: 'ne', No: 'no', So: 'so' };
+
+// Variant flag bits (must match enumerate.cpp)
+export const VARIANT_FLAG_BITS = {
+  standard: 1 << 0, solitaire: 1 << 1, ufo: 1 << 2,
+  french: 1 << 3, hex: 1 << 4, beehive: 1 << 5,
+};
+const CARDINAL_VARIANTS = new Set(['standard', 'solitaire', 'ufo', 'french']);
+const DIAGONAL_BIT = 1 << 6;
+
+// Test whether a puzzle fits a given variant based on its variantFlags.
+// Cardinal variants exclude puzzles whose solutions require hex diagonals.
+export function fitsVariant(puzzle, variant) {
+  const bit = VARIANT_FLAG_BITS[variant];
+  if (!(puzzle.variantFlags & bit)) return false;
+  if (CARDINAL_VARIANTS.has(variant) && (puzzle.variantFlags & DIAGONAL_BIT)) return false;
+  return true;
+}
 
 // Compute a stable, position-based puzzle ID.
 // Encodes cell indices as digits in base-49, then converts to base-36.
@@ -66,9 +83,21 @@ function parseLine(line) {
 
   let minMovesStr;
   let rawSlides = null, minRawSlides = null, forwardStates = null;
+  let variantFlagsRaw = null;
 
-  if (parts.length === 9) {
-    // Current format: id|exits|helpers|groupedMoves|rawSlides|minRawSlides|forwardStates|positions|solution
+  if (parts.length === 10) {
+    // Unified format: id|exits|helpers|groupedMoves|rawSlides|minRawSlides|forwardStates|variantFlags|positions|solution
+    [idStr, exitsStr, helpersStr, minMovesStr] = parts;
+    rawSlides = parseInt(parts[4], 10);
+    minRawSlides = parseInt(parts[5], 10);
+    forwardStates = parseInt(parts[6], 10);
+    variantFlagsRaw = parseInt(parts[7], 10);
+    posStr = parts[8];
+    solStr = parts[9];
+    numExits = parseInt(exitsStr, 10);
+    if (isNaN(numExits)) return null;
+  } else if (parts.length === 9) {
+    // Legacy 9-field: id|exits|helpers|groupedMoves|rawSlides|minRawSlides|forwardStates|positions|solution
     [idStr, exitsStr, helpersStr, minMovesStr] = parts;
     rawSlides = parseInt(parts[4], 10);
     minRawSlides = parseInt(parts[5], 10);
@@ -171,15 +200,38 @@ function parseLine(line) {
 
   const actualRawSlides = rawSlides ?? solution.length;
 
-  // Check which variant boards this puzzle fits on (no robot on a blocked cell).
-  const fitsVariant = (blockedTest) => robots.every(r => !blockedTest(r.row, r.col));
-  const fitsSolitaire = fitsVariant((r, c) => (r <= 1 || r >= 5) && (c <= 1 || c >= 5));
-  const fitsUfo       = fitsVariant((r, c) => r === 0 || r === 6 || c === 0 || c === 6);
-  const fitsFrench    = fitsVariant((r, c) =>
+  // Compute variant-fit booleans from positions
+  const positionFits = (blockedTest) => robots.every(r => !blockedTest(r.row, r.col));
+  const fitsSolitairePos = positionFits((r, c) => (r <= 1 || r >= 5) && (c <= 1 || c >= 5));
+  const fitsUfoPos       = positionFits((r, c) => r === 0 || r === 6 || c === 0 || c === 6);
+  const fitsFrenchPos    = positionFits((r, c) =>
     (r === 0 && c === 0) || (r === 0 && c === 1) || (r === 1 && c === 0) ||
     (r === 0 && c === 5) || (r === 0 && c === 6) || (r === 1 && c === 6) ||
     (r === 5 && c === 0) || (r === 6 && c === 0) || (r === 6 && c === 1) ||
     (r === 5 && c === 6) || (r === 6 && c === 5) || (r === 6 && c === 6));
+
+  // variantFlags: use authoritative value from unified format, or compute from positions for legacy
+  let variantFlags;
+  let fitsSolitaire, fitsUfo, fitsFrench;
+
+  if (variantFlagsRaw != null) {
+    variantFlags = variantFlagsRaw;
+    // Derive cross-variant badges from flags; exclude diagonal puzzles from cardinal badges
+    fitsSolitaire = !!(variantFlags & VARIANT_FLAG_BITS.solitaire) && !(variantFlags & DIAGONAL_BIT);
+    fitsUfo       = !!(variantFlags & VARIANT_FLAG_BITS.ufo)       && !(variantFlags & DIAGONAL_BIT);
+    fitsFrench    = !!(variantFlags & VARIANT_FLAG_BITS.french)    && !(variantFlags & DIAGONAL_BIT);
+  } else {
+    // Legacy format: all solutions are cardinal-only (bit 6 = 0)
+    fitsSolitaire = fitsSolitairePos;
+    fitsUfo       = fitsUfoPos;
+    fitsFrench    = fitsFrenchPos;
+    variantFlags = VARIANT_FLAG_BITS.standard
+      | (fitsSolitaire ? VARIANT_FLAG_BITS.solitaire : 0)
+      | (fitsUfo       ? VARIANT_FLAG_BITS.ufo       : 0)
+      | (fitsFrench    ? VARIANT_FLAG_BITS.french     : 0)
+      | (fitsUfoPos    ? VARIANT_FLAG_BITS.hex        : 0)  // hex has same border blocks as ufo
+      | VARIANT_FLAG_BITS.beehive;  // beehive has no blocked cells
+  }
 
   return {
     id, stableId, exits: numExits, helpers, minMoves, difficulty, robots, solution, bbox,
@@ -187,6 +239,7 @@ function parseLine(line) {
     rawSlides: actualRawSlides,
     minRawSlides: minRawSlides ?? null,
     forwardStates: forwardStates ?? null,
+    variantFlags,
     fitsSolitaire, fitsUfo, fitsFrench,
   };
 }
@@ -208,104 +261,76 @@ async function decompressGzBase64(b64) {
   return new Response(ds.readable).text();
 }
 
-// Variant file names (relative to public/)
-const VARIANT_FILES = {
-  standard:  'puzzles.llp',
-  solitaire: 'puzzles-solitaire.llp',
-  ufo:       'puzzles-ufo.llp',
-  french:    'puzzles-french.llp',
-  hex:       'puzzles-hex.llp',
-  beehive:   'puzzles-beehive.llp',
-};
-
 export function usePuzzleLibrary(initialVariant = 'standard') {
-  const [allPuzzles,      setAllPuzzles]      = useState([]);
+  const [unifiedPuzzles, setUnifiedPuzzles] = useState([]);
   const [loading,         setLoading]         = useState(true);
   const [error,           setError]           = useState(null);
   const [needsFilePicker, setNeedsFilePicker] = useState(false);
   const [variant,         setVariant]         = useState(initialVariant);
-  const [stableIdMap,     setStableIdMap]     = useState(new Map());
 
-  // Cache parsed puzzles per variant to avoid re-fetching/re-parsing
-  const cacheRef = useRef({});
   const pendingStableIdRef = useRef(null);
 
-  // Load a puzzle file (fetch or from cache)
-  const loadVariantFile = useCallback(async (v) => {
-    // Check cache first
-    if (cacheRef.current[v]) {
-      setAllPuzzles(cacheRef.current[v]);
-      setLoading(false);
-      return;
-    }
+  // Filter unified puzzle list by current variant (instant on variant switch)
+  const allPuzzles = useMemo(() =>
+    unifiedPuzzles.filter(p => fitsVariant(p, variant)),
+    [unifiedPuzzles, variant]
+  );
 
-    setLoading(true);
-    setError(null);
-
-    // Check for embedded data (bundle mode) — only for standard
-    if (v === 'standard') {
-      if (typeof window.__PUZZLES_LLP__ === 'string') {
-        const puzzles = parseText(window.__PUZZLES_LLP__);
-        cacheRef.current[v] = puzzles;
-        setAllPuzzles(puzzles);
-        setLoading(false);
-        return;
-      }
-      if (typeof window.__PUZZLES_GZ_B64__ === 'string') {
-        try {
-          const text = await decompressGzBase64(window.__PUZZLES_GZ_B64__);
-          const puzzles = parseText(text);
-          cacheRef.current[v] = puzzles;
-          setAllPuzzles(puzzles);
-          setLoading(false);
-          return;
-        } catch {
-          // fall through to fetch
-        }
-      }
-    }
-
-    try {
-      const filename = VARIANT_FILES[v] || VARIANT_FILES.standard;
-      const r = await fetch(`./${filename}`);
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const text = await r.text();
-      const puzzles = parseText(text);
-      cacheRef.current[v] = puzzles;
-      setAllPuzzles(puzzles);
-      setLoading(false);
-    } catch {
-      setLoading(false);
-      if (v === 'standard') {
-        setNeedsFilePicker(true);
-      } else {
-        setError(`Could not load ${v} puzzles`);
-      }
-    }
-  }, []);
-
-  // Build stableIdMap whenever allPuzzles changes
-  useEffect(() => {
+  // Build stableIdMap whenever the variant-filtered list changes
+  const stableIdMap = useMemo(() => {
     const map = new Map();
     for (const p of allPuzzles) {
       map.set(p.stableId, p);
     }
-    setStableIdMap(map);
+    return map;
   }, [allPuzzles]);
 
-  // Initial load
-  useEffect(() => {
-    loadVariantFile(initialVariant);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadVariantFile]);
+  // Load the unified puzzle file (once)
+  const loadPuzzles = useCallback(async () => {
+    setLoading(true);
+    setError(null);
 
-  // Switch variant; caller can pass a stableId to try to preserve across the switch
+    // Check for embedded data (bundle mode) — treat as unified library
+    if (typeof window.__PUZZLES_LLP__ === 'string') {
+      setUnifiedPuzzles(parseText(window.__PUZZLES_LLP__));
+      setLoading(false);
+      return;
+    }
+    if (typeof window.__PUZZLES_GZ_B64__ === 'string') {
+      try {
+        const text = await decompressGzBase64(window.__PUZZLES_GZ_B64__);
+        setUnifiedPuzzles(parseText(text));
+        setLoading(false);
+        return;
+      } catch {
+        // fall through to fetch
+      }
+    }
+
+    try {
+      const r = await fetch('./puzzles.llp');
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const text = await r.text();
+      setUnifiedPuzzles(parseText(text));
+      setLoading(false);
+    } catch {
+      setLoading(false);
+      setNeedsFilePicker(true);
+    }
+  }, []);
+
+  // Initial load (once)
+  useEffect(() => {
+    loadPuzzles();
+  }, [loadPuzzles]);
+
+  // Switch variant: pure state update — no fetch, no re-parse.
+  // The useMemo above recomputes allPuzzles instantly.
   const switchVariant = useCallback((v, pendingStableId) => {
     if (v === variant) return;
     pendingStableIdRef.current = pendingStableId || null;
     setVariant(v);
-    loadVariantFile(v);
-  }, [variant, loadVariantFile]);
+  }, [variant]);
 
   function loadFile(file) {
     if (!file) return;
@@ -314,9 +339,7 @@ export function usePuzzleLibrary(initialVariant = 'standard') {
     setNeedsFilePicker(false);
     const reader = new FileReader();
     reader.onload  = e => {
-      const puzzles = parseText(e.target.result);
-      cacheRef.current.standard = puzzles;
-      setAllPuzzles(puzzles);
+      setUnifiedPuzzles(parseText(e.target.result));
       setLoading(false);
     };
     reader.onerror = () => { setError('Could not read file'); setLoading(false); setNeedsFilePicker(true); };

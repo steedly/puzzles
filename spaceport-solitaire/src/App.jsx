@@ -284,8 +284,8 @@ export default function App() {
     const exits = buildState.pieces.filter(p => p.isExit);
     if (exits.length === 0) return null;
     const posStr = buildState.pieces.map(p => `${p.row},${p.col}`).join(' ');
-    return computeStableId(exits.length, posStr, board.N);
-  }, [mode, buildState.pieces, board.N]);
+    return computeStableId(exits.length, posStr);
+  }, [mode, buildState.pieces]);
 
   // Update URL hash when state changes
   useEffect(() => {
