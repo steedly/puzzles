@@ -2371,53 +2371,59 @@ static void emit(FlatMap dist, int n, int num_exits,
         std::vector<int> need_bfs;
         for (auto& [sig, j] : best_for_dp_sig)
             if (j >= 0) need_bfs.push_back(j);
-        // Layer 3 forward BFS allocates a per-puzzle reachable-state set. For
-        // hard 7-piece puzzles this can reach 10M+ states per call, and a
-        // FlatMap over such a set runs 5+ GB. Running 4 of those concurrently
-        // on top of ~10 GB of pass-3 baseline state blows the 32 GB cap
-        // (observed: 3E+4H OOM killed in commit 5d0b5b1's run).
+        // Layer 3 forward BFS allocates a per-puzzle reachable-state set.
+        // The parallel variant forward_bfs_states_parallel pre-grows the
+        // shared FlatMap to `seen.size() + cur.size() * (NUM_DIRS*n + 4)`
+        // at each level so atomic_emplace has guaranteed headroom. That
+        // worst-case factor (46 for hex 7pc) is wildly over-provisioned
+        // for deep BFS levels where most successors are duplicates, and
+        // at peak frontier (cur.size() ~10-30M for a 500M-state BFS) the
+        // pre-grow target is 500M-1.4B entries — so each concurrent
+        // FlatMap in a heavy puzzle can balloon to 5-11 GB. Two of them
+        // blow the 32 GB cap together (observed: v9 + v10 both OOM'd
+        // at 29.85 GB in 3+4 Layer 3).
         //
-        // Memory-aware partition: split need_bfs by pruned piece count.
-        //   * heavy (pruned_ns >= 7): worst-case FlatMap up to ~6 GB each.
-        //     Run 2 outer × 8 inner → 2 concurrent heavy FlatMaps
-        //     ≈ 12 GB + 10 GB baseline = 22 GB peak. Fits.
-        //   * light (pruned_ns <= 6): FlatMap ≤ 1 GB each typically.
-        //     Run 4 outer × 4 inner → 16 cores, 4 GB concurrent. Fits
-        //     easily and matches the v7 working point.
+        // Memory-aware partition:
+        //   * heavy (pruned_ns >= 7): use SERIAL forward_bfs_states with
+        //     4-wide outer parallelism. The serial variant grows via
+        //     FlatMap::insert_new's natural 2× rehash, which never
+        //     over-provisions. Matches v7's known-safe point.
+        //   * light (pruned_ns <= 6): use PARALLEL forward_bfs_states_parallel
+        //     with 4 outer × 4 inner (16 cores). Light BFSes are small
+        //     (<1M states), so pre-grow overhead is negligible.
         //
-        // Both phases use the forward_bfs_states_parallel inner BFS. Its
-        // `if(cur.size()>=256)` clause keeps the inner parallel region
-        // off on tiny frontiers, so easy puzzles don't pay thread-spawn
-        // overhead.
+        // Heavy runs first so peak RSS drops before the 16-wide light
+        // phase fan-out.
         std::vector<int> heavy_jobs, light_jobs;
         for (int j : need_bfs) {
             if (pruned_ns[j] >= 7) heavy_jobs.push_back(j);
             else                   light_jobs.push_back(j);
         }
-        auto run_layer3 = [&](const std::vector<int>& jobs,
-                              int outer_slots, int inner_threads) {
-#ifdef _OPENMP
-            omp_set_num_threads(outer_slots);
-            #pragma omp parallel for schedule(dynamic, 1)
-#endif
-            for (int k = 0; k < (int)jobs.size(); k++) {
-                int j = jobs[k];
-                auto fwd = forward_bfs_states_parallel(
-                    pruned_starts[j], pruned_ns[j], num_exits, inner_threads);
-                state_set_hashes[j] = forward_state_set_hash(fwd);
-                fwd_state_counts[j] = (int)fwd.size();
-            }
-        };
 #ifdef _OPENMP
         const int saved_threads = omp_get_max_threads();
         const int saved_levels  = omp_get_max_active_levels();
         omp_set_max_active_levels(2);
+        omp_set_num_threads(std::min(saved_threads, 4));
+        #pragma omp parallel for schedule(dynamic, 1)
 #endif
-        // Heavy first: memory peak happens here, we want it finished before
-        // the light phase begins so peak RSS drops back before the 16-wide
-        // fan-out. LPT ordering inside heavy is handled by dynamic schedule.
-        run_layer3(heavy_jobs, /*outer*/2, /*inner*/8);
-        run_layer3(light_jobs, /*outer*/4, /*inner*/4);
+        for (int k = 0; k < (int)heavy_jobs.size(); k++) {
+            int j = heavy_jobs[k];
+            auto fwd = forward_bfs_states(pruned_starts[j], pruned_ns[j],
+                                           num_exits);
+            state_set_hashes[j] = forward_state_set_hash(fwd);
+            fwd_state_counts[j] = (int)fwd.size();
+        }
+#ifdef _OPENMP
+        omp_set_num_threads(std::min(saved_threads, 4));
+        #pragma omp parallel for schedule(dynamic, 1)
+#endif
+        for (int k = 0; k < (int)light_jobs.size(); k++) {
+            int j = light_jobs[k];
+            auto fwd = forward_bfs_states_parallel(
+                pruned_starts[j], pruned_ns[j], num_exits, /*inner=*/4);
+            state_set_hashes[j] = forward_state_set_hash(fwd);
+            fwd_state_counts[j] = (int)fwd.size();
+        }
 #ifdef _OPENMP
         omp_set_num_threads(saved_threads);
         omp_set_max_active_levels(saved_levels);
