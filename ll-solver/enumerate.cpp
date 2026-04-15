@@ -327,16 +327,29 @@ struct FlatMap {
         if (c > cap_) rehash(c);
     }
 
+    [[noreturn]] void probe_panic(const char* fn, uint64_t k) const {
+        std::fprintf(stderr,
+            "FATAL FlatMap::%s: probe limit exhausted; key=0x%llx "
+            "sz=%zu cap=%zu load=%.2f%% key_bits=%d\n",
+            fn, (unsigned long long)k, sz_, cap_,
+            cap_ ? 100.0 * (double)sz_ / (double)cap_ : 0.0, key_bits_);
+        std::abort();
+    }
+
     // Insert (k, v) if absent.  Returns true if newly inserted.
     bool insert_new(uint64_t k, uint8_t v) {
         if (__builtin_expect(sz_ * 4 >= cap_ * 3, 0))
             rehash(cap_ ? cap_ * 2 : 16);
         size_t h = hash(k) & (cap_ - 1);
-        while (data_[h] != EMPTY && (data_[h] & km_) != k)
+        for (size_t probe = 0; probe < cap_; probe++) {
+            if (data_[h] == EMPTY) {
+                data_[h] = pack(k, v); ++sz_;
+                return true;
+            }
+            if ((data_[h] & km_) == k) return false;
             h = (h + 1) & (cap_ - 1);
-        if (data_[h] != EMPTY) return false;
-        data_[h] = pack(k, v); ++sz_;
-        return true;
+        }
+        probe_panic("insert_new", k);
     }
 
     // Insert (k, v) or update existing entry's value.
@@ -344,13 +357,18 @@ struct FlatMap {
         if (__builtin_expect(sz_ * 4 >= cap_ * 3, 0))
             rehash(cap_ ? cap_ * 2 : 16);
         size_t h = hash(k) & (cap_ - 1);
-        while (data_[h] != EMPTY && (data_[h] & km_) != k)
+        for (size_t probe = 0; probe < cap_; probe++) {
+            if (data_[h] == EMPTY) {
+                data_[h] = pack(k, v); ++sz_;
+                return;
+            }
+            if ((data_[h] & km_) == k) {
+                data_[h] = pack(k, v);
+                return;
+            }
             h = (h + 1) & (cap_ - 1);
-        if (data_[h] == EMPTY) {
-            data_[h] = pack(k, v); ++sz_;
-        } else {
-            data_[h] = pack(k, v);
         }
+        probe_panic("upsert", k);
     }
 
     // Prefetch the hash slot for key k into L1. Use this when you know you'll
@@ -367,11 +385,15 @@ struct FlatMap {
     bool find_val(uint64_t k, uint8_t* val) const {
         if (!cap_) return false;
         size_t h = hash(k) & (cap_ - 1);
-        while (data_[h] != EMPTY && (data_[h] & km_) != k)
+        for (size_t probe = 0; probe < cap_; probe++) {
+            if (data_[h] == EMPTY) return false;
+            if ((data_[h] & km_) == k) {
+                *val = (uint8_t)(data_[h] >> key_bits_);
+                return true;
+            }
             h = (h + 1) & (cap_ - 1);
-        if (data_[h] == EMPTY) return false;
-        *val = (uint8_t)(data_[h] >> key_bits_);
-        return true;
+        }
+        return false;
     }
 
     // Forward iterator — yields (key, value) pairs, skipping empty slots.
@@ -400,7 +422,7 @@ struct FlatMap {
     bool atomic_emplace(uint64_t k, uint8_t v) {
         const uint64_t packed = pack(k, v);
         size_t h = hash(k) & (cap_ - 1);
-        for (;;) {
+        for (size_t probe = 0; probe < cap_; probe++) {
             uint64_t expected = EMPTY;
             if (__atomic_compare_exchange_n(
                     &data_[h], &expected, packed,
@@ -411,6 +433,7 @@ struct FlatMap {
             if ((expected & km_) == k) return false; // already present
             h = (h + 1) & (cap_ - 1);
         }
+        probe_panic("atomic_emplace", k);
     }
 
     // Ensure capacity for `needed` entries before entering a parallel section.

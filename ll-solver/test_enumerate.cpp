@@ -1133,6 +1133,114 @@ TEST(forward_state_set_hash_different_puzzles) {
     ASSERT(forward_state_set_hash(st1) != forward_state_set_hash(st2));
 }
 
+// ── Parallel forward_bfs_states tests ───────────────────────────────────────
+// These cover the parallel variant used in Layer 3 under 4×4 nested OpenMP.
+// They exercise atomic_emplace + ensure_parallel_capacity — paths that the
+// serial tests don't touch.
+
+TEST(forward_bfs_states_parallel_matches_serial_small) {
+    BLOCKED = 0;
+    int pos[2] = {3, 31};
+    State s = encode(pos, 2);
+    auto serial = forward_bfs_states(s, 2, 1);
+    auto par    = forward_bfs_states_parallel(s, 2, 1, 4);
+    ASSERT_EQ(serial.size(), par.size());
+    for (size_t i = 0; i < serial.size(); i++) ASSERT_EQ(serial[i], par[i]);
+}
+
+TEST(forward_bfs_states_parallel_matches_serial_medium) {
+    // 4-piece retrograde gives states with a few-thousand-state reachable set,
+    // enough to actually drive multiple BFS levels.
+    BLOCKED = 0;
+    FlatMap dist = retrograde(1, 3);
+    const int n = 4;
+    int tested = 0;
+    for (auto [s, d] : dist) {
+        if (d < 4 || d > 8) continue;
+        int r[10]; decode(s, n, r);
+        if (r[0] == EXITED) continue;
+        auto serial = forward_bfs_states((State)s, n, 1);
+        auto par    = forward_bfs_states_parallel((State)s, n, 1, 4);
+        ASSERT_EQ(serial.size(), par.size());
+        for (size_t i = 0; i < serial.size(); i++) ASSERT_EQ(serial[i], par[i]);
+        if (++tested >= 5) break;
+    }
+    ASSERT(tested > 0);
+}
+
+TEST(forward_bfs_states_parallel_capacity_stress) {
+    // Force the parallel BFS across many capacity-grow rounds. With the panic
+    // guard in FlatMap, if the capacity estimate is too small we abort loudly
+    // instead of hanging. The factor used inside forward_bfs_states_parallel
+    // must keep up with worst-case branching n*NUM_DIRS.
+    BLOCKED = 0;
+    FlatMap dist = retrograde(1, 3);
+    const int n = 4;
+    // Pick the deepest self-canonical state; its reachable set is largest.
+    State deepest = 0; int deepest_d = -1;
+    for (auto [s, d] : dist) {
+        int r[10]; decode((State)s, n, r);
+        if (r[0] == EXITED) continue;
+        if ((int)d > deepest_d) { deepest_d = (int)d; deepest = (State)s; }
+    }
+    ASSERT(deepest_d >= 0);
+    auto serial = forward_bfs_states(deepest, n, 1);
+    auto par    = forward_bfs_states_parallel(deepest, n, 1, 4);
+    ASSERT_EQ(serial.size(), par.size());
+    for (size_t i = 0; i < serial.size(); i++) ASSERT_EQ(serial[i], par[i]);
+}
+
+#ifdef _OPENMP
+TEST(forward_bfs_states_parallel_concurrent_outer) {
+    // Exercise 4 concurrent calls to the parallel variant, as Layer 3 does
+    // under its outer `#pragma omp parallel for`. Requires nested parallelism.
+    BLOCKED = 0;
+    FlatMap dist = retrograde(1, 3);
+    const int n = 4;
+    std::vector<State> starts;
+    for (auto [s, d] : dist) {
+        if (d < 4 || d > 8) continue;
+        int r[10]; decode((State)s, n, r);
+        if (r[0] == EXITED) continue;
+        starts.push_back((State)s);
+        if (starts.size() >= 16) break;
+    }
+    ASSERT(starts.size() >= 4);
+    std::vector<size_t> serial_sizes(starts.size()), par_sizes(starts.size());
+    for (size_t i = 0; i < starts.size(); i++)
+        serial_sizes[i] = forward_bfs_states(starts[i], n, 1).size();
+
+    omp_set_max_active_levels(2);
+    #pragma omp parallel for schedule(dynamic, 1) num_threads(4)
+    for (int i = 0; i < (int)starts.size(); i++) {
+        auto par = forward_bfs_states_parallel(starts[i], n, 1, 4);
+        par_sizes[i] = par.size();
+    }
+    for (size_t i = 0; i < starts.size(); i++)
+        ASSERT_EQ(serial_sizes[i], par_sizes[i]);
+}
+#endif
+
+TEST(flatmap_atomic_emplace_single_thread) {
+    // Directly exercise atomic_emplace in a single-threaded context.
+    FlatMap m(16);
+    m.ensure_parallel_capacity(200);
+    for (uint64_t k = 1; k <= 100; k++) {
+        bool ins = m.atomic_emplace(k, (uint8_t)(k & 0x3));
+        ASSERT(ins);
+    }
+    ASSERT_EQ(m.size(), (size_t)100);
+    for (uint64_t k = 1; k <= 100; k++) {
+        bool ins = m.atomic_emplace(k, 0);
+        ASSERT(!ins);
+    }
+    for (uint64_t k = 1; k <= 100; k++) {
+        uint8_t v = 255;
+        ASSERT(m.find_val(k, &v));
+        ASSERT_EQ(v, (uint8_t)(k & 0x3));
+    }
+}
+
 TEST(forward_state_set_dedup_no_false_positives) {
     // Verify that state-set hash distinguishes puzzles that are NOT
     // D4-equivalent (self-canonical states with different forward sets).
