@@ -326,3 +326,41 @@ Expected wall time: similar to v9 for combos 1+1..2+5 (1h4m), plus
 heavy Layer 3 for 3+4 (the key variable). If 2×8 Layer 3 on 3+4 is
 ~10-20 min and pass 3 solve is ~25 min, the run should finish in
 ~2.5 hours total.
+
+### 2026-04-15T17:36Z — v10 also OOM'd at 29.85 GB; v11 uses serial BFS for heavy
+
+v10 OOM-killed at 1h22m, exact same RSS peak as v9 (29.85 GB). The
+2×8 partition didn't save us because the real villain is **the
+pre-grow overhead in `forward_bfs_states_parallel`**, not concurrent
+count. At each BFS level the function calls
+`ensure_parallel_capacity(seen.size() + cur.size() * 46 + 64)` so
+`atomic_emplace` has guaranteed headroom. That worst-case factor 46
+(= NUM_DIRS × n for hex 7pc) is wildly over-provisioned for deep BFS
+levels where most successors are duplicates. At peak frontier of a
+500M-state BFS, `cur.size()` reaches 10-30M and the pre-grow target
+balloons to 500M-1.4B entries (5-11 GB per FlatMap). Two concurrent
+heavy FlatMaps blow 32 GB regardless of how the outer slots are
+scheduled.
+
+Archived: `runs/v10-partial-oom.llp`, `runs/v10-oom.log`.
+
+**Fix (commit `db56997`).** For heavy puzzles (`pruned_ns >= 7`), use
+**serial** `forward_bfs_states`. It grows via `FlatMap::insert_new`'s
+natural 2× rehash — no over-provisioning — matching v7's known-safe
+point. Still 4-wide outer for throughput. Light puzzles (≤6 pruned)
+keep the 4×4 nested parallel variant (small BFSes, pre-grow overhead
+is negligible).
+
+| Phase  | Variant      | Outer | Inner | Concurrent mem est. | Cores |
+|--------|---|---|---|---|---|
+| heavy  | serial BFS   | 4     | 1     | ~4×2 GB baseline   | 4     |
+| light  | parallel BFS | 4     | 4     | ~4×0.5 GB          | 16    |
+
+Verified on `--only=1,5`: 12240 puzzles, 217 MB peak, tests pass.
+
+**v11 launched at 17:36Z.** Same command as v10/v11:
+```
+/usr/bin/time -v ./enumerate 4 7 1 99 beehive 500 \
+  > runs/v11-beehive.llp 2> runs/v11-beehive.log
+```
+PID 1001303, tmux session `beehive`.
