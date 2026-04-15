@@ -353,6 +353,16 @@ struct FlatMap {
         }
     }
 
+    // Prefetch the hash slot for key k into L1. Use this when you know you'll
+    // soon call find_val/upsert/insert_new on k but want to overlap the
+    // probable cache miss with compute. Linear probing usually stays within
+    // one cache line, so prefetching the hash position covers most cases.
+    void prefetch(uint64_t k) const {
+        if (!cap_) return;
+        size_t h = hash(k) & (cap_ - 1);
+        __builtin_prefetch(&data_[h], 1 /*write*/, 0 /*NTA*/);
+    }
+
     // Find k; if found sets *val and returns true.
     bool find_val(uint64_t k, uint8_t* val) const {
         if (!cap_) return false;
@@ -1073,6 +1083,27 @@ static TraceResult solve_min_grouped(State start, int n, int num_exits) {
         decode(s, n, pos);
         const uint64_t occ = make_occ(pos, n);
 
+        // ── Two-phase successor expansion with FlatMap prefetching ──
+        //
+        // Phase 1 generates all successors into a small stack buffer and
+        // issues a prefetch for each successor's hash slot. This overlaps
+        // ~40 potential cache misses with compute-heavy work (forward_move,
+        // decode, goal check). By the time Phase 2 does the find_val/upsert,
+        // the cache lines have arrived, turning ~40 serialized misses into
+        // a near-pipelined single-miss equivalent.
+        //
+        // The order of successors in `succs` is preserved into Phase 2, so
+        // deque push order (and thus 0-1 BFS correctness) is unchanged.
+        struct Succ {
+            uint64_t nk;
+            int      new_cost;
+            bool     edge_is_zero;
+            bool     is_goal;
+        };
+        Succ succs[64];  // max successors = n * NUM_DIRS ≤ 9 * 6 = 54
+        int num_succs = 0;
+
+        // Phase 1: generate + prefetch.
         for (int ridx = 0; ridx < n; ridx++) {
             for (int d = 0; d < NUM_DIRS; d++) {
                 int nc, bi;
@@ -1089,31 +1120,44 @@ static TraceResult solve_min_grouped(State start, int n, int num_exits) {
                 const int landing = (ridx < num_exits && nc == CTR) ? EXITED : nc;
                 const uint64_t nk = make_key(ns, landing);
 
-                uint8_t existing_u8;
-                if (visited.find_val(nk, &existing_u8) && (int)existing_u8 <= new_cost)
-                    continue;
-
-                visited.upsert(nk, (uint8_t)new_cost);
-
-                // Check if this is a goal state.
+                // Goal check (stack-only, no cache impact).
                 int npos[10];
                 decode(ns, n, npos);
                 bool is_goal = true;
                 for (int e = 0; e < num_exits; e++)
                     if (npos[e] != EXITED) { is_goal = false; break; }
-                if (is_goal) {
-                    if (new_cost < best_goal_cost) {
-                        best_goal_cost = new_cost;
-                        best_goal_key = nk;
-                    }
-                    continue;  // don't expand goal states
-                }
 
-                if (edge_cost == 0)
-                    queue.push_front(nk);
-                else
-                    queue.push_back(nk);
+                succs[num_succs++] = {nk, new_cost, edge_cost == 0, is_goal};
+
+                // Prefetch the hash slot that find_val/upsert will probe.
+                visited.prefetch(nk);
             }
+        }
+
+        // Phase 2: relax visited map + enqueue (cache is warm).
+        for (int i = 0; i < num_succs; i++) {
+            const Succ& s = succs[i];
+
+            // Re-check cost bound: an earlier Phase-2 iteration may have
+            // improved best_goal_cost and made this successor obsolete.
+            if (s.new_cost >= best_goal_cost) continue;
+
+            uint8_t existing_u8;
+            if (visited.find_val(s.nk, &existing_u8) && (int)existing_u8 <= s.new_cost)
+                continue;
+
+            visited.upsert(s.nk, (uint8_t)s.new_cost);
+
+            if (s.is_goal) {
+                if (s.new_cost < best_goal_cost) {
+                    best_goal_cost = s.new_cost;
+                    best_goal_key  = s.nk;
+                }
+                continue;  // don't expand goal states
+            }
+
+            if (s.edge_is_zero) queue.push_front(s.nk);
+            else                queue.push_back(s.nk);
         }
     }
 

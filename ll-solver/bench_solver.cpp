@@ -47,6 +47,102 @@ static double us_since(Clock::time_point t0) {
     return std::chrono::duration<double, std::micro>(Clock::now() - t0).count();
 }
 
+// Variant 0 (legacy): the pre-prefetch-refactor solve_min_grouped.
+// Kept here so we can A/B against the current version's FlatMap prefetching.
+// This is a byte-for-byte copy of the old inner loop from enumerate.cpp.
+static TraceResult solve_min_grouped_legacy(State start, int n, int num_exits) {
+    {
+        int pos[10]; decode(start, n, pos);
+        bool at_goal = true;
+        for (int e = 0; e < num_exits; e++)
+            if (pos[e] != EXITED) { at_goal = false; break; }
+        if (at_goal) return {{}, 0};
+    }
+
+    const int shift = 6 * n;
+    auto make_key = [shift](State s, int cell) -> uint64_t {
+        return s | ((uint64_t)(unsigned)cell << shift);
+    };
+
+    FlatMap visited(shift + 6);
+    std::deque<uint64_t> queue;
+
+    const uint64_t start_key = make_key(start, EXITED);
+    visited.insert_new(start_key, 0);
+    queue.push_back(start_key);
+
+    uint64_t best_goal_key = 0;
+    int best_goal_cost = INT_MAX;
+
+    while (!queue.empty()) {
+        const uint64_t key = queue.front();
+        queue.pop_front();
+
+        uint8_t stored_cost_u8;
+        if (!visited.find_val(key, &stored_cost_u8)) continue;
+        const int cost = (int)stored_cost_u8;
+        if (cost >= best_goal_cost) continue;
+
+        const State s = key & (((uint64_t)1 << shift) - 1);
+        const int last_cell = (int)(key >> shift);
+
+        int pos[10];
+        decode(s, n, pos);
+        const uint64_t occ = make_occ(pos, n);
+
+        // One-phase inner loop (original): for each successor, immediately
+        // find_val + upsert + enqueue. Cache misses are not overlapped.
+        for (int ridx = 0; ridx < n; ridx++) {
+            for (int d = 0; d < NUM_DIRS; d++) {
+                int nc, bi;
+                State ns;
+                if (!forward_move(pos, n, num_exits, ridx, d, nc, bi, ns, occ))
+                    continue;
+
+                const int mover_cell = pos[ridx];
+                const int edge_cost = (mover_cell == last_cell) ? 0 : 1;
+                const int new_cost = cost + edge_cost;
+                if (new_cost >= best_goal_cost) continue;
+                if (new_cost > 255) continue;
+
+                const int landing = (ridx < num_exits && nc == CTR) ? EXITED : nc;
+                const uint64_t nk = make_key(ns, landing);
+
+                uint8_t existing_u8;
+                if (visited.find_val(nk, &existing_u8) && (int)existing_u8 <= new_cost)
+                    continue;
+
+                visited.upsert(nk, (uint8_t)new_cost);
+
+                int npos[10]; decode(ns, n, npos);
+                bool is_goal = true;
+                for (int e = 0; e < num_exits; e++)
+                    if (npos[e] != EXITED) { is_goal = false; break; }
+                if (is_goal) {
+                    if (new_cost < best_goal_cost) {
+                        best_goal_cost = new_cost;
+                        best_goal_key = nk;
+                    }
+                    continue;
+                }
+
+                if (edge_cost == 0) queue.push_front(nk);
+                else                queue.push_back(nk);
+            }
+        }
+    }
+
+    if (best_goal_cost == INT_MAX) return {{}, 0};
+
+    std::vector<Move> sol;
+    std::unordered_set<uint64_t> in_path;
+    in_path.insert(start_key);
+    if (!forward_dfs_trace(start_key, 0, best_goal_cost, n, num_exits,
+                            shift, visited, in_path, sol))
+        return {{}, 0};
+    return {std::move(sol), best_goal_cost};
+}
+
 // Variant 2: solve_min_grouped with an externally-provided initial upper
 // bound on best_goal_cost. Useful for branch-and-bound: if pass 2's greedy
 // solution gives N grouped moves, we only accept solutions with cost < N.
@@ -283,25 +379,19 @@ int main(int argc, char* argv[]) {
     }
 
     // Header
-    std::cout << "idx  id        state           baseline_us  ub_us        "
-              << "base_cost ub_cost  greedy_cost  ub_speedup\n";
+    std::cout << "idx  id        state           legacy_us    pref_us      ub_us        "
+              << "cost   greedy_cost  pref_speedup ub_speedup\n";
 
-    double total_base = 0, total_ub = 0;
+    double total_legacy = 0, total_pref = 0, total_ub = 0;
     int pass = 0, fail = 0;
     for (size_t idx = 0; idx < candidates.size(); idx++) {
         const auto& c = candidates[idx];
         int cn = c.n; int cne = c.num_exits;
 
         // Compute greedy solution for this state to establish the initial
-        // upper bound. trace_solution_greedy walks the stage-1 BFS distance-
-        // decreasing DAG taking any valid move; the resulting solution has
-        // optimal RAW slides but not necessarily optimal grouped moves.
-        //
-        // IMPORTANT: stabilise_indices must be called before count_grouped_moves,
-        // because trace_solution_greedy records Move.mover as the ridx at the
-        // decoded-state level inside forward_move, which drifts across steps
-        // due to helper re-sorting. stabilise_indices rewrites movers to the
-        // initial state's indices, which are stable.
+        // upper bound. stabilise_indices must be called before
+        // count_grouped_moves so Move.mover indices are consistent across
+        // the trace.
         auto greedy_sol = trace_solution_greedy(c.s, cn, cne, dist);
         int greedy_groups = INT_MAX;
         if (!greedy_sol.empty()) {
@@ -309,44 +399,50 @@ int main(int argc, char* argv[]) {
             greedy_groups = count_grouped_moves(greedy_sol);
         }
 
-        // Run baseline.
-        auto tb = Clock::now();
-        auto base = solve_min_grouped(c.s, cn, cne);
-        double base_us = us_since(tb);
+        // Run legacy (pre-prefetch-refactor) baseline.
+        auto t_legacy = Clock::now();
+        auto leg = solve_min_grouped_legacy(c.s, cn, cne);
+        double legacy_us = us_since(t_legacy);
 
-        // Run greedy-UB variant (initial_ub = greedy_groups+1 so the BFS
-        // must strictly improve on greedy to return a non-empty trace).
-        auto tub = Clock::now();
+        // Run current solve_min_grouped (two-phase + FlatMap::prefetch).
+        auto t_pref = Clock::now();
+        auto pref = solve_min_grouped(c.s, cn, cne);
+        double pref_us = us_since(t_pref);
+
+        // Run greedy-UB variant.
+        auto t_ub = Clock::now();
         auto ub = solve_min_grouped_with_ub(c.s, cn, cne,
                                              greedy_groups == INT_MAX ? INT_MAX : greedy_groups+1);
-        double ub_us = us_since(tub);
+        double ub_us = us_since(t_ub);
 
-        int base_cost = base.moves.empty() ? -1 : base.grouped_moves;
-        // ub_cost == -1 means greedy was already optimal (no strict improvement).
+        int leg_cost  = leg.moves.empty()  ? -1 : leg.grouped_moves;
+        int pref_cost = pref.moves.empty() ? -1 : pref.grouped_moves;
         int ub_cost   = ub.moves.empty()   ? -1 : ub.grouped_moves;
 
-        // Sanity check: when ub returns a trace, its cost must equal baseline
-        // (both compute optimal). When ub returns empty, greedy was optimal
-        // and greedy_groups must equal base_cost.
-        bool ok = (ub_cost == -1)
-            ? (greedy_groups == base_cost)
-            : (ub_cost == base_cost);
+        // Sanity: pref must match legacy (same algorithm, just prefetching).
+        // ub matches when it finds improvement, or returns -1 if greedy was optimal.
+        bool ok = (pref_cost == leg_cost) &&
+                  (ub_cost == -1 ? greedy_groups == leg_cost : ub_cost == leg_cost);
         if (ok) pass++; else fail++;
 
-        total_base += base_us;
-        total_ub   += ub_us;
+        total_legacy += legacy_us;
+        total_pref   += pref_us;
+        total_ub     += ub_us;
 
-        printf("%3zu  %-8d  %-14lu  %12.1f  %12.1f  %9d  %7d  %11d  %9.2fx\n",
+        printf("%3zu  %-8d  %-14lu  %12.1f  %12.1f  %12.1f  %5d  %11d  %11.2fx  %9.2fx\n",
                idx, c.id, (unsigned long)c.s,
-               base_us, ub_us,
-               base_cost, ub_cost, greedy_groups,
-               base_us / std::max(ub_us, 1.0));
+               legacy_us, pref_us, ub_us,
+               leg_cost, greedy_groups,
+               legacy_us / std::max(pref_us, 1.0),
+               legacy_us / std::max(ub_us, 1.0));
         std::fflush(stdout);
     }
 
-    printf("\ntotals:  base=%.1fs  ub=%.1fs    ub_speedup=%.2fx    pass=%d fail=%d\n",
-           total_base / 1e6, total_ub / 1e6,
-           total_base / std::max(total_ub, 1.0),
+    printf("\ntotals:  legacy=%.3fs  pref=%.3fs  ub=%.3fs    "
+           "pref_speedup=%.2fx  ub_speedup=%.2fx    pass=%d fail=%d\n",
+           total_legacy / 1e6, total_pref / 1e6, total_ub / 1e6,
+           total_legacy / std::max(total_pref, 1.0),
+           total_legacy / std::max(total_ub, 1.0),
            pass, fail);
 
     return 0;
