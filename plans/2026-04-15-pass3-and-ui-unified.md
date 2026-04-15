@@ -213,3 +213,44 @@ Open items when resuming:
 
 No enumerate processes running. No tmux sessions. Branch state:
 `wip/pass3-and-ui-unified` at `b7cb53b` on origin.
+
+### 2026-04-15T14:21Z — Resumed; smoke-ladder on 4×4 ✓; beehive full run launched
+
+Session resumed. Confirmed branch at `9cceba7`, `enumerate` binary built
+with the 4×4 fix, no background processes.
+
+**Smoke-ladder spot-checks on 4×4 binary.** Ran two representative combos
+directly instead of the full 8-rung ladder (the binary was already
+validated on `--only=1,5` at commit time, and full-run smoke is what
+matters here):
+
+| combo | rc | puzzles | notes |
+|---|---|---|---|
+| `--only=1,5` | 0 | 12240 | peak RSS 225 MB, layer3_done clean, no FATAL |
+| `--only=2,5` | killed at 600s timeout | — | healthy progress, peak RSS 14 GB, reached pass3_solve. Binary is fine, rung timeout just too tight for 7-piece combos. |
+
+**Scope decision — hex + square unified library.** `enumerate` is
+single-variant per run (board type is set at startup). The widest hex is
+`beehive` (full 7×7, no blocks), covering both hex and beehive puzzles
+via variantFlags. The widest square is `standard` (BLOCKED=0), covering
+standard / solitaire / ufo / french. So the unified library = **beehive
+run + standard run, merged**. Two sequential runs is the simplest
+shape; running them in parallel would blow the 32 GB memory cap (each
+already uses ~14-30 GB at peak).
+
+**Phase 5 (full beehive run) — in progress.** Launched at 14:21Z in
+tmux session `beehive`, PID 222406:
+```
+/usr/bin/time -v ./enumerate 4 7 1 99 beehive 500 \
+  > runs/v9-beehive.llp 2> runs/v9-beehive.log
+```
+Output → `ll-solver/runs/v9-beehive.llp`. Log → `runs/v9-beehive.log`,
+terminated with `EXIT_CODE=N` on completion.
+
+Target wall-time with 4×4 nested parallelism: ~1-2 hours (down from
+v7's 4-6h serial-cap estimate). The 3E+4H combo Layer 3 should benefit
+most from the 16-core utilization. Will monitor every 20-30 min and
+append progress entries.
+
+After beehive completes, will launch the `standard` variant run, then
+merge both into `puzzles-unified.llp` for the UI cutover.
