@@ -85,13 +85,16 @@
 #include <chrono>
 #include <climits>
 #include <cstdint>
+#include <cstdio>
 #include <deque>
 #include <cstdlib>
 #include <cstring>
+#include <fcntl.h>
 #include <functional>
 #include <iostream>
 #include <numeric>
 #include <string>
+#include <unistd.h>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -99,6 +102,38 @@
 #ifdef _OPENMP
 #  include <omp.h>
 #endif
+
+// ── Memory instrumentation ──────────────────────────────────────────────────
+// Reset the kernel's peak-RSS high-water mark (VmHWM) for this process so
+// that the next VmHWM read reflects only activity from now on. This uses the
+// CLEAR_REFS_MM_HIWATER_RSS operation (Linux 4.0+). Silently no-ops if the
+// file isn't writable (unsupported kernel / sandbox).
+static void reset_peak_rss() {
+    int fd = ::open("/proc/self/clear_refs", O_WRONLY);
+    if (fd >= 0) {
+        const char buf[] = "5\n";
+        (void)::write(fd, buf, sizeof(buf) - 1);
+        ::close(fd);
+    }
+}
+
+// Log current RSS and peak (VmHWM) with a label. Call reset_peak_rss() at the
+// start of each phase so the "peak" field reflects the peak during that phase.
+static void log_mem(const char* label) {
+    long rss_kb = 0, hwm_kb = 0;
+    FILE* f = std::fopen("/proc/self/status", "r");
+    if (!f) return;
+    char line[256];
+    while (std::fgets(line, sizeof(line), f)) {
+        if (std::strncmp(line, "VmRSS:", 6) == 0)
+            std::sscanf(line + 6, " %ld", &rss_kb);
+        else if (std::strncmp(line, "VmHWM:", 6) == 0)
+            std::sscanf(line + 6, " %ld", &hwm_kb);
+    }
+    std::fclose(f);
+    std::cerr << "  mem[" << label << "] rss=" << rss_kb / 1024 << " MB"
+              << " peak=" << hwm_kb / 1024 << " MB\n";
+}
 
 // ── Board type ───────────────────────────────────────────────────────────────
 enum BoardType { BOARD_SQUARE, BOARD_HEX };
@@ -269,6 +304,15 @@ struct FlatMap {
     FlatMap(FlatMap&& o) noexcept
         : data_(o.data_), cap_(o.cap_), sz_(o.sz_), km_(o.km_), key_bits_(o.key_bits_)
     { o.data_ = nullptr; o.cap_ = o.sz_ = 0; }
+    FlatMap& operator=(FlatMap&& o) noexcept {
+        if (this != &o) {
+            std::free(data_);
+            data_ = o.data_; cap_ = o.cap_; sz_ = o.sz_;
+            km_ = o.km_; key_bits_ = o.key_bits_;
+            o.data_ = nullptr; o.cap_ = o.sz_ = 0;
+        }
+        return *this;
+    }
 
     size_t size() const { return sz_; }
     size_t cap()  const { return cap_; }
@@ -293,6 +337,20 @@ struct FlatMap {
         if (data_[h] != EMPTY) return false;
         data_[h] = pack(k, v); ++sz_;
         return true;
+    }
+
+    // Insert (k, v) or update existing entry's value.
+    void upsert(uint64_t k, uint8_t v) {
+        if (__builtin_expect(sz_ * 4 >= cap_ * 3, 0))
+            rehash(cap_ ? cap_ * 2 : 16);
+        size_t h = hash(k) & (cap_ - 1);
+        while (data_[h] != EMPTY && (data_[h] & km_) != k)
+            h = (h + 1) & (cap_ - 1);
+        if (data_[h] == EMPTY) {
+            data_[h] = pack(k, v); ++sz_;
+        } else {
+            data_[h] = pack(k, v);
+        }
     }
 
     // Find k; if found sets *val and returns true.
@@ -848,10 +906,14 @@ static int forward_bfs_count(State start, int n, int num_exits) {
 
 // ── Forward BFS: collect all reachable states ────────────────────────────────
 static std::vector<State> forward_bfs_states(State start, int n, int num_exits) {
-    std::unordered_set<State> seen;
+    // FlatMap (~8-11 bytes/state with load factor) instead of unordered_set
+    // (~50-80 bytes/state) — critical for parallel Layer 3 dedup where 16
+    // threads each run this BFS on per-puzzle reachable state sets that can
+    // reach 10M+ entries for hard 7-piece puzzles.
+    FlatMap seen(6 * n);  // key = state bits; value slot unused (always 0)
     std::vector<State> queue;
     queue.push_back(start);
-    seen.insert(start);
+    seen.insert_new(start, 0);
     size_t head = 0;
     while (head < queue.size()) {
         State s = queue[head++];
@@ -864,7 +926,7 @@ static std::vector<State> forward_bfs_states(State start, int n, int num_exits) 
                 State ns;
                 if (!forward_move(pos, n, num_exits, ridx, d, nc, bi, ns, occ))
                     continue;
-                if (seen.insert(ns).second)
+                if (seen.insert_new(ns, 0))
                     queue.push_back(ns);
             }
         }
@@ -900,6 +962,71 @@ static uint64_t forward_state_set_hash(const std::vector<State>& states) {
 //   - Cost 0 edge: same robot continues sliding
 //   - Cost 1 edge: different robot starts sliding
 // Explores ALL legal forward moves, not just BFS-depth-decreasing ones.
+// Forward DFS through the BFS DAG to reconstruct a solution path.
+// `visited` contains cost for each augmented (state, last_cell) key.
+// We walk forward from cur_key using forward_move, taking only edges that
+// match the expected cost in `visited`, until we reach a goal state.
+//
+// The `in_path` set prevents revisiting states during this DFS (avoids
+// cycles in the edge_cost=0 subgraph). On dead-end, we backtrack.
+static bool forward_dfs_trace(
+    uint64_t cur_key, int cur_cost, int target_cost,
+    int n, int num_exits, int shift,
+    const FlatMap& visited,
+    std::unordered_set<uint64_t>& in_path,
+    std::vector<Move>& sol)
+{
+    const uint64_t km = ((uint64_t)1 << shift) - 1;
+    const State s = cur_key & km;
+    const int last_cell = (int)(cur_key >> shift);
+
+    // Goal check: all exits are EXITED.
+    {
+        int pos[10]; decode(s, n, pos);
+        bool at_goal = true;
+        for (int e = 0; e < num_exits; e++)
+            if (pos[e] != EXITED) { at_goal = false; break; }
+        if (at_goal && cur_cost == target_cost) return true;
+    }
+
+    int pos[10];
+    decode(s, n, pos);
+    const uint64_t occ = make_occ(pos, n);
+
+    for (int ridx = 0; ridx < n; ridx++) {
+        for (int d = 0; d < NUM_DIRS; d++) {
+            int nc, bi;
+            State ns;
+            if (!forward_move(pos, n, num_exits, ridx, d, nc, bi, ns, occ))
+                continue;
+
+            const int mover_cell = pos[ridx];
+            const int edge_cost = (mover_cell == last_cell) ? 0 : 1;
+            const int new_cost = cur_cost + edge_cost;
+            if (new_cost > target_cost) continue;
+
+            const int landing = (ridx < num_exits && nc == CTR) ? EXITED : nc;
+            const uint64_t nk = ns | ((uint64_t)(unsigned)landing << shift);
+
+            // Only take edges that match the BFS-optimal cost at the next node.
+            uint8_t stored;
+            if (!visited.find_val(nk, &stored)) continue;
+            if ((int)stored != new_cost) continue;
+
+            if (in_path.count(nk)) continue;  // avoid cycles
+
+            sol.push_back({(int8_t)ridx, (int8_t)d, (int8_t)bi});
+            in_path.insert(nk);
+            if (forward_dfs_trace(nk, new_cost, target_cost, n, num_exits,
+                                    shift, visited, in_path, sol))
+                return true;
+            in_path.erase(nk);
+            sol.pop_back();
+        }
+    }
+    return false;
+}
+
 static TraceResult solve_min_grouped(State start, int n, int num_exits) {
     // Check if already at goal.
     {
@@ -915,17 +1042,16 @@ static TraceResult solve_min_grouped(State start, int n, int num_exits) {
         return s | ((uint64_t)(unsigned)cell << shift);
     };
 
-    struct NodeInfo {
-        int      cost;        // grouped moves to reach this augmented state
-        uint64_t parent_key;  // key of predecessor (0 = start)
-        Move     move;        // the slide that got us here
-    };
-
-    std::unordered_map<uint64_t, NodeInfo> visited;
+    // Augmented key layout: state (6n bits) | last_cell (6 bits).
+    // FlatMap packs (key, 1-byte cost) into a single 64-bit word per slot —
+    // ~7x smaller than std::unordered_map with a 24-byte NodeInfo value.
+    // The solution path is reconstructed via find_predecessor_for_backtrace
+    // so we don't need to store parent pointers.
+    FlatMap visited(shift + 6);
     std::deque<uint64_t> queue;
 
     const uint64_t start_key = make_key(start, EXITED);
-    visited[start_key] = {0, 0, {-1, -1, -1}};
+    visited.insert_new(start_key, 0);
     queue.push_back(start_key);
 
     uint64_t best_goal_key = 0;
@@ -935,9 +1061,9 @@ static TraceResult solve_min_grouped(State start, int n, int num_exits) {
         const uint64_t key = queue.front();
         queue.pop_front();
 
-        const auto it = visited.find(key);
-        if (it == visited.end()) continue;
-        const int cost = it->second.cost;
+        uint8_t stored_cost_u8;
+        if (!visited.find_val(key, &stored_cost_u8)) continue;
+        const int cost = (int)stored_cost_u8;
         if (cost >= best_goal_cost) continue;  // prune
 
         const State s = key & (((uint64_t)1 << shift) - 1);
@@ -958,15 +1084,16 @@ static TraceResult solve_min_grouped(State start, int n, int num_exits) {
                 const int edge_cost = (mover_cell == last_cell) ? 0 : 1;
                 const int new_cost = cost + edge_cost;
                 if (new_cost >= best_goal_cost) continue;
+                if (new_cost > 255) continue;  // FlatMap value is uint8_t
 
                 const int landing = (ridx < num_exits && nc == CTR) ? EXITED : nc;
                 const uint64_t nk = make_key(ns, landing);
 
-                auto nit = visited.find(nk);
-                if (nit != visited.end() && nit->second.cost <= new_cost)
+                uint8_t existing_u8;
+                if (visited.find_val(nk, &existing_u8) && (int)existing_u8 <= new_cost)
                     continue;
 
-                visited[nk] = {new_cost, key, {(int8_t)ridx, (int8_t)d, (int8_t)bi}};
+                visited.upsert(nk, (uint8_t)new_cost);
 
                 // Check if this is a goal state.
                 int npos[10];
@@ -992,15 +1119,15 @@ static TraceResult solve_min_grouped(State start, int n, int num_exits) {
 
     if (best_goal_cost == INT_MAX) return {{}, 0};
 
-    // Backtrack to reconstruct solution.
+    // Forward DFS from start_key to goal using the BFS costs as a guide.
     std::vector<Move> sol;
-    uint64_t cur = best_goal_key;
-    while (cur != start_key) {
-        const auto& node = visited[cur];
-        sol.push_back(node.move);
-        cur = node.parent_key;
+    std::unordered_set<uint64_t> in_path;
+    in_path.insert(start_key);
+    if (!forward_dfs_trace(start_key, 0, best_goal_cost, n, num_exits,
+                            shift, visited, in_path, sol)) {
+        std::cerr << "SOLVE_DFS_FAIL start=" << start << " bgc=" << best_goal_cost << "\n";
+        return {{}, 0};
     }
-    std::reverse(sol.begin(), sol.end());
     return {std::move(sol), best_goal_cost};
 }
 
@@ -1118,6 +1245,28 @@ static uint64_t hash_dedup_key(const std::string& key) {
     return h;
 }
 
+// Compute FNV-1a hash of the "e{num_exits}h{new_h}|{sig}" dedup key directly,
+// without materializing the key string. Byte-for-byte equivalent to:
+//   hash_dedup_key("e" + to_string(num_exits) + "h" + to_string(new_h) + "|" + sig)
+// but skips 4-5 heap allocations per call — a big deal in the pass 2 hot loop
+// that runs once per BFS survivor (hundreds of millions for large combos).
+static uint64_t compute_dedup_hash(const std::string& sig, int num_exits, int new_h) {
+    uint64_t h = 0xcbf29ce484222325ULL;
+    auto feed = [&](unsigned char c) { h ^= c; h *= 0x100000001b3ULL; };
+    auto feed_int = [&](int v) {
+        char buf[12];
+        int n = std::snprintf(buf, sizeof(buf), "%d", v);
+        for (int i = 0; i < n; i++) feed((unsigned char)buf[i]);
+    };
+    feed('e');
+    feed_int(num_exits);
+    feed('h');
+    feed_int(new_h);
+    feed('|');
+    for (unsigned char c : sig) feed(c);
+    return h;
+}
+
 // ── Collision signature ───────────────────────────────────────────────────────
 // Normalises exit and helper labels separately by order of first appearance.
 //   Exit  0 (first seen) → 'A',  exit  1 → 'B',  exit  2 → 'C', ...
@@ -1153,22 +1302,19 @@ static const int HEX_DIR_TRANSFORM[4][6] = {
     {3, 2, 1, 0, 4, 5},  // anti-diag      (t7)
 };
 
-static std::string collision_signature_for_transform(
-    const std::vector<Move>& sol, int num_exits, const int* dir_map)
+// Build a collision signature for a single direction transform into `out`.
+// `out` is .clear()'d first so the caller can provide a reusable scratch buffer
+// (no heap alloc per call after the first few — critical in the pass 2 hot loop).
+static void collision_signature_for_transform(
+    const std::vector<Move>& sol, int num_exits, const int* dir_map,
+    std::string& out)
 {
     int exit_label[10];   std::fill(exit_label,   exit_label+10,   -1);
     int helper_label[10]; std::fill(helper_label, helper_label+10, -1);
     int next_exit   = 0;
     int next_helper = 1;
 
-    auto exit_char = [](int lbl) -> char {
-        return (char)('A' + lbl);
-    };
-    auto helper_char = [](int lbl) -> char {
-        return (char)('0' + lbl);
-    };
-
-    std::string sig;
+    out.clear();
     for (const auto& m : sol) {
         auto assign = [&](int idx) {
             if (idx < num_exits) {
@@ -1181,36 +1327,51 @@ static std::string collision_signature_for_transform(
         assign((int)m.mover);
         assign((int)m.blocker);
 
-        char mc, bc;
-        if (m.mover < num_exits) mc = exit_char(exit_label[(int)m.mover]);
-        else                     mc = helper_char(helper_label[(int)m.mover - num_exits]);
-        if (m.blocker < num_exits) bc = exit_char(exit_label[(int)m.blocker]);
-        else                       bc = helper_char(helper_label[(int)m.blocker - num_exits]);
+        char mc = (m.mover < num_exits)
+            ? (char)('A' + exit_label[(int)m.mover])
+            : (char)('0' + helper_label[(int)m.mover - num_exits]);
+        char bc = (m.blocker < num_exits)
+            ? (char)('A' + exit_label[(int)m.blocker])
+            : (char)('0' + helper_label[(int)m.blocker - num_exits]);
 
         int mapped_dir = dir_map[(int)m.dir];
-        if (!sig.empty()) sig += ' ';
-        sig += mc;
+        if (!out.empty()) out += ' ';
+        out += mc;
         if (BOARD_TYPE == BOARD_HEX) {
             static const char* HEX_DIR_CHARS[6] = {"Nw","Se","Sw","Ne","No","So"};
-            sig += HEX_DIR_CHARS[mapped_dir];
+            out += HEX_DIR_CHARS[mapped_dir];
         } else {
-            sig += "UDLR"[mapped_dir];
+            out += "UDLR"[mapped_dir];
         }
-        sig += bc;
+        out += bc;
     }
-    return sig;
 }
 
-static std::string collision_signature(const std::vector<Move>& sol, int num_exits) {
-    std::string best;
+// Build the D4-minimal collision signature into `best`. Uses a thread-local
+// scratch buffer so each call reuses the same heap allocation instead of
+// allocating a fresh string per symmetry transform. Caller provides `best`,
+// also reusable.
+static void collision_signature(const std::vector<Move>& sol, int num_exits,
+                                  std::string& best)
+{
+    thread_local std::string scratch;
+    best.clear();
     for (int ti = 0; ti < NUM_SYMS; ti++) {
         const int* dir_map = (BOARD_TYPE == BOARD_HEX)
             ? HEX_DIR_TRANSFORM[ti]
             : DIR_TRANSFORM[SYM_INDICES[ti]];
-        std::string sig = collision_signature_for_transform(sol, num_exits, dir_map);
-        if (best.empty() || sig < best) best = std::move(sig);
+        collision_signature_for_transform(sol, num_exits, dir_map, scratch);
+        if (best.empty() || scratch < best) best = scratch;
     }
-    return best;
+}
+
+// Legacy convenience wrapper for tests and anything that wants a return-by-value.
+// Not used by the hot loops — they call the 3-arg form directly with a
+// thread-local scratch buffer.
+static std::string collision_signature(const std::vector<Move>& sol, int num_exits) {
+    std::string out;
+    collision_signature(sol, num_exits, out);
+    return out;
 }
 
 // Minimum odd board size (1, 3, 5, or 7) with center that fits all
@@ -1419,14 +1580,23 @@ static int count_grouped_moves(const std::vector<Move>& sol) {
 //         Eliminates ~85% of states cheaply before the expensive DP trace.
 // Pass 3: Full DP trace for survivors → minimum grouped moves → output.
 //         Only ~15% of canonical states reach this phase.
+
+// Shared state record for passes 1-3. Lives at file scope so prefilter_diverse
+// can access it directly without copying into parallel vectors.
+struct Rec { State s; uint8_t d; };
+
 // ── Pre-filter: farthest-point sampling by position diversity ────────────────
 // Buckets survivors by minRawSlides, then selects at most max_per_bucket
 // using farthest-point sampling on position fingerprints (sorted pairwise
 // Manhattan distances).  Returns indices into the input vector to keep.
+//
+// FP is a fixed-size struct (no per-entry heap allocation) — this is critical
+// for large combos where we can have 100M+ survivors; using std::vector<int>
+// for each fingerprint would allocate ~8 GB of heap overhead.
+// For n ≤ 10 robots, max pairs = n*(n-1)/2 = 45, so dists[45] handles any size.
 static std::vector<int> prefilter_diverse(
     const std::vector<int>& survivor_indices,
-    const std::vector<uint64_t>& states,  // recs[i].s for each i
-    const std::vector<uint8_t>& depths,   // recs[i].d for each i
+    const std::vector<Rec>& recs,
     int n, int max_per_bucket)
 {
     if (max_per_bucket <= 0)
@@ -1440,7 +1610,10 @@ static std::vector<int> prefilter_diverse(
     // bucket dimension so 5x5-fitting puzzles get their own sub-bucket
     // rather than being crowded out by 7x7-spread puzzles in the same
     // minRawSlides bucket.
-    struct FP { std::vector<int> dists; };
+    struct FP {
+        uint8_t n_dists;      // count of valid entries (≤ n*(n-1)/2)
+        int8_t  dists[45];    // sorted pairwise Manhattan distances
+    };
     std::vector<FP> fps(survivor_indices.size());
     std::vector<int8_t> square_sizes(survivor_indices.size(), 7);
 #ifdef _OPENMP
@@ -1449,9 +1622,9 @@ static std::vector<int> prefilter_diverse(
     for (int k = 0; k < (int)survivor_indices.size(); k++) {
         int i = survivor_indices[k];
         int pos[10];
-        decode(states[i], n, pos);
-        auto& fp = fps[k].dists;
-        fp.reserve(n * (n - 1) / 2);
+        decode(recs[i].s, n, pos);
+        auto& fp = fps[k];
+        fp.n_dists = 0;
         int max_cheb = 0;
         const int cr = CTR / N, cc = CTR % N;
         for (int a = 0; a < n; a++) {
@@ -1461,17 +1634,18 @@ static std::vector<int> prefilter_diverse(
             if (ch > max_cheb) max_cheb = ch;
             for (int b = a + 1; b < n; b++) {
                 if (pos[b] == EXITED) continue;
-                fp.push_back(std::abs(ra - pos[b]/N) + std::abs(ca - pos[b]%N));
+                int d = std::abs(ra - pos[b]/N) + std::abs(ca - pos[b]%N);
+                fp.dists[fp.n_dists++] = (int8_t)d;
             }
         }
-        std::sort(fp.begin(), fp.end());
+        std::sort(fp.dists, fp.dists + fp.n_dists);
         square_sizes[k] = (int8_t)(2 * max_cheb + 1);
     }
 
     // Bucket by (minRawSlides, square_size). Packing both into a 16-bit key:
     // high 12 bits = depth, low 4 bits = square_size (1, 3, 5, or 7).
     auto bucket_key = [&](int k) -> int {
-        return ((int)depths[survivor_indices[k]] << 4) | (int)square_sizes[k];
+        return ((int)recs[survivor_indices[k]].d << 4) | (int)square_sizes[k];
     };
     std::unordered_map<int, std::vector<int>> buckets;
     for (int k = 0; k < (int)survivor_indices.size(); k++)
@@ -1480,10 +1654,10 @@ static std::vector<int> prefilter_diverse(
     // Farthest-point sampling within each bucket.
     auto fp_dist_sq = [](const FP& a, const FP& b) -> int64_t {
         int64_t total = 0;
-        size_t n = std::max(a.dists.size(), b.dists.size());
-        for (size_t i = 0; i < n; i++) {
-            int va = i < a.dists.size() ? a.dists[i] : 0;
-            int vb = i < b.dists.size() ? b.dists[i] : 0;
+        int n = std::max((int)a.n_dists, (int)b.n_dists);
+        for (int i = 0; i < n; i++) {
+            int va = i < a.n_dists ? a.dists[i] : 0;
+            int vb = i < b.n_dists ? b.dists[i] : 0;
             int64_t d = va - vb;
             total += d * d;
         }
@@ -1520,7 +1694,8 @@ static std::vector<int> prefilter_diverse(
         int best_sum = 0;
         for (int j = 0; j < psz; j++) {
             int s = 0;
-            for (int v : fps[(*pool)[j]].dists) s += v;
+            const auto& fp = fps[(*pool)[j]];
+            for (int m = 0; m < fp.n_dists; m++) s += fp.dists[m];
             if (s > best_sum) { best_sum = s; best_seed = j; }
         }
 
@@ -1559,7 +1734,7 @@ static std::vector<int> prefilter_diverse(
     return kept;
 }
 
-static void emit(const FlatMap& dist, int n, int num_exits,
+static void emit(FlatMap dist, int n, int num_exits,
                  int min_moves, int max_moves, int max_per_bucket,
                  int& id, std::unordered_set<uint64_t>& seen_sigs,
                  std::unordered_set<uint64_t>& seen_pruned_canons,
@@ -1570,8 +1745,11 @@ static void emit(const FlatMap& dist, int n, int num_exits,
     using Clock = std::chrono::steady_clock;
     auto t0 = Clock::now();
 
+    // Reset peak RSS at the start of emit() so per-phase peaks are local.
+    reset_peak_rss();
+    log_mem("emit_start");
+
     // ── Pass 1: collect initial states (all canonical from BFS) ──
-    struct Rec { State s; uint8_t d; };
     std::vector<Rec> recs;
     recs.reserve(dist.size() / 4);
     for (auto [s, d] : dist) {
@@ -1591,6 +1769,8 @@ static void emit(const FlatMap& dist, int n, int num_exits,
     auto t1 = Clock::now();
     std::cerr << "  pass 1 (collect + sort): " << recs.size() << " states, "
               << std::chrono::duration<double>(t1 - t0).count() << "s\n";
+    log_mem("pass1_done");
+    reset_peak_rss();
 
     // ── Pass 2: greedy trace → collision sig hash → dedup ──
     std::vector<uint64_t> sig_hashes(recs.size(), 0);
@@ -1630,13 +1810,14 @@ static void emit(const FlatMap& dist, int n, int num_exits,
         sort_exits_and_remap(init_pos, sol, num_exits);
 
         bool used[10];
-        std::vector<Move> pruned;
+        // Thread-local scratch buffers — reused across iterations instead
+        // of heap-allocating per iteration (critical in this hot loop).
+        thread_local std::vector<Move> pruned;
+        thread_local std::string sig;
+        pruned.clear();
         const int new_h = prune_unused_helpers(sol, num_exits, n, pruned, used);
-
-        std::string sig = collision_signature(pruned, num_exits);
-        std::string key = "e" + std::to_string(num_exits)
-                        + "h" + std::to_string(new_h) + "|" + sig;
-        sig_hashes[i] = hash_dedup_key(key);
+        collision_signature(pruned, num_exits, sig);
+        sig_hashes[i] = compute_dedup_hash(sig, num_exits, new_h);
         board_sizes[i] = (int8_t)compute_board_size(init_pos, used, n);
         int done = p2_done.fetch_add(1, std::memory_order_relaxed) + 1;
         if (done % 1000 == 0) {
@@ -1679,21 +1860,37 @@ static void emit(const FlatMap& dist, int n, int num_exits,
     board_sizes.clear();
     board_sizes.shrink_to_fit();
 
+    // Free the pass 2 dedup map (~30 bytes/entry × tens of millions for large combos).
+    std::unordered_map<uint64_t, int>().swap(local_best);
+
+    // Pass 3 doesn't need the retrograde BFS map — free it now to save memory.
+    dist = FlatMap(0);
+
     auto t2 = Clock::now();
-    std::cerr << "  pass 2 (greedy dedup): " << local_best.size() << " unique, "
+    std::cerr << "  pass 2 (greedy dedup): " << survivors.size() << " unique, "
               << dup_count << " deduped, "
               << std::chrono::duration<double>(t2 - t1).count() << "s\n";
+    log_mem("pass2_done");
+    reset_peak_rss();
 
     // ── Pre-filter: keep at most max_per_bucket diverse puzzles per raw-slide bucket ──
+    // prefilter_diverse reads recs directly — no wasteful all_states/all_depths copy.
     if (max_per_bucket > 0) {
-        std::vector<uint64_t> all_states(recs.size());
-        std::vector<uint8_t>  all_depths(recs.size());
-        for (int i = 0; i < (int)recs.size(); i++) {
-            all_states[i] = recs[i].s;
-            all_depths[i] = recs[i].d;
-        }
-        survivors = prefilter_diverse(survivors, all_states, all_depths, n, max_per_bucket);
+        survivors = prefilter_diverse(survivors, recs, n, max_per_bucket);
     }
+    log_mem("prefilter_done");
+
+    // Shrink recs to just the survivor states — pass 3 only visits these.
+    // For large combos this can free several GB of memory.
+    std::vector<State>   survivor_states(survivors.size());
+    std::vector<uint8_t> survivor_min_rs(survivors.size());
+    for (int j = 0; j < (int)survivors.size(); j++) {
+        survivor_states[j] = recs[survivors[j]].s;
+        survivor_min_rs[j] = recs[survivors[j]].d;
+    }
+    std::vector<Rec>().swap(recs);
+    log_mem("recs_shrunk");
+    reset_peak_rss();
 
     // ── Pass 3: DP trace for survivors → dedup → output ──
     std::vector<std::string> output_lines(survivors.size());
@@ -1715,6 +1912,8 @@ static void emit(const FlatMap& dist, int n, int num_exits,
     std::vector<uint8_t> survivor_min_raw(survivors.size(), 0);
     std::vector<int8_t> survivor_square_size(survivors.size(), 7);
     std::vector<int16_t> survivor_variant_flags(survivors.size(), 0);
+    // Per-puzzle forward-0-1-BFS solve time for reporting (distribution of effort).
+    std::vector<double> solve_times_us(survivors.size(), 0.0);
 
     std::atomic<int> p3_done{0};
     auto p3_start = Clock::now();
@@ -1743,14 +1942,17 @@ static void emit(const FlatMap& dist, int n, int num_exits,
                 }
             }
         }
-        const int i = survivors[j];
+        const State survivor_state = survivor_states[j];
         // Solve for minimum grouped moves (0-1 BFS, allows more raw slides).
-        auto tr = solve_min_grouped(recs[i].s, n, num_exits);
+        auto solve_t0 = Clock::now();
+        auto tr = solve_min_grouped(survivor_state, n, num_exits);
+        solve_times_us[j] =
+            std::chrono::duration<double, std::micro>(Clock::now() - solve_t0).count();
         if (tr.moves.empty()) continue;
-        stabilise_indices(tr.moves, recs[i].s, n, num_exits);
+        stabilise_indices(tr.moves, survivor_state, n, num_exits);
 
         int init_pos[10];
-        decode(recs[i].s, n, init_pos);
+        decode(survivor_state, n, init_pos);
         sort_exits_and_remap(init_pos, tr.moves, num_exits);
 
         bool used[10];
@@ -1758,7 +1960,7 @@ static void emit(const FlatMap& dist, int n, int num_exits,
         const int new_h = prune_unused_helpers(tr.moves, num_exits, n, pruned, used);
         int grouped_moves = count_grouped_moves(pruned);
         int raw_slides = (int)pruned.size();
-        int min_raw_slides = (int)recs[i].d;  // BFS depth (unpruned)
+        int min_raw_slides = (int)survivor_min_rs[j];  // BFS depth (unpruned)
 
         // Previously: hex puzzles whose solution used only cardinal directions
         // were skipped because they belonged in square variants. In the unified
@@ -1795,10 +1997,9 @@ static void emit(const FlatMap& dist, int n, int num_exits,
 
         // Collision-sig hash of the DP solution (catches greedy/DP path differences).
         {
-            std::string sig = collision_signature(pruned, num_exits);
-            std::string key = "e" + std::to_string(num_exits)
-                            + "h" + std::to_string(new_h) + "|" + sig;
-            dp_sig_hashes[j] = hash_dedup_key(key);
+            thread_local std::string sig;
+            collision_signature(pruned, num_exits, sig);
+            dp_sig_hashes[j] = compute_dedup_hash(sig, num_exits, new_h);
         }
 
         // Store pruned start for deferred forward BFS (state-set dedup).
@@ -1867,6 +2068,39 @@ static void emit(const FlatMap& dist, int n, int num_exits,
         output_lines[j] = std::move(line);
     }
 
+    // Per-puzzle forward-0-1-BFS solve time distribution.
+    // Emits full 1%-percentile bucket values (101 entries: p00..p100) plus
+    // summary stats on a separate line for quick reading.
+    {
+        std::vector<double> sorted_times = solve_times_us;
+        std::sort(sorted_times.begin(), sorted_times.end());
+        const size_t ns = sorted_times.size();
+        double sum = std::accumulate(sorted_times.begin(), sorted_times.end(), 0.0);
+        auto pct = [&](double p) -> double {
+            if (ns == 0) return 0.0;
+            size_t idx = (size_t)(p * (ns - 1));
+            return sorted_times[idx];
+        };
+        std::cerr << "  solve times (us): p50=" << (int64_t)pct(0.50)
+                  << " p90=" << (int64_t)pct(0.90)
+                  << " p99=" << (int64_t)pct(0.99)
+                  << " max=" << (ns == 0 ? 0.0 : sorted_times.back())
+                  << " cpu_total=" << sum / 1e6 << "s"
+                  << " count=" << ns << "\n";
+        if (ns > 0) {
+            std::cerr << "  solve times p-dist (us):";
+            for (int p = 0; p <= 100; p++) {
+                double frac = (double)p / 100.0;
+                std::cerr << " " << (int64_t)pct(frac);
+            }
+            std::cerr << "\n";
+        }
+    }
+    log_mem("pass3_solve_done");
+
+    // Free per-puzzle timing memory before dedup allocations.
+    std::vector<double>().swap(solve_times_us);
+
     // Sequential output with IDs.
     // Two-layer dedup:
     //   (1) D4-canonical form of pruned positions (catches D4 positional dups)
@@ -1934,11 +2168,21 @@ static void emit(const FlatMap& dist, int n, int num_exits,
     // by D4 or collision-sig dedup (~30% savings).
     // Also stores state counts for output.
     std::vector<int> fwd_state_counts(survivors.size(), 0);
+    reset_peak_rss();
     {
         std::vector<int> need_bfs;
         for (auto& [sig, j] : best_for_dp_sig)
             if (j >= 0) need_bfs.push_back(j);
+        // Layer 3 forward BFS allocates a per-puzzle reachable-state set. For
+        // hard 7-piece puzzles this can reach 10M+ states per call. At 16
+        // threads × hundreds of MB per call, peak memory could hit OOM
+        // (observed: 3E+4H with max_per_bucket=500 OOM'd here). Cap thread
+        // count to bound per-phase peak. Overall wall-time impact is modest
+        // because this phase is short relative to pass 3 solve.
 #ifdef _OPENMP
+        const int saved_threads = omp_get_max_threads();
+        const int layer3_threads = std::min(saved_threads, 4);
+        omp_set_num_threads(layer3_threads);
         #pragma omp parallel for schedule(dynamic, 64)
 #endif
         for (int k = 0; k < (int)need_bfs.size(); k++) {
@@ -1947,7 +2191,11 @@ static void emit(const FlatMap& dist, int n, int num_exits,
             state_set_hashes[j] = forward_state_set_hash(fwd);
             fwd_state_counts[j] = (int)fwd.size();
         }
+#ifdef _OPENMP
+        omp_set_num_threads(saved_threads);
+#endif
     }
+    log_mem("layer3_done");
 
     // Layer 3: State-set hash dedup — among DP-sig survivors, catch remaining dups.
     std::unordered_map<uint64_t, int> best_for_hash; // state_set_hash → best j
@@ -2050,6 +2298,7 @@ static void emit(const FlatMap& dist, int n, int num_exits,
     if (rebucket_dup_count > 0)
         std::cerr << ", " << rebucket_dup_count << " post-rebucket cap drops";
     std::cerr << ", " << std::chrono::duration<double>(t3 - t2).count() << "s\n";
+    log_mem("emit_done");
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -2146,16 +2395,18 @@ int main(int argc, char* argv[]) {
             std::cerr << "\n=== exits=" << ne << "  helpers=" << nh
                       << "  total=" << nt << " ===\n";
 
+            reset_peak_rss();
             auto dist = retrograde(ne, nh);
 
             const double bfs_secs = std::chrono::duration<double>(
                 std::chrono::steady_clock::now() - t0).count();
             std::cerr << "  BFS done: " << dist.size() << " states, "
                       << bfs_secs << "s\n";
+            log_mem("bfs_done");
 
 
             int k_emitted = 0, k_deduped = 0;
-            emit(dist, ne + nh, ne, min_moves, max_moves, max_per_bucket,
+            emit(std::move(dist), ne + nh, ne, min_moves, max_moves, max_per_bucket,
                  id, seen_sigs, seen_pruned_canons, seen_dp_sigs,
                  seen_state_sets, k_emitted, k_deduped);
 
