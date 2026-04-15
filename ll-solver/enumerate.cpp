@@ -2317,6 +2317,19 @@ int main(int argc, char* argv[]) {
     // with farthest-point diversity sampling before the expensive DP solve.
     const int max_per_bucket = argc > 6 ? std::atoi(argv[6]) : 0;
 
+    // Optional flags: --only=E,H restricts the outer loop to a single combo
+    // (useful for targeted benchmarking without rerunning the full pipeline).
+    int only_exits = -1, only_helpers = -1;
+    for (int i = 1; i < argc; i++) {
+        const char* a = argv[i];
+        if (std::strncmp(a, "--only=", 7) == 0) {
+            if (std::sscanf(a + 7, "%d,%d", &only_exits, &only_helpers) != 2) {
+                std::cerr << "--only expects E,H (e.g. --only=3,4)\n";
+                return 1;
+            }
+        }
+    }
+
     // Per-variant block masks — computed once regardless of the active variant
     // so compute_variant_flags() can tag each puzzle with cross-variant validity.
     BLOCKED_MASK_SOLITAIRE = make_blocked_solitaire();
@@ -2389,8 +2402,10 @@ int main(int argc, char* argv[]) {
     int id = 0, total_emitted = 0;
 
     for (int ne = 1; ne <= max_exits; ne++) {
+        if (only_exits >= 0 && ne != only_exits) continue;
         for (int nt = ne; nt <= max_total; nt++) { // nt = total robots
             const int nh = nt - ne;                // helpers = total - exits
+            if (only_helpers >= 0 && nh != only_helpers) continue;
             const auto t0 = std::chrono::steady_clock::now();
             std::cerr << "\n=== exits=" << ne << "  helpers=" << nh
                       << "  total=" << nt << " ===\n";
