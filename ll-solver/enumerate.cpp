@@ -2372,39 +2372,52 @@ static void emit(FlatMap dist, int n, int num_exits,
         for (auto& [sig, j] : best_for_dp_sig)
             if (j >= 0) need_bfs.push_back(j);
         // Layer 3 forward BFS allocates a per-puzzle reachable-state set. For
-        // hard 7-piece puzzles this can reach 10M+ states per call. At 16
-        // threads × hundreds of MB per call, peak memory could hit OOM
-        // (observed: 3E+4H with max_per_bucket=500 OOM'd here in v6).
+        // hard 7-piece puzzles this can reach 10M+ states per call, and a
+        // FlatMap over such a set runs 5+ GB. Running 4 of those concurrently
+        // on top of ~10 GB of pass-3 baseline state blows the 32 GB cap
+        // (observed: 3E+4H OOM killed in commit 5d0b5b1's run).
         //
-        // 4×4 nested parallelism: 4 outer puzzle slots × 4 inner BFS threads
-        // each. The memory bound is 4 concurrent seen-sets (same as the old
-        // 4-thread serial cap that was memory-safe), and CPU utilization is
-        // 16 cores (up from 4). Per-hard-task speedup is ~4×.
+        // Memory-aware partition: split need_bfs by pruned piece count.
+        //   * heavy (pruned_ns >= 7): worst-case FlatMap up to ~6 GB each.
+        //     Run 2 outer × 8 inner → 2 concurrent heavy FlatMaps
+        //     ≈ 12 GB + 10 GB baseline = 22 GB peak. Fits.
+        //   * light (pruned_ns <= 6): FlatMap ≤ 1 GB each typically.
+        //     Run 4 outer × 4 inner → 16 cores, 4 GB concurrent. Fits
+        //     easily and matches the v7 working point.
         //
-        // On trivial puzzles (frontier <256) the inner parallel region
-        // degenerates to serial via an `if(cur.size()>=256)` clause inside
-        // forward_bfs_states_parallel, so easy puzzles don't pay thread-
-        // spawn overhead.
+        // Both phases use the forward_bfs_states_parallel inner BFS. Its
+        // `if(cur.size()>=256)` clause keeps the inner parallel region
+        // off on tiny frontiers, so easy puzzles don't pay thread-spawn
+        // overhead.
+        std::vector<int> heavy_jobs, light_jobs;
+        for (int j : need_bfs) {
+            if (pruned_ns[j] >= 7) heavy_jobs.push_back(j);
+            else                   light_jobs.push_back(j);
+        }
+        auto run_layer3 = [&](const std::vector<int>& jobs,
+                              int outer_slots, int inner_threads) {
+#ifdef _OPENMP
+            omp_set_num_threads(outer_slots);
+            #pragma omp parallel for schedule(dynamic, 1)
+#endif
+            for (int k = 0; k < (int)jobs.size(); k++) {
+                int j = jobs[k];
+                auto fwd = forward_bfs_states_parallel(
+                    pruned_starts[j], pruned_ns[j], num_exits, inner_threads);
+                state_set_hashes[j] = forward_state_set_hash(fwd);
+                fwd_state_counts[j] = (int)fwd.size();
+            }
+        };
 #ifdef _OPENMP
         const int saved_threads = omp_get_max_threads();
-        const int outer_slots   = std::min(saved_threads, 4);
-        const int inner_threads = (saved_threads >= 16)
-                                    ? 4
-                                    : std::max(1, saved_threads / outer_slots);
         const int saved_levels  = omp_get_max_active_levels();
         omp_set_max_active_levels(2);
-        omp_set_num_threads(outer_slots);
-        #pragma omp parallel for schedule(dynamic, 1)
-#else
-        const int inner_threads = 1;
 #endif
-        for (int k = 0; k < (int)need_bfs.size(); k++) {
-            int j = need_bfs[k];
-            auto fwd = forward_bfs_states_parallel(
-                pruned_starts[j], pruned_ns[j], num_exits, inner_threads);
-            state_set_hashes[j] = forward_state_set_hash(fwd);
-            fwd_state_counts[j] = (int)fwd.size();
-        }
+        // Heavy first: memory peak happens here, we want it finished before
+        // the light phase begins so peak RSS drops back before the 16-wide
+        // fan-out. LPT ordering inside heavy is handled by dynamic schedule.
+        run_layer3(heavy_jobs, /*outer*/2, /*inner*/8);
+        run_layer3(light_jobs, /*outer*/4, /*inner*/4);
 #ifdef _OPENMP
         omp_set_num_threads(saved_threads);
         omp_set_max_active_levels(saved_levels);
