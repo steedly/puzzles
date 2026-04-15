@@ -229,14 +229,25 @@ matters here):
 | `--only=1,5` | 0 | 12240 | peak RSS 225 MB, layer3_done clean, no FATAL |
 | `--only=2,5` | killed at 600s timeout | — | healthy progress, peak RSS 14 GB, reached pass3_solve. Binary is fine, rung timeout just too tight for 7-piece combos. |
 
-**Scope decision — hex + square unified library.** `enumerate` is
-single-variant per run (board type is set at startup). The widest hex is
-`beehive` (full 7×7, no blocks), covering both hex and beehive puzzles
-via variantFlags. The widest square is `standard` (BLOCKED=0), covering
-standard / solitaire / ufo / french. So the unified library = **beehive
-run + standard run, merged**. Two sequential runs is the simplest
-shape; running them in parallel would blow the 32 GB memory cap (each
-already uses ~14-30 GB at peak).
+**Scope decision — beehive-only, no merge.** User corrected the plan:
+the whole point of the unified-library exercise is that a single beehive
+run produces all variants via variantFlags. Running a separate `standard`
+variant would give a slightly different (D4- vs Klein-deduped) square
+slice, but the simplification from "one run serves all variants" was
+the original goal. The tradeoffs accepted:
+1. Square variants may miss puzzles whose hex-optimal is strictly
+   better than the square-optimal (would've been emitted by a dedicated
+   standard run, but in beehive they're flagged `requires_diagonal` and
+   excluded from cardinal variants).
+2. Square variants see near-duplicates under 90°/270° rotation because
+   beehive dedup uses the Klein 4-subgroup, not full D4.
+The pass-3 rebucket pass already keys on `(helpers, min_raw, square,
+diag)` so cardinal-only and diagonal-required puzzles get their own
+500-per-bucket budget — the cardinal-only slice of a beehive run is
+sufficient to populate square variants.
+
+No separate standard run. No merge step. `ll-solver/runs/v9-beehive.llp`
+IS the unified library.
 
 **Phase 5 (full beehive run) — in progress.** Launched at 14:21Z in
 tmux session `beehive`, PID 222406:
@@ -252,5 +263,24 @@ v7's 4-6h serial-cap estimate). The 3E+4H combo Layer 3 should benefit
 most from the 16-core utilization. Will monitor every 20-30 min and
 append progress entries.
 
-After beehive completes, will launch the `standard` variant run, then
-merge both into `puzzles-unified.llp` for the UI cutover.
+After beehive completes, move directly to Phase 6 cutover — no merge
+step, no standard run.
+
+### 2026-04-15T15:26Z — Beehive run progress: at 3+4 (killer combo), pass 3 solve
+
+- Elapsed: **1h4m**
+- Combos started: **15/18** (1+1 through 2+5 done; currently on 3+4)
+- 3+4 pre-filter: 97,983,538 → 29,176 survivors → entering pass 3 solve
+- Pass 3 solve progress on 3+4: 1000/29,176 (3%) after 94s under LPT
+  ordering (hardest solves first, so the early progress rate
+  understates the average rate)
+- Memory: RSS 10 GB current, **28.8 GB peak during pass 2** — within
+  the 32 GB cap, comfortable margin
+- No FATAL, no bad_alloc, no signs of the 4×4 capacity bug
+
+After 3+4 finishes (pass 3 + Layer 3), remaining combos are 4+1, 4+2,
+4+3 — all significantly smaller than 3+4. Run should finish in another
+1-2 hours assuming 3+4 solve + Layer 3 takes ~1h.
+
+No merge needed. Once this run emits `EXIT_CODE=0`, the raw output
+file IS the unified library, ready for validation and UI cutover.
