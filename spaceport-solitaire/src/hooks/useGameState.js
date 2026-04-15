@@ -10,6 +10,7 @@ function buildInitial(puzzle) {
     puzzleId:        puzzle.id,
     positions:       initPositions(puzzle),
     selectedRobotId: null,
+    hoveredRobotId:  null,
     moveCount:       0,
     slideCount:      0,
     isWon:           false,
@@ -19,13 +20,23 @@ function buildInitial(puzzle) {
   };
 }
 
-function reducer(state, action) {
+export function reducer(state, action) {
   switch (action.type) {
     case 'SELECT_ROBOT':
-      return { ...state, selectedRobotId: action.robotId };
+      return { ...state, selectedRobotId: action.robotId, hoveredRobotId: null };
 
     case 'DESELECT':
-      return { ...state, selectedRobotId: null };
+      return { ...state, selectedRobotId: null, hoveredRobotId: null };
+
+    case 'HOVER_ROBOT':
+      // Hover preview is suppressed once a robot is committed via click.
+      if (state.selectedRobotId) return state;
+      if (state.hoveredRobotId === action.robotId) return state;
+      return { ...state, hoveredRobotId: action.robotId };
+
+    case 'UNHOVER':
+      if (state.hoveredRobotId === null) return state;
+      return { ...state, hoveredRobotId: null };
 
     case 'SLIDE': {
       if (!state.selectedRobotId) return state;
@@ -47,6 +58,7 @@ function reducer(state, action) {
         slideCount:      state.slideCount + 1,
         lastMoverId:     state.selectedRobotId,
         selectedRobotId: newSelected,
+        hoveredRobotId:  null,
         history:         [...state.history, { positions: state.positions, lastMoverId: state.lastMoverId }],
         isWon:           isWon(newPositions, state.exitIds),
       };
@@ -65,6 +77,7 @@ function reducer(state, action) {
         lastMoverId:     prev.lastMoverId,
         isWon:           false,
         selectedRobotId: null,
+        hoveredRobotId:  null,
       };
     }
 

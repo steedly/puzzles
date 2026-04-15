@@ -10,8 +10,9 @@ import Robot from './Robot';
  * Hex cells receive explicit `style` with absolute positioning from Board.jsx.
  */
 export default function Cell({
-  row, col, isCenter, robotId, robotMeta, selectedRobotId,
-  isLandingCell, isNextTarget, isVariantBlocked, isUnreachable, isBuildMode, onClick,
+  row, col, isCenter, robotId, robotMeta, highlightedRobotId,
+  isLandingCell, isNextTarget, isVariantBlocked, isUnreachable, isBuildMode,
+  onClick, onHoverEnter, onHoverLeave,
   hex, style,
 }) {
   const prefix = hex ? 'cell cell--hex' : 'cell';
@@ -27,13 +28,19 @@ export default function Cell({
   ].filter(Boolean).join(' ');
 
   return (
-    <div className={className} style={style} onClick={() => onClick(row, col, robotId)}>
+    <div
+      className={className}
+      style={style}
+      onClick={() => onClick(row, col, robotId)}
+      onMouseEnter={onHoverEnter ? () => onHoverEnter(robotId) : undefined}
+      onMouseLeave={onHoverLeave ? () => onHoverLeave(robotId) : undefined}
+    >
       {robotId && robotMeta && (
         <Robot
           robotId={robotId}
           isExit={robotMeta.isExit}
           exitIndex={robotMeta.exitIndex}
-          isSelected={robotId === selectedRobotId}
+          isSelected={robotId === highlightedRobotId}
         />
       )}
     </div>

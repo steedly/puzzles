@@ -136,14 +136,19 @@ export default function Board({ state, dispatch, puzzle, variantBlocks, buildMod
   }
 
   // ── Shared: landing cells ──
+  // Highlight the clicked robot if there is one; otherwise fall back to the
+  // hovered robot for desktop preview (Option A: hover-when-idle only).
+  const highlightedRobotId = buildMode
+    ? null
+    : (state.selectedRobotId || state.hoveredRobotId);
   const landingCells = new Set();
-  if (!buildMode && state.selectedRobotId && state.positions[state.selectedRobotId]) {
+  if (highlightedRobotId && state.positions[highlightedRobotId]) {
     for (const dir of board.dirs) {
       const newPositions = slideRobot(
-        state.positions, state.selectedRobotId, dir.name, state.exitIds ?? null, variantBlocks ?? null, board
+        state.positions, highlightedRobotId, dir.name, state.exitIds ?? null, variantBlocks ?? null, board
       );
       if (!newPositions) continue;
-      const newPos = newPositions[state.selectedRobotId];
+      const newPos = newPositions[highlightedRobotId];
       if (newPos) {
         landingCells.add(`${newPos.row},${newPos.col}`);
       } else {
@@ -172,7 +177,11 @@ export default function Board({ state, dispatch, puzzle, variantBlocks, buildMod
       return;
     }
     if (robotId) {
-      dispatch({ type: 'SELECT_ROBOT', robotId });
+      if (robotId === state.selectedRobotId) {
+        dispatch({ type: 'DESELECT' });
+      } else {
+        dispatch({ type: 'SELECT_ROBOT', robotId });
+      }
       return;
     }
     if (!state.selectedRobotId || !state.positions[state.selectedRobotId]) {
@@ -194,6 +203,17 @@ export default function Board({ state, dispatch, puzzle, variantBlocks, buildMod
     }
     dispatch({ type: 'DESELECT' });
   }
+
+  // ── Hover handlers (desktop preview; suppressed in build mode and once a
+  // robot has been clicked, per Option A). The reducer also guards against
+  // hover-while-selected, but we skip the dispatch entirely to avoid noise. ──
+  const hoverEnabled = !buildMode && !state.selectedRobotId;
+  const handleHoverEnter = hoverEnabled
+    ? (robotId) => { if (robotId) dispatch({ type: 'HOVER_ROBOT', robotId }); }
+    : undefined;
+  const handleHoverLeave = hoverEnabled
+    ? (robotId) => { if (robotId) dispatch({ type: 'UNHOVER' }); }
+    : undefined;
 
   // ── Shared: generate cell elements ──
   const hexDims = isHex ? hexBoardDimensions(N, hexR) : null;
@@ -229,13 +249,15 @@ export default function Board({ state, dispatch, puzzle, variantBlocks, buildMod
           isCenter={r === board.centerRow && c === board.centerCol}
           robotId={robotId}
           robotMeta={robotId ? robotMeta[robotId] : null}
-          selectedRobotId={buildMode ? null : state.selectedRobotId}
+          highlightedRobotId={highlightedRobotId}
           isLandingCell={landingCells.has(key)}
           isNextTarget={key === nextTargetKey}
           isVariantBlocked={variantBlocks && variantBlocks.has(key)}
           isUnreachable={!buildMode && maxR >= 0 && (r < minR || r > maxR || c < minC || c > maxC)}
           isBuildMode={buildMode}
           onClick={handleCellClick}
+          onHoverEnter={handleHoverEnter}
+          onHoverLeave={handleHoverLeave}
         />
       );
     }
