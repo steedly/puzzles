@@ -2424,8 +2424,12 @@ int main(int argc, char* argv[]) {
 
     for (int ne = 1; ne <= max_exits; ne++) {
         if (only_exits >= 0 && ne != only_exits) continue;
-        for (int nt = ne; nt <= max_total; nt++) { // nt = total robots
-            const int nh = nt - ne;                // helpers = total - exits
+        // Skip 0-helper combos: Lunar Lockout requires a blocker to stop any
+        // slide, and multi-exit configurations without helpers can't reach
+        // goal states (once the first exit exits, remaining exits have no
+        // blockers to help them reach CTR). Every 0-helper combo emits 0.
+        for (int nt = ne + 1; nt <= max_total; nt++) { // nt = total robots
+            const int nh = nt - ne;                    // helpers = total - exits
             if (only_helpers >= 0 && nh != only_helpers) continue;
             const auto t0 = std::chrono::steady_clock::now();
             std::cerr << "\n=== exits=" << ne << "  helpers=" << nh
