@@ -945,6 +945,83 @@ static std::vector<State> forward_bfs_states(State start, int n, int num_exits) 
     return queue;
 }
 
+// Parallel level-synchronous variant of forward_bfs_states. Uses a shared
+// FlatMap with lock-free atomic_emplace and per-thread next-frontier vectors
+// merged after each level. This is the same pattern as Stage 1's retrograde()
+// (parallel BFS over plain states).
+//
+// Designed for use inside Layer 3 (Stage 4 dedup) under a 4-outer × 4-inner
+// nested OpenMP scheme. inner_threads bounds the inner parallel region.
+//
+// On trivial puzzles (frontiers <256) the inner parallel region degenerates
+// to serial via `if(cur.size() >= 256)`, so easy puzzles don't pay
+// thread-spawn overhead.
+static std::vector<State>
+forward_bfs_states_parallel(State start, int n, int num_exits, int inner_threads)
+{
+    FlatMap seen(6 * n);  // key = state bits; value slot unused (always 0)
+    seen.insert_new(start, 0);
+    std::vector<State> cur, nxt;
+    cur.push_back(start);
+
+    if (inner_threads < 1) inner_threads = 1;
+    std::vector<std::vector<State>> nxt_locals(inner_threads);
+
+    while (!cur.empty()) {
+        // Pre-grow seen to keep load factor ≤75% during the parallel section.
+        // Estimate next frontier ≤ cur.size() × NUM_DIRS × n, bound generously.
+        seen.ensure_parallel_capacity(seen.size() + cur.size() * 8);
+        for (auto& v : nxt_locals) v.clear();
+
+#ifdef _OPENMP
+        #pragma omp parallel num_threads(inner_threads) if(cur.size() >= 256)
+#endif
+        {
+#ifdef _OPENMP
+            const int tid = omp_get_thread_num();
+#else
+            const int tid = 0;
+#endif
+            std::vector<State>& my_nxt = nxt_locals[tid];
+
+#ifdef _OPENMP
+            #pragma omp for schedule(dynamic, 64)
+#endif
+            for (int i = 0; i < (int)cur.size(); i++) {
+                State s = cur[i];
+                int pos[10];
+                decode(s, n, pos);
+                const uint64_t occ = make_occ(pos, n);
+                for (int ridx = 0; ridx < n; ridx++) {
+                    for (int d = 0; d < NUM_DIRS; d++) {
+                        int nc, bi;
+                        State ns;
+                        if (!forward_move(pos, n, num_exits, ridx, d, nc, bi, ns, occ))
+                            continue;
+                        if (seen.atomic_emplace(ns, 0))
+                            my_nxt.push_back(ns);
+                    }
+                }
+            }
+        }
+
+        nxt.clear();
+        for (auto& v : nxt_locals)
+            nxt.insert(nxt.end(), v.begin(), v.end());
+        cur.swap(nxt);
+    }
+
+    // Materialize the seen set as a sorted vector (same return contract as
+    // the serial version). The state portion of each FlatMap key is the low
+    // 6n bits; the upper bits hold the (unused) value slot.
+    const uint64_t state_mask = (n >= 10) ? ~(uint64_t)0 : ((uint64_t)1 << (6 * n)) - 1;
+    std::vector<State> out;
+    out.reserve(seen.size());
+    for (auto kv : seen) out.push_back((State)(kv.first & state_mask));
+    std::sort(out.begin(), out.end());
+    return out;
+}
+
 // ── Forward state-set hash ────────────────────────────────────────────────────
 // Hash the sorted set of forward-reachable states.  Since we only process
 // self-canonical starting states (D4 equivalents share the same canonical
@@ -2267,25 +2344,36 @@ static void emit(FlatMap dist, int n, int num_exits,
         for (auto& [sig, j] : best_for_dp_sig)
             if (j >= 0) need_bfs.push_back(j);
         // Layer 3 forward BFS allocates a per-puzzle reachable-state set. For
-        // hard 7-piece puzzles this can reach 10M+ states per call. At 16
-        // threads × hundreds of MB per call, peak memory could hit OOM
-        // (observed: 3E+4H with max_per_bucket=500 OOM'd here). Cap thread
-        // count to bound per-phase peak. Overall wall-time impact is modest
-        // because this phase is short relative to pass 3 solve.
+        // hard 7-piece puzzles this can reach 10M+ states per call. The
+        // previous fix (cap to 4 threads × serial BFS) bounded memory but
+        // wasted 12 cores. The 4×4 nested-parallelism scheme below uses all
+        // 16 cores at the same memory cap by parallelizing each puzzle's
+        // forward BFS internally rather than running 16 independent BFSs.
 #ifdef _OPENMP
+        // 4×4 nested: 4 outer puzzle slots × 4 inner BFS threads each.
+        // Memory bound = 4 concurrent seen-sets (same as old 4-thread cap).
+        // Wall-time bound = parallel BFS speedup × 4-puzzle concurrency.
         const int saved_threads = omp_get_max_threads();
-        const int layer3_threads = std::min(saved_threads, 4);
-        omp_set_num_threads(layer3_threads);
-        #pragma omp parallel for schedule(dynamic, 64)
+        const int outer_slots   = std::min(saved_threads, 4);
+        const int inner_threads = (saved_threads >= 16) ? 4
+                                : std::max(1, saved_threads / outer_slots);
+        const int saved_levels  = omp_get_max_active_levels();
+        omp_set_max_active_levels(2);
+        omp_set_num_threads(outer_slots);
+        #pragma omp parallel for schedule(dynamic, 1)
+#else
+        const int inner_threads = 1;
 #endif
         for (int k = 0; k < (int)need_bfs.size(); k++) {
             int j = need_bfs[k];
-            auto fwd = forward_bfs_states(pruned_starts[j], pruned_ns[j], num_exits);
+            auto fwd = forward_bfs_states_parallel(
+                pruned_starts[j], pruned_ns[j], num_exits, inner_threads);
             state_set_hashes[j] = forward_state_set_hash(fwd);
             fwd_state_counts[j] = (int)fwd.size();
         }
 #ifdef _OPENMP
         omp_set_num_threads(saved_threads);
+        omp_set_max_active_levels(saved_levels);
 #endif
     }
     log_mem("layer3_done");
