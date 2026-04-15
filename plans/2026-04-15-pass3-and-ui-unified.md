@@ -116,3 +116,52 @@ If 1,5 either passes or aborts with a loud panic message, Phase 4 (debug)
 can proceed with a concrete error location. If it passes cleanly with the
 serial-cap version already in place, the smoke ladder continues up the
 sequence on the current binary.
+
+### 2026-04-15T13:54Z — Smoke ladder passed 3/8 rungs, pivot: launch full run with serial revert
+
+Smoke ladder rungs ran before I stopped the ladder to launch the full run:
+
+| rung | status | wall time | notes |
+|---|---|---|---|
+| 1,4 | PASS + validated | <60s | trivial |
+| 1,5 | PASS + validated | ~60s | v8 repro case — no hang with serial revert + panic guards |
+| 2,4 | PASS + validated | ~30s | |
+| 1,6 | in progress at 4:33/5:00 | — | past pass3_solve_done, entering Layer 3 on 14715 survivors |
+
+The panic guards did not fire on any rung. This is the expected outcome with
+the serial-cap revert active — the parallel BFS variant (the one with the
+bug) is not wired up on the call site, so it was never exercised at scale.
+The smoke ladder confirmed that the panic guards don't introduce regressions
+and that the production binary runs cleanly through BFS → pass1 → pass2 →
+pass3 on smaller combos.
+
+**Phase 4 (debug 4×4) — deferred.** Rather than spending the 1-hour debug
+budget re-enabling the 4×4 call site and iterating on the capacity fix while
+the user is away, I'm launching the full run with the serial-cap revert now.
+Reasoning:
+
+1. User leaves for work, checks back tonight. A 4-6 hour serial run
+   comfortably finishes before then.
+2. The serial-cap path is already known-good (v7 ran clean for 4h15m before
+   being killed for unrelated reasons; the kill was to add optimizations,
+   not because it was failing).
+3. Attempting 4×4 risks burning hours on debugging if the capacity fix
+   uncovers additional issues. Correctness beats speed for this run.
+4. 4×4 can be re-attempted *after* the full run completes, with the panic
+   guard and new parallel BFS tests in place to speed iteration.
+
+**Phase 5 (full run) — in progress.** Launched at 13:54Z:
+```
+tmux new-session -d -s unified "/usr/bin/time -v ./enumerate 4 7 1 99 beehive 500 \
+  > puzzles-unified.llp 2> unified.log; echo EXIT_CODE=\$? >> unified.log"
+```
+PID 5277. Output goes to `ll-solver/puzzles-unified.llp` and
+`ll-solver/unified.log`. Log will contain `EXIT_CODE=N` after completion.
+
+Monitoring plan:
+- Periodic RSS checks (warn >26 GB, kill >28 GB).
+- Grep for `FATAL FlatMap`, `Killed`, `bad_alloc`, `Segmentation fault`.
+- Log phase progress (`=== exits=`, `emitted:`, `mem[...]`).
+
+Expected wall time: 4-6 hours (conservative). 3E+4H Layer 3 is the longest
+pole — serial cap took ~4 hours in v7 before being killed.
