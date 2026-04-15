@@ -284,3 +284,45 @@ After 3+4 finishes (pass 3 + Layer 3), remaining combos are 4+1, 4+2,
 
 No merge needed. Once this run emits `EXIT_CODE=0`, the raw output
 file IS the unified library, ready for validation and UI cutover.
+
+### 2026-04-15T15:57Z — v9 OOM-killed in 3+4 Layer 3; v10 launched with memory-aware partition
+
+**v9 failure.** Beehive run was OOM-killed at 1h12m, signal 9, max RSS
+29.8 GB. 3+4 pass 3 solve **completed successfully** at 10 GB peak
+(cpu_total=18570s, max single-puzzle solve 551s). The OOM fired during
+3+4 **Layer 3** when 4 concurrent hard forward BFSes each allocated
+~5-6 GB FlatMaps on top of the ~10 GB pass-3 baseline. v7's serial
+4-thread cap never actually finished 3+4 either (was killed at 4h15m
+elapsed), so this wasn't a regression — 4 concurrent hard 7-piece
+forward BFSes in Layer 3 simply don't fit in 32 GB regardless of
+whether the inner BFS is parallel.
+
+Archived: `runs/v9-partial-oom.llp` (partial, mostly 1+x..3+3),
+`runs/v9-oom.log`.
+
+**Fix (commit `6c15d99`): memory-aware partition of Layer 3.** Split
+`need_bfs` by `pruned_ns[j]`:
+
+| Phase  | Pruned pieces | Outer × Inner | Concurrent mem | Cores |
+|--------|---|---|---|---|
+| heavy  | ≥ 7           | 2 × 8         | ~12 GB          | 16    |
+| light  | ≤ 6           | 4 × 4         | ~4 GB           | 16    |
+
+Heavy runs first so peak RSS drops before the 16-wide fan-out in the
+light phase. Both phases use the same `forward_bfs_states_parallel`
+with its nested `if(cur.size()>=256)` clause on the inner region (no
+thread-spawn overhead for tiny BFSes). Expected peak during heavy:
+~22 GB = 12 GB concurrent + 10 GB baseline. Plenty of headroom.
+
+Validated: `--only=1,5` still emits 12,240 puzzles, 225 MB peak, no
+FATAL. All 117 unit tests pass.
+
+**v10 launched.** 15:57Z, tmux session `beehive`, PID 3687063:
+```
+/usr/bin/time -v ./enumerate 4 7 1 99 beehive 500 \
+  > runs/v10-beehive.llp 2> runs/v10-beehive.log
+```
+Expected wall time: similar to v9 for combos 1+1..2+5 (1h4m), plus
+heavy Layer 3 for 3+4 (the key variable). If 2×8 Layer 3 on 3+4 is
+~10-20 min and pass 3 solve is ~25 min, the run should finish in
+~2.5 hours total.
