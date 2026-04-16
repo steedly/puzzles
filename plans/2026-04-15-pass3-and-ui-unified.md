@@ -452,3 +452,13 @@ ETA for 4+3 pass 3 alone: 39,080 survivors at ~0.5-1.0 wall-sec per
 puzzle (extrapolating from 4+2's rate on smaller puzzles) = 5-10h
 wall. Total run ETA: 13-18h elapsed. Currently at 8h15m, so maybe
 5-10h more. The 4-exit DP state space blow-up is the dominant cost.
+
+### 2026-04-16T02:53Z — Hourly #3: 4+3 pass 3 still running; steady state
+
+- **Elapsed: 9h16m** (4+3 pass 3 solve ~2h25m in)
+- **RSS: 16 GB**, unchanged
+- **CPU: 1594%, 16/16 threads R**, delta 975 CPU-min / 61 wall-min
+  = 16.0 effective cores
+- **No log/output flush** since 00:28Z — still in pass 3 solve
+
+Steady state. No intervention needed.
