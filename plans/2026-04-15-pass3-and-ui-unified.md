@@ -474,3 +474,13 @@ Steady state. No intervention needed.
 - **Elapsed: 11h18m** (4+3 pass 3 solve ~4h27m in)
 - **RSS: 16 GB**, CPU 1593%, 16/16 R, delta 975/61 = 16.0 cores
 - No log flush since 00:28Z (~4.5h buffered). Still grinding.
+
+### 2026-04-16T05:56Z — Hourly #6: 4+3 pass 3 ~5.5h in; steady
+
+- **Elapsed: 12h19m** (4+3 pass 3 solve ~5h28m in)
+- **RSS: 16 GB**, CPU 1593%, 16/16 R, delta 975/61 = 16.0 cores
+- **Estimated progress:** ~320K CPU-sec consumed in pass 3 solve.
+  At 4+2's per-puzzle rate (9.4 CPU-sec, lower bound for 4+3's
+  7-piece) we'd be ~87% done; at 2× that rate (accounting for
+  7-piece overhead) ~44%. Best estimate: **50-70% done**.
+- No log flush since 00:28Z. ~5.5h buffered.
