@@ -601,3 +601,26 @@ run has 147K puzzles from 17/18 combos. The app would lack only
 blow-up is a genuine algorithmic bottleneck that needs profiling and
 optimization in a follow-up session — not something to wait 53h for
 on this machine.
+
+### 2026-04-16T18:50Z — Hourly #18: RSS climbing; est 27%; OOM risk emerging
+
+- **Elapsed: 25h13m** (4+3 pass 3 ~18.4h in)
+- **RSS: 18.5 GB** — up from 16 GB at pass 3 start. Growing ~0.4
+  GB/hr. If trend continues, hits 28 GB in ~24h, which is
+  dangerously close to cap and would likely OOM when Layer 3 begins.
+- **CPU: 1575%, 16/16 R**. ~1,060K CPU-sec consumed → est 10,500/
+  39,080 done = **27%**. Uniform rate → ~50h remaining.
+- No log flush since 13:36Z.
+
+**RSS growth during pass 3 solve is unexpected** — solve should be
+roughly memory-neutral. Likely cause: allocator fragmentation from
+many large temp allocations (augmented-state FlatMaps in
+solve_min_grouped) that the OS isn't reclaiming. If RSS hits ~28 GB,
+Layer 3's concurrent FlatMaps may push past 32 GB.
+
+**Strengthened recommendation: kill and ship with 17/18 combos.**
+The 4+3 combo is not viable on this machine at current algorithmic
+efficiency. Two follow-up optimizations would make it tractable:
+1. Profile + optimize `solve_min_grouped` for 4-exit workloads
+2. Reduce `max_per_bucket` for 4-exit combos (fewer survivors =
+   less total compute)
