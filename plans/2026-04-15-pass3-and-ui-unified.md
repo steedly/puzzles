@@ -437,3 +437,18 @@ Total run ETA: 10-11 hours elapsed, finishing ~02:30-04:30Z.
    is redirected to a file and thread 0 is stuck on a hard puzzle.
    Adding explicit `std::cerr.flush()` in the progress block would
    help monitoring long runs.
+
+### 2026-04-16T01:52Z — Hourly #2: 4+3 pass 3 solve running; 16 cores at 100%
+
+- **Elapsed: 8h15m** (7h since 4+3 entered its pass 3)
+- **RSS: 16 GB**, stable
+- **CPU: 1533% → 16 threads all R state**, perfect utilization
+- **CPU delta since hourly #1:** 991 CPU-min in 62 wall-min = 16.0
+  effective cores. No tail stall yet (unlike 4+2).
+- **No log/output flush** since 00:28Z — still in pass 3 solve,
+  results buffered.
+
+ETA for 4+3 pass 3 alone: 39,080 survivors at ~0.5-1.0 wall-sec per
+puzzle (extrapolating from 4+2's rate on smaller puzzles) = 5-10h
+wall. Total run ETA: 13-18h elapsed. Currently at 8h15m, so maybe
+5-10h more. The 4-exit DP state space blow-up is the dominant cost.
