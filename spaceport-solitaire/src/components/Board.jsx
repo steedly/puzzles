@@ -1,9 +1,10 @@
 // Copyright (c) 2025-2026 Drew Steedly. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { slideRobot } from '../logic/gameEngine';
 import { SQUARE_7x7 } from '../logic/boardGeometry';
+import { computeReachableCells } from '../logic/reachabilityBounds';
 import Cell from './Cell';
 
 // ── Hex geometry helpers ──────────────────────────────────────────────────────
@@ -99,7 +100,7 @@ function ScaledBoard({ naturalWidth, naturalHeight, children }) {
 
 // ── Board component ───────────────────────────────────────────────────────────
 
-export default function Board({ state, dispatch, puzzle, variantBlocks, buildMode, buildPieces, onBuildClick, board = SQUARE_7x7, nextMove }) {
+export default function Board({ state, dispatch, puzzle, variantBlocks, buildMode, buildPieces, onBuildClick, board = SQUARE_7x7, nextMove, cellShading = 'bbox' }) {
   const N = board.N;
   const isHex = board.type === 'hex';
   // Adjacent hex cells are R√3 apart; match square spacing (cell-size 62 + gap 5 = 67).
@@ -124,16 +125,15 @@ export default function Board({ state, dispatch, puzzle, variantBlocks, buildMod
     }
   }
 
-  // ── Shared: bounding box of current positions (cells outside are unreachable) ──
-  let minR = N, maxR = -1, minC = N, maxC = -1;
-  if (!buildMode && state.positions) {
-    for (const pos of Object.values(state.positions)) {
-      if (pos.row < minR) minR = pos.row;
-      if (pos.row > maxR) maxR = pos.row;
-      if (pos.col < minC) minC = pos.col;
-      if (pos.col > maxC) maxC = pos.col;
-    }
-  }
+  // ── Shared: reachable cells (cells outside are dimmed) ──
+  const positions = state?.positions;
+  const reachable = useMemo(() => {
+    if (buildMode || !positions || cellShading === 'none') return null;
+    return computeReachableCells(positions, cellShading, board.type === 'hex', board.N);
+  }, [positions, cellShading, buildMode, board]);
+
+  // Center unreachable under current bound → puzzle is unwinnable from this state
+  const centerUnwinnable = reachable !== null && !reachable.has(`${board.centerRow},${board.centerCol}`);
 
   // ── Shared: landing cells ──
   // Highlight the clicked robot if there is one; otherwise fall back to the
@@ -247,13 +247,14 @@ export default function Board({ state, dispatch, puzzle, variantBlocks, buildMod
           hex={isHex}
           style={style}
           isCenter={r === board.centerRow && c === board.centerCol}
+          isCenterUnwinnable={r === board.centerRow && c === board.centerCol && centerUnwinnable}
           robotId={robotId}
           robotMeta={robotId ? robotMeta[robotId] : null}
           highlightedRobotId={highlightedRobotId}
           isLandingCell={landingCells.has(key)}
           isNextTarget={key === nextTargetKey}
           isVariantBlocked={variantBlocks && variantBlocks.has(key)}
-          isUnreachable={!buildMode && maxR >= 0 && (r < minR || r > maxR || c < minC || c > maxC)}
+          isUnreachable={reachable !== null && !reachable.has(`${r},${c}`)}
           isBuildMode={buildMode}
           onClick={handleCellClick}
           onHoverEnter={handleHoverEnter}

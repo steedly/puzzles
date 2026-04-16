@@ -10,7 +10,7 @@ import Robot from './Robot';
  * Hex cells receive explicit `style` with absolute positioning from Board.jsx.
  */
 export default function Cell({
-  row, col, isCenter, robotId, robotMeta, highlightedRobotId,
+  row, col, isCenter, isCenterUnwinnable, robotId, robotMeta, highlightedRobotId,
   isLandingCell, isNextTarget, isVariantBlocked, isUnreachable, isBuildMode,
   onClick, onHoverEnter, onHoverLeave,
   hex, style,
@@ -20,6 +20,7 @@ export default function Cell({
   const className = [
     prefix,
     isCenter         ? 'cell--center'    : '',
+    isCenterUnwinnable ? 'cell--center-unwinnable' : '',
     isLandingCell    ? 'cell--landing'    : '',
     isNextTarget     ? 'cell--next-target' : '',
     isVariantBlocked ? 'cell--blocked'    : '',

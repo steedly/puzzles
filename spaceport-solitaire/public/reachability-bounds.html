@@ -128,19 +128,12 @@
   <figcaption>Hex boards add two diagonal directions (orange). On the internal grid, these are (&minus;1,&thinsp;+1) and (+1,&thinsp;&minus;1) &mdash; the robot stays on the same rising diagonal (<em>r</em>&thinsp;+&thinsp;<em>c</em> = constant).</figcaption>
 </figure>
 
-<p>We'll analyze each bound for both board types, noting where the hex diagonals create differences.</p>
+<p>We'll analyze each bound for both board types, noting where the hex diagonals create differences. (The trivial bound &mdash; "robots can't leave the board" &mdash; is obvious from the rules, so we start with the first interesting one.)</p>
 
 <hr>
 
 <!-- ───────────────────── BOUND 1 ───────────────────── -->
-<h2><span class="bound-num">1</span> The Board Itself</h2>
-
-<p><strong>Claim:</strong> No robot can leave the board. Obvious from the rules and true for both square and hex boards. This is the loosest possible bound.</p>
-
-<hr>
-
-<!-- ───────────────────── BOUND 2 ───────────────────── -->
-<h2><span class="bound-num">2</span> The Bounding Box</h2>
+<h2><span class="bound-num">1</span> The Bounding Box</h2>
 
 <p><strong>Claim:</strong> No robot can ever leave the smallest axis-aligned rectangle that encloses all robots in the starting position.</p>
 
@@ -196,8 +189,8 @@
 
 <hr>
 
-<!-- ───────────────────── BOUND 3 ───────────────────── -->
-<h2><span class="bound-num">3</span> The Convex Hull</h2>
+<!-- ───────────────────── BOUND 2 ───────────────────── -->
+<h2><span class="bound-num">2</span> The Convex Hull</h2>
 
 <p>The bounding box is a rectangle &mdash; a blunt instrument. We showed it works by proving that min and max of row and column can't grow. But there's nothing special about "row" and "column." The same argument works for <em>any direction of measurement</em>.</p>
 
@@ -215,7 +208,7 @@
   <li><strong>The ruler decreases along the slide</strong> (<em>a</em>&thinsp;&middot;&thinsp;<em>dr</em> + <em>b</em>&thinsp;&middot;&thinsp;<em>dc</em> &lt; 0): Mirror of the above.</li>
   <li><strong>The ruler is constant along the slide</strong> (<em>a</em>&thinsp;&middot;&thinsp;<em>dr</em> + <em>b</em>&thinsp;&middot;&thinsp;<em>dc</em> = 0): The slider's value doesn't change. Trivially preserved.</li>
 </ul>
-<p>In all three cases, the slider's new ruler value stays within [min(<em>f</em>), max(<em>f</em>)]. Since this holds for <em>every</em> ruler <em>f</em>, every robot stays inside the intersection of all halfplane constraints &mdash; which is exactly the <strong>convex hull</strong> of the initial positions. &square;</p>
+<p>In all three cases, the slider's new ruler value stays within [min(<em>f</em>), max(<em>f</em>)]. Since this holds for <em>every</em> ruler at <em>every</em> angle, every robot is confined to the region that satisfies all the ruler constraints simultaneously. That region is exactly the <strong>convex hull</strong> of the initial positions &mdash; the tightest convex polygon enclosing all robots. (Intuitively: if you wrap a rubber band around the robot positions, no robot can ever escape the rubber band.) &square;</p>
 </div>
 
 <p><strong>Why this matters:</strong> The bounding box is the special case using only two rulers (<em>r</em> and <em>c</em>), giving 4 halfplane constraints. By adding more rulers, we get tighter polygons:</p>
@@ -229,61 +222,8 @@
 <p>In practice, for a handful of robots, the exact convex hull is trivial to compute &mdash; it's just the polygon through the outermost robot positions.</p>
 
 <figure class="figure">
-  <svg width="700" height="320" viewBox="0 0 700 320">
-    <!-- ── Left panel: bounding box (rectangle) ── -->
-    <text x="110" y="16" text-anchor="middle" font-size="12" font-weight="bold" fill="#222" font-family="Georgia">Bounding box (2 rulers)</text>
-    <g stroke="#eee" stroke-width="1">
-      <line x1="10" y1="28" x2="210" y2="28"/><line x1="10" y1="68" x2="210" y2="68"/>
-      <line x1="10" y1="108" x2="210" y2="108"/><line x1="10" y1="148" x2="210" y2="148"/>
-      <line x1="10" y1="188" x2="210" y2="188"/><line x1="10" y1="228" x2="210" y2="228"/>
-      <line x1="10" y1="268" x2="210" y2="268"/><line x1="10" y1="308" x2="210" y2="308"/>
-      <line x1="10" y1="28" x2="10" y2="308"/><line x1="50" y1="28" x2="50" y2="308"/>
-      <line x1="90" y1="28" x2="90" y2="308"/><line x1="130" y1="28" x2="130" y2="308"/>
-      <line x1="170" y1="28" x2="170" y2="308"/><line x1="210" y1="28" x2="210" y2="308"/>
-    </g>
-    <!-- bbox: rows 1-5 = y:68..268, cols 0-4 = x:10..210 -->
-    <rect x="10" y="68" width="200" height="200" fill="rgba(234,179,8,.12)" stroke="#ca8a04" stroke-width="2"/>
-    <!-- Robots at cell centers: (r,c) → (10+c*40+20, 28+r*40+20) = (30+c*40, 48+r*40)
-         (1,2)→(110,88) (3,0)→(30,168) (3,4)→(190,168) (5,2)→(110,248) -->
-    <circle cx="110" cy="88" r="10" fill="#555"/><circle cx="30" cy="168" r="10" fill="#555"/>
-    <circle cx="190" cy="168" r="10" fill="#555"/><circle cx="110" cy="248" r="10" fill="#555"/>
-    <text x="110" y="295" text-anchor="middle" font-size="11" fill="#ca8a04" font-family="Georgia" font-style="italic">25 cells</text>
-
-    <!-- ── Middle panel: octagonal approximation ── -->
-    <text x="355" y="16" text-anchor="middle" font-size="12" font-weight="bold" fill="#222" font-family="Georgia">Octagonal bound (4 rulers)</text>
-    <g stroke="#eee" stroke-width="1" transform="translate(245,0)">
-      <line x1="10" y1="28" x2="210" y2="28"/><line x1="10" y1="68" x2="210" y2="68"/>
-      <line x1="10" y1="108" x2="210" y2="108"/><line x1="10" y1="148" x2="210" y2="148"/>
-      <line x1="10" y1="188" x2="210" y2="188"/><line x1="10" y1="228" x2="210" y2="228"/>
-      <line x1="10" y1="268" x2="210" y2="268"/><line x1="10" y1="308" x2="210" y2="308"/>
-      <line x1="10" y1="28" x2="10" y2="308"/><line x1="50" y1="28" x2="50" y2="308"/>
-      <line x1="90" y1="28" x2="90" y2="308"/><line x1="130" y1="28" x2="130" y2="308"/>
-      <line x1="170" y1="28" x2="170" y2="308"/><line x1="210" y1="28" x2="210" y2="308"/>
-    </g>
-    <!-- Diamond: (355,88)→(435,168)→(355,248)→(275,168). For this symmetric diamond,
-         octagon = diamond = convex hull (all 4 ruler constraints intersect at the robots). -->
-    <polygon points="355,88 435,168 355,248 275,168" fill="rgba(37,99,235,.10)" stroke="#2563eb" stroke-width="2"/>
-    <circle cx="355" cy="88" r="10" fill="#555"/><circle cx="275" cy="168" r="10" fill="#555"/>
-    <circle cx="435" cy="168" r="10" fill="#555"/><circle cx="355" cy="248" r="10" fill="#555"/>
-    <text x="355" y="295" text-anchor="middle" font-size="11" fill="#2563eb" font-family="Georgia" font-style="italic">13 cells</text>
-
-    <!-- ── Right panel: convex hull (= diamond for this config) ── -->
-    <text x="600" y="16" text-anchor="middle" font-size="12" font-weight="bold" fill="#222" font-family="Georgia">Convex hull (all rulers)</text>
-    <g stroke="#eee" stroke-width="1" transform="translate(490,0)">
-      <line x1="10" y1="28" x2="210" y2="28"/><line x1="10" y1="68" x2="210" y2="68"/>
-      <line x1="10" y1="108" x2="210" y2="108"/><line x1="10" y1="148" x2="210" y2="148"/>
-      <line x1="10" y1="188" x2="210" y2="188"/><line x1="10" y1="228" x2="210" y2="228"/>
-      <line x1="10" y1="268" x2="210" y2="268"/><line x1="10" y1="308" x2="210" y2="308"/>
-      <line x1="10" y1="28" x2="10" y2="308"/><line x1="50" y1="28" x2="50" y2="308"/>
-      <line x1="90" y1="28" x2="90" y2="308"/><line x1="130" y1="28" x2="130" y2="308"/>
-      <line x1="170" y1="28" x2="170" y2="308"/><line x1="210" y1="28" x2="210" y2="308"/>
-    </g>
-    <polygon points="600,88 680,168 600,248 520,168" fill="rgba(22,163,74,.10)" stroke="#16a34a" stroke-width="2"/>
-    <circle cx="600" cy="88" r="10" fill="#555"/><circle cx="520" cy="168" r="10" fill="#555"/>
-    <circle cx="680" cy="168" r="10" fill="#555"/><circle cx="600" cy="248" r="10" fill="#555"/>
-    <text x="600" y="295" text-anchor="middle" font-size="11" fill="#16a34a" font-family="Georgia" font-style="italic">13 cells (same for this config)</text>
-  </svg>
-  <figcaption>Progression from bounding box to convex hull, using a symmetric diamond of 4 robots. The diagonal rulers <em>r</em>+<em>c</em> and <em>r</em>&minus;<em>c</em> clip the rectangle's corners. For this symmetric diamond, the octagonal bound already matches the full convex hull &mdash; but for less symmetric arrangements, the convex hull can be even tighter.</figcaption>
+  <svg id="sq-progression" width="750" height="300" viewBox="0 0 750 300"></svg>
+  <figcaption>Progression from bounding box to convex hull, using 5 asymmetric robots. The diagonal rulers <em>r</em>+<em>c</em> and <em>r</em>&minus;<em>c</em> clip the rectangle's corners (49 &rarr; 34 cells). The full convex hull clips further (34 &rarr; 26 cells).</figcaption>
 </figure>
 
 <div class="hex-note">
@@ -305,8 +245,8 @@
 
 <hr>
 
-<!-- ───────────────────── BOUND 4 ───────────────────── -->
-<h2><span class="bound-num">4</span> The Orthogonal Convex Hull</h2>
+<!-- ───────────────────── BOUND 3 ───────────────────── -->
+<h2><span class="bound-num">3</span> The Orthogonal Convex Hull</h2>
 
 <p>All the bounds so far are <strong>convex</strong> &mdash; they're polygons with no indentations. But the actual set of reachable cells can be wildly non-convex. The orthogonal convex hull breaks out of convexity to get a much tighter fit.</p>
 
@@ -346,12 +286,7 @@
       <line x1="170" y1="28" x2="170" y2="268"/><line x1="210" y1="28" x2="210" y2="268"/>
       <line x1="250" y1="28" x2="250" y2="268"/>
     </g>
-    <!-- Convex hull = diamond: (0,2.5) area. Let's use robots at (0,3),(3,0),(6,3),(3,6) on 7x7,
-         but that's too big. Use (1,3),(3,0),(5,3),(3,6) on 7x7 with cell=40, but we have 5-row.
-         Actually let's use a 7-row, 7-col grid with cell=40 offset (10,28). No that's 280px tall.
-         Let me use smaller cells. 7 rows, cell=34. Height = 7*34 = 238.
-         Actually, let me just use 6 rows (0-5), 5 cols (0-4), cell=40. Robots at (0,2),(2,0),(4,2),(2,4) -->
-    <!-- Convex hull diamond — vertices at cell centers -->
+    <!-- Convex hull diamond — robots at (0,2),(2,0),(4,2),(2,4), vertices at cell centers -->
     <polygon points="110,48 190,128 110,208 30,128" fill="rgba(37,99,235,.08)" stroke="#2563eb" stroke-width="2"/>
     <circle cx="110" cy="48" r="10" fill="#555"/><circle cx="30" cy="128" r="10" fill="#555"/>
     <circle cx="190" cy="128" r="10" fill="#555"/><circle cx="110" cy="208" r="10" fill="#555"/>
@@ -457,8 +392,8 @@
 
 <hr>
 
-<!-- ───────────────────── BOUND 5 ───────────────────── -->
-<h2><span class="bound-num">5</span> Exhaustive Search</h2>
+<!-- ───────────────────── BOUND 4 ───────────────────── -->
+<h2><span class="bound-num">4</span> Exhaustive Search</h2>
 
 <p>The only way to find the exact reachable set is brute-force search:</p>
 
@@ -474,7 +409,7 @@
 
 <h3>Interactive: watch the BFS explore</h3>
 
-<p>Enter a puzzle's <strong>stable ID</strong> (from the game) or pick an example. Press <strong>Play</strong> to watch the BFS explore all reachable states. Each cell lights up the first time any robot lands on it. <span style="color:#7c3aed;">Purple cells</span> are in the orthogonal hull but <em>not</em> reachable &mdash; that's the gap between bounds 4 and 5.</p>
+<p>Enter a puzzle's <strong>stable ID</strong> (from the game) or pick an example. Press <strong>Play</strong> to watch the BFS explore all reachable states. Each cell lights up the first time any robot lands on it. <span style="color:#7c3aed;">Purple cells</span> are in the orthogonal hull but <em>not</em> reachable &mdash; that's the gap between bounds 3 and 4.</p>
 
 <div id="bfs-app" style="margin:24px 0;font-family:sans-serif;font-size:13px;"></div>
 
@@ -834,63 +769,126 @@
   <tr><th>#</th><th>Bound</th><th>What it tracks</th><th>Shape</th><th>Cost</th></tr>
   <tr>
     <td><span class="bound-num" style="font-size:12px;width:22px;height:22px;line-height:22px;">1</span></td>
-    <td>Board</td><td>Grid dimensions</td><td>Full rectangle</td><td>Free</td>
-  </tr>
-  <tr>
-    <td><span class="bound-num" style="font-size:12px;width:22px;height:22px;line-height:22px;">2</span></td>
     <td>Bounding box</td><td>Min/max row &amp; column (2 rulers)</td><td>Rectangle</td><td>Trivial</td>
   </tr>
   <tr>
-    <td><span class="bound-num" style="font-size:12px;width:22px;height:22px;line-height:22px;">3</span></td>
+    <td><span class="bound-num" style="font-size:12px;width:22px;height:22px;line-height:22px;">2</span></td>
     <td>Convex hull</td><td>All linear rulers (tightest convex bound)</td><td>Convex polygon</td><td>Trivial</td>
   </tr>
   <tr>
-    <td><span class="bound-num" style="font-size:12px;width:22px;height:22px;line-height:22px;">4</span></td>
+    <td><span class="bound-num" style="font-size:12px;width:22px;height:22px;line-height:22px;">3</span></td>
     <td>Orthogonal hull</td><td>Row &amp; column connectedness (+ diagonal for hex)</td><td>Staircase / star</td><td>Cheap</td>
   </tr>
   <tr>
-    <td><span class="bound-num" style="font-size:12px;width:22px;height:22px;line-height:22px;">5</span></td>
+    <td><span class="bound-num" style="font-size:12px;width:22px;height:22px;line-height:22px;">4</span></td>
     <td>Exhaustive search</td><td>Full BFS over all states</td><td>Exact</td><td>Expensive</td>
   </tr>
 </table>
 
 <p>Each bound is <strong>strictly tighter</strong> than the one above it (in general):</p>
 <ul>
-  <li>The bounding box is smaller than the board whenever robots don't fill the grid.</li>
   <li>The convex hull is smaller than the bounding box whenever robots aren't arranged in a rectangle.</li>
   <li>The OCH is smaller than the convex hull whenever robots aren't arranged in a convex blob &mdash; its staircase boundary follows the actual robot geometry far more closely.</li>
   <li>The exact reachable set is smaller than the OCH because the OCH ignores how robots physically interact &mdash; it only knows about alignment, not adjacency.</li>
 </ul>
 
-<p>The first four bounds are cheap to compute from the starting positions. The fifth requires exploring the full game tree. The conceptual divide is between <strong>convex bounds</strong> (bounds 2&ndash;3, which are polygons getting closer to the convex hull) and <strong>connectedness bounds</strong> (bound 4, which breaks out of convexity entirely). Each world has a natural "tightest" answer: the convex hull is the tightest convex bound, and the OCH is the tightest connectedness bound.</p>
+<p>The first three bounds are cheap to compute from the starting positions. The fourth requires exploring the full game tree. The conceptual divide is between <strong>convex bounds</strong> (bounds 1&ndash;2, which are polygons getting closer to the convex hull) and <strong>connectedness bounds</strong> (bound 3, which breaks out of convexity entirely). Each world has a natural "tightest" answer: the convex hull is the tightest convex bound, and the OCH is the tightest connectedness bound.</p>
 
 <figure class="figure">
-  <svg width="380" height="320" viewBox="0 0 380 320">
-    <!-- Board -->
-    <rect x="10" y="10" width="360" height="300" rx="6" fill="#f8f8f8" stroke="#bbb" stroke-width="1.5"/>
-    <text x="26" y="34" font-size="13" fill="#888" font-family="Georgia">Board</text>
+  <svg width="380" height="290" viewBox="0 0 380 290">
     <!-- Bounding box -->
-    <rect x="30" y="42" width="320" height="248" rx="4" fill="rgba(234,179,8,.08)" stroke="#ca8a04" stroke-width="1.5" stroke-dasharray="6,3"/>
-    <text x="48" y="62" font-size="13" fill="#ca8a04" font-family="Georgia">Bounding box</text>
+    <rect x="10" y="10" width="360" height="270" rx="4" fill="rgba(234,179,8,.08)" stroke="#ca8a04" stroke-width="1.5" stroke-dasharray="6,3"/>
+    <text x="28" y="32" font-size="13" fill="#ca8a04" font-family="Georgia">Bounding box</text>
     <!-- Convex hull — diamond fully inside bbox -->
-    <polygon points="190,68 320,166 190,264 60,166" fill="rgba(37,99,235,.07)" stroke="#2563eb" stroke-width="1.5"/>
-    <text x="220" y="98" text-anchor="start" font-size="13" fill="#2563eb" font-family="Georgia">Convex hull</text>
-    <!-- OCH (cross) — fully inside convex hull diamond
-         Cross center at (190,166). Horizontal arm ±90px, vertical arm ±60px, arm width 40px.
-         Must stay inside diamond: at y=166 diamond goes from x=60 to x=320. At x=190 diamond goes from y=68 to y=264.
-         Cross arm edges at y=146 and y=186: diamond half-width at those y's ≈ ±110px → arms can go to ±90px safely. -->
-    <path d="M172,106 L208,106 L208,146 L280,146 L280,186 L208,186 L208,226 L172,226 L172,186 L100,186 L100,146 L172,146 Z" fill="rgba(139,92,246,.12)" stroke="#7c3aed" stroke-width="1.5"/>
-    <text x="190" y="152" text-anchor="middle" font-size="12" fill="#7c3aed" font-family="Georgia">Orthogonal</text>
-    <text x="190" y="166" text-anchor="middle" font-size="12" fill="#7c3aed" font-family="Georgia">hull</text>
-    <!-- Exact set — ellipse fully inside the cross. Cross center column is x=172..208, rows 106..226.
-         Ellipse centered at (190,185), rx=16 (fits in 172..208), ry=30 (fits in 146..226 range). -->
-    <ellipse cx="190" cy="196" rx="16" ry="28" fill="rgba(22,163,74,.15)" stroke="#16a34a" stroke-width="1.5"/>
-    <text x="190" y="200" text-anchor="middle" font-size="11" fill="#16a34a" font-family="Georgia">Exact set</text>
+    <polygon points="190,48 320,140 190,236 60,140" fill="rgba(37,99,235,.07)" stroke="#2563eb" stroke-width="1.5"/>
+    <text x="220" y="76" text-anchor="start" font-size="13" fill="#2563eb" font-family="Georgia">Convex hull</text>
+    <!-- OCH (cross) — fully inside convex hull diamond -->
+    <path d="M172,82 L208,82 L208,122 L280,122 L280,162 L208,162 L208,202 L172,202 L172,162 L100,162 L100,122 L172,122 Z" fill="rgba(139,92,246,.12)" stroke="#7c3aed" stroke-width="1.5"/>
+    <text x="190" y="128" text-anchor="middle" font-size="12" fill="#7c3aed" font-family="Georgia">Orthogonal</text>
+    <text x="190" y="142" text-anchor="middle" font-size="12" fill="#7c3aed" font-family="Georgia">hull</text>
+    <!-- Exact set — ellipse fully inside the cross -->
+    <ellipse cx="190" cy="172" rx="16" ry="28" fill="rgba(22,163,74,.15)" stroke="#16a34a" stroke-width="1.5"/>
+    <text x="190" y="176" text-anchor="middle" font-size="11" fill="#16a34a" font-family="Georgia">Exact set</text>
   </svg>
   <figcaption>The full hierarchy, from loosest to tightest. The gap between the orthogonal hull and the exact set is where the combinatorial complexity lives &mdash; and why these puzzles are fun to solve.</figcaption>
 </figure>
 
+<h3>What this means for players</h3>
+
+<p>These bounds have a practical application in the game. The <strong>Settings</strong> panel lets you choose how aggressively to shade "unreachable" cells: bounding box, convex hull, or orthogonal hull. Tighter bounds dim more cells, helping you focus on the cells that actually matter.</p>
+
+<p>There's also a strategic insight: <strong>if the center cell (the exit) falls outside any of these bounds, the puzzle is unwinnable from the current position.</strong> Since the exit robot must reach center to solve the puzzle, and we've proved no robot can leave the bound, a bound that doesn't contain center means no solution exists. This can help you recognize dead-end states without exhaustive search &mdash; if you've moved robots into a configuration where center is outside the orthogonal hull, you need to undo.</p>
+
 <script>
+// ── Square progression diagram (bbox → octagon → convex hull) ──
+(function() {
+  const el = document.getElementById('sq-progression');
+  if (!el) return;
+  const pts = [[0,2],[1,5],[3,0],[4,6],[6,3]];
+  const N = 7, CS = 32, PAD = 10, GAP = 30; // cell size, padding, panel gap
+  const panelW = N*CS + PAD*2, panelH = N*CS + PAD*2;
+  function cc(r,c,offX) { return { x: offX + PAD + c*CS + CS/2, y: PAD + r*CS + CS/2 }; }
+
+  // Compute bounds
+  let rMin=6,rMax=0,cMin=6,cMax=0,sMin=12,sMax=0,dMin=6,dMax=-6;
+  for(const[r,c]of pts){rMin=Math.min(rMin,r);rMax=Math.max(rMax,r);cMin=Math.min(cMin,c);cMax=Math.max(cMax,c);sMin=Math.min(sMin,r+c);sMax=Math.max(sMax,r+c);dMin=Math.min(dMin,r-c);dMax=Math.max(dMax,r-c);}
+
+  // Convex hull
+  function cross(o,a,b){return(a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]);}
+  const sorted=[...pts].sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
+  const lower=[];for(const p of sorted){while(lower.length>=2&&cross(lower[lower.length-2],lower[lower.length-1],p)<=0)lower.pop();lower.push(p);}
+  const upper=[];for(let i=sorted.length-1;i>=0;i--){const p=sorted[i];while(upper.length>=2&&cross(upper[upper.length-2],upper[upper.length-1],p)<=0)upper.pop();upper.push(p);}
+  lower.pop();upper.pop();
+  const hull=lower.concat(upper);
+  function inHull(r,c){for(let i=0;i<hull.length;i++){const j=(i+1)%hull.length;if(cross(hull[i],hull[j],[r,c])<0)return false;}return true;}
+
+  // Count cells
+  let bboxN=0, octN=0, convN=0;
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){
+    const inBbox = r>=rMin&&r<=rMax&&c>=cMin&&c<=cMax;
+    const inOct = inBbox&&r+c>=sMin&&r+c<=sMax&&r-c>=dMin&&r-c<=dMax;
+    const inConv = inHull(r,c);
+    if(inBbox)bboxN++;if(inOct)octN++;if(inConv)convN++;
+  }
+
+  const totalW = panelW*3 + GAP*2;
+  el.setAttribute('width', totalW);
+  el.setAttribute('height', panelH + 20);
+  el.setAttribute('viewBox', '0 0 '+totalW+' '+(panelH+20));
+
+  let h = '';
+  const titles = ['Bounding box (2 rulers)','Octagonal bound (4 rulers)','Convex hull (all rulers)'];
+  const colors = [['#ca8a04','rgba(234,179,8,.12)'],['#2563eb','rgba(37,99,235,.10)'],['#16a34a','rgba(22,163,74,.10)']];
+  const counts = [bboxN, octN, convN];
+
+  for (let p = 0; p < 3; p++) {
+    const offX = p * (panelW + GAP);
+    // Title
+    h += '<text x="'+(offX+panelW/2)+'" y="12" text-anchor="middle" font-size="12" font-weight="bold" fill="#222" font-family="Georgia">'+titles[p]+'</text>';
+    // Grid
+    for (let i = 0; i <= N; i++) {
+      h += '<line x1="'+(offX+PAD)+'" y1="'+(PAD+i*CS)+'" x2="'+(offX+PAD+N*CS)+'" y2="'+(PAD+i*CS)+'" stroke="#eee" stroke-width="1"/>';
+      h += '<line x1="'+(offX+PAD+i*CS)+'" y1="'+PAD+'" x2="'+(offX+PAD+i*CS)+'" y2="'+(PAD+N*CS)+'" stroke="#eee" stroke-width="1"/>';
+    }
+    // Highlighted cells
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+      let inside = false;
+      if (p === 0) inside = r>=rMin&&r<=rMax&&c>=cMin&&c<=cMax;
+      else if (p === 1) inside = r>=rMin&&r<=rMax&&c>=cMin&&c<=cMax&&r+c>=sMin&&r+c<=sMax&&r-c>=dMin&&r-c<=dMax;
+      else inside = inHull(r,c);
+      if (inside) h += '<rect x="'+(offX+PAD+c*CS)+'" y="'+(PAD+r*CS)+'" width="'+CS+'" height="'+CS+'" fill="'+colors[p][1]+'" rx="2"/>';
+    }
+    // Robots
+    for (const [r,c] of pts) {
+      const {x,y} = cc(r,c,offX);
+      h += '<circle cx="'+x+'" cy="'+y+'" r="'+(CS*.28)+'" fill="#555"/>';
+    }
+    // Count
+    h += '<text x="'+(offX+panelW/2)+'" y="'+(panelH+14)+'" text-anchor="middle" font-size="11" fill="'+colors[p][0]+'" font-family="Georgia" font-style="italic">'+counts[p]+' cells</text>';
+  }
+  el.innerHTML = h;
+})();
+
 // ── Hex diagram rendering ──
 (function() {
   const S3 = Math.sqrt(3), COS60 = 0.5, SIN60 = S3/2;
