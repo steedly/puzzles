@@ -574,3 +574,13 @@ stable (16 GB), and all 16 cores are utilized. If not, the run can
 be killed and the unified library shipped with 17/18 combos
 complete (missing only 4+3 → the app would lack some 4-exit+3-helper
 beehive/hex puzzles but would function with 147K puzzles).
+
+### 2026-04-16T14:46Z — Hourly #14: no new progress line; est ~21-23%
+
+- **Elapsed: 21h09m** (4+3 pass 3 ~14h18m in)
+- **RSS: 16.1 GB**, CPU 1573%, 16/16 R, delta 993/62 = 16.0 cores
+- No new progress flush since 7500/39080 at 13:36Z. Estimated
+  ~8000-9000/39080 done based on CPU delta since last checkpoint.
+  Still only ~21-23%. LPT decay hasn't visibly kicked in yet —
+  per-puzzle cost may be fairly uniform for 4-exit 7-piece puzzles
+  rather than bimodally concentrated in the head.
