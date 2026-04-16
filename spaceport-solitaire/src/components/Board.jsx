@@ -232,8 +232,8 @@ export default function Board({ state, dispatch, puzzle, variantBlocks, buildMod
         const { x, y } = hexCellPosition(r, c, N, hexR);
         style = {
           position: 'absolute',
-          left: x + hexDims.offsetX - cellW / 2,
-          top:  y + hexDims.offsetY - cellH / 2,
+          left: x + hexDims.offsetX - cellW / 2 + 10,
+          top:  y + hexDims.offsetY - cellH / 2 + 10,
           width: cellW,
           height: cellH,
         };
@@ -266,10 +266,13 @@ export default function Board({ state, dispatch, puzzle, variantBlocks, buildMod
 
   // ── Render: board container ──
   if (isHex) {
+    const boardPad = 20; // 10px padding on each side, matching .board--hex CSS
     return (
       <div className="board-container">
-        <ScaledBoard naturalWidth={hexDims.width} naturalHeight={hexDims.height}>
-          {cells}
+        <ScaledBoard naturalWidth={hexDims.width + boardPad} naturalHeight={hexDims.height + boardPad}>
+          <div className="board board--hex" style={{ width: hexDims.width + boardPad, height: hexDims.height + boardPad, position: 'relative' }}>
+            {cells}
+          </div>
         </ScaledBoard>
       </div>
     );
