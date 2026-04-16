@@ -538,3 +538,39 @@ Steady state. No intervention needed.
 - **~654K CPU-sec** consumed → mid-range (18/puz): **93% done,
   ~51 min remaining** → pass 3 done ~13:00Z. Pessimistic (22/puz):
   76%, ~3.6h remaining.
+
+### 2026-04-16T13:44Z — Hourly #13: GROUND TRUTH — 4+3 pass 3 only 19% at 13.1h
+
+**First progress line flushed after 13.1 hours of silence:**
+```
+pass 3 progress: 7500/39080 (19%), 47242.5s elapsed
+```
+
+My CPU-sec extrapolations were wildly off because they assumed a
+per-puzzle cost derived from 4+2 (9.4 CPU-sec/puzzle). Actual cost
+for the first 7,500 puzzles of 4+3: **100.8 CPU-sec/puzzle** — 11×
+worse than 4+2 and 157× worse than 3+4.
+
+**Why the massive blow-up:** 4+3 = 4 exits + 3 helpers = 7 pieces.
+`solve_min_grouped`'s augmented DP state space grows combinatorially
+with exit count. 4 exits on a 7×7 hex board with 6 directions creates
+a state space orders of magnitude larger than 3 exits. Additionally,
+7-piece means more robots creating larger move trees per state.
+
+**LPT mitigating factor:** The first 19% of puzzles processed under
+LPT ordering are the HARDEST (highest retrograde depth). The
+remaining 81% should be progressively cheaper. Estimated total pass 3
+wall time with LPT decay: 18-28h (vs 55h at uniform rate). Current:
+13.1h in. Remaining: **5-15h for pass 3, then Layer 3**.
+
+**Revised run ETA: 25-35h total elapsed** (finishing 18:36-04:36Z on
+April 16-17). This is significantly longer than the original 5-7h
+estimate, which underestimated the 4-exit DP cost by an order of
+magnitude.
+
+**Decision point for user:** If 25-35h total is acceptable, the run
+should be left to complete — it's making real progress, memory is
+stable (16 GB), and all 16 cores are utilized. If not, the run can
+be killed and the unified library shipped with 17/18 combos
+complete (missing only 4+3 → the app would lack some 4-exit+3-helper
+beehive/hex puzzles but would function with 147K puzzles).
