@@ -156,10 +156,22 @@ export default function App() {
 
   // Mark puzzle as solved on win edge — but NOT when stepping through a
   // build-mode solution playback (the user didn't actually solve it).
+  // A ref tracks if the win was reached via stepping, so that switching
+  // back to library mode doesn't falsely trigger markSolved.
   const wonRef = useRef(false);
+  const steppedToWinRef = useRef(false);
   const isStepModeForWin = mode === 'build' && buildState.phase === 'solved' && !buildPreview;
   useEffect(() => {
-    if (state.isWon && !wonRef.current && currentPuzzle?.stableId && !isStepModeForWin) {
+    if (state.isWon && isStepModeForWin) {
+      steppedToWinRef.current = true;
+    }
+    if (!state.isWon) {
+      steppedToWinRef.current = false;
+    }
+  }, [state.isWon, isStepModeForWin]);
+  useEffect(() => {
+    if (state.isWon && !wonRef.current && currentPuzzle?.stableId
+        && !isStepModeForWin && !steppedToWinRef.current) {
       wonRef.current = true;
       userData.markSolved(currentPuzzle.stableId, {
         moves:    state.moveCount,
@@ -556,7 +568,7 @@ export default function App() {
         </div>
       </main>
 
-      {state.isWon && !isStepMode && (
+      {state.isWon && !isStepMode && !steppedToWinRef.current && (
         <WinModal
           moveCount={state.moveCount}
           slideCount={state.slideCount}
