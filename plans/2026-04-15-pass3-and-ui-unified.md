@@ -530,3 +530,11 @@ Steady state. No intervention needed.
 - No stdio flush since 00:28Z — **10.5 hours of buffered output**.
   When pass 3 solve completes and Layer 3 runs, a large flush
   will dump all accumulated progress lines at once.
+
+### 2026-04-16T12:02Z — Hourly #12: 4+3 pass 3 ~11.5h in; mid-range says 93%
+
+- **Elapsed: 18h25m** (4+3 pass 3 ~11h34m in)
+- **RSS: 16 GB**, CPU 1544%, 16/16 R, delta 974/61 = 16.0 cores
+- **~654K CPU-sec** consumed → mid-range (18/puz): **93% done,
+  ~51 min remaining** → pass 3 done ~13:00Z. Pessimistic (22/puz):
+  76%, ~3.6h remaining.
