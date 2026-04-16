@@ -502,3 +502,10 @@ Steady state. No intervention needed.
   39,080 puzzles: ~625K-860K CPU-sec. **Remaining: ~3-7h** for
   pass 3 solve, then Layer 3 heavy phase adds more.
 - Revised run ETA: **18-22h total elapsed** (finishing 11:00-15:00Z).
+
+### 2026-04-16T08:59Z — Hourly #9: 4+3 pass 3 ~8.5h in; est 56-78% done
+
+- **Elapsed: 15h22m** (4+3 pass 3 ~8h31m in)
+- **RSS: 16 GB**, CPU 1593%, 16/16 R
+- **~486K CPU-sec** consumed. At 16-22 CPU-sec/puzzle ×
+  39,080 puzzles = 625K-860K total → **56-78% done**.
