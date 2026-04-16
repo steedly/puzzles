@@ -468,3 +468,9 @@ Steady state. No intervention needed.
 - **Elapsed: 10h17m** (4+3 pass 3 solve ~3h26m in)
 - **RSS: 16 GB**, CPU 1593%, 16/16 R, delta 974/61 = 16.0 cores
 - Still no log flush. Accumulating ~3.5h of solve + progress in buffer.
+
+### 2026-04-16T04:55Z — Hourly #5: 4+3 pass 3 ~4.5h in; steady
+
+- **Elapsed: 11h18m** (4+3 pass 3 solve ~4h27m in)
+- **RSS: 16 GB**, CPU 1593%, 16/16 R, delta 975/61 = 16.0 cores
+- No log flush since 00:28Z (~4.5h buffered). Still grinding.
