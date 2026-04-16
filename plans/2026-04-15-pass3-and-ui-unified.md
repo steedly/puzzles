@@ -484,3 +484,9 @@ Steady state. No intervention needed.
   7-piece) we'd be ~87% done; at 2× that rate (accounting for
   7-piece overhead) ~44%. Best estimate: **50-70% done**.
 - No log flush since 00:28Z. ~5.5h buffered.
+
+### 2026-04-16T06:57Z — Hourly #7: 4+3 pass 3 ~6.5h in
+
+- **Elapsed: 13h20m** (4+3 pass 3 solve ~6h29m in)
+- **RSS: 16.4 GB** (slight uptick), CPU 1593%, 16/16 R
+- **~372K CPU-sec** consumed in pass 3 solve. Estimated 60-80% done.
