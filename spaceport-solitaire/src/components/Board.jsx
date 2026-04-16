@@ -40,8 +40,11 @@ function hexBoardDimensions(N, hexR) {
       if (y > maxY) maxY = y;
     }
   }
-  const padX = hexR * 1.1;
-  const padY = hexR * 1.0;
+  // Pad by exactly half-cell so outermost cells aren't clipped
+  const cellW = hexR * 2;
+  const cellH = hexR * Math.sqrt(3);
+  const padX = cellW / 2;
+  const padY = cellH / 2;
   return {
     width:   maxX - minX + padX * 2,
     height:  maxY - minY + padY * 2,
