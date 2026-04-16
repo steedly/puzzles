@@ -462,3 +462,9 @@ wall. Total run ETA: 13-18h elapsed. Currently at 8h15m, so maybe
 - **No log/output flush** since 00:28Z — still in pass 3 solve
 
 Steady state. No intervention needed.
+
+### 2026-04-16T03:54Z — Hourly #4: 4+3 pass 3 ~3.5h in; steady
+
+- **Elapsed: 10h17m** (4+3 pass 3 solve ~3h26m in)
+- **RSS: 16 GB**, CPU 1593%, 16/16 R, delta 974/61 = 16.0 cores
+- Still no log flush. Accumulating ~3.5h of solve + progress in buffer.
