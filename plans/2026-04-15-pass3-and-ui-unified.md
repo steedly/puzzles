@@ -395,3 +395,45 @@ marginal benefit. Letting v11 finish.
 
 After v11 completes: validate, note 4-exit tail latency as a
 follow-up optimization (see open items below), do Phase 6 UI cutover.
+
+### 2026-04-16T00:50Z — Hourly #1: 4+2 done (2h11m); 4+3 (final combo) in pass 3 solve
+
+- **Elapsed: 7h13m**
+- **Combos: 18/18 started**, 17/18 complete. Final combo 4+3 now in pass 3 solve.
+- **Output so far: 147,004 puzzles** (20.9 MB)
+- **RSS: 16 GB current**, pass 2 of 4+3 peaked at **29.2 GB** (tightest
+  point of the run)
+
+**4+2 completed successfully.** Final stats: 13,378 emitted, 1,311
+state-set dups removed (10% dedup contribution — high for a combo),
+pass 3 wall time **7,873s (2h11m)**. 4-exit pass 3 solve is indeed
+dramatically slower than 3-exit due to the larger DP augmented-state
+space — this is the main optimization opportunity for a follow-up
+session. For reference, 3+4 pass 3 wall was 3h18m on 29176 survivors;
+4+2 was 2h11m on 13378 survivors (3.4× slower per puzzle).
+
+**4+3 in flight.** Final combo of the run.
+- Pass 2 peak RSS 29.2 GB — closest the run has been to the 32 GB
+  cap. Pre-filter brought it down to 15.5 GB baseline.
+- 39,080 survivors entering pass 3 solve (more than 3+4's 29,176)
+- All 16 threads active at 1600% CPU
+
+Pass 3 solve ETA: probably 2-4 hours based on 4+2 scaling. Layer 3
+will then run (heavy phase at 4-wide serial on pruned_ns=7 puzzles).
+Total run ETA: 10-11 hours elapsed, finishing ~02:30-04:30Z.
+
+**Follow-up opportunities for a future session:**
+
+1. **4-exit pass 3 solve optimization.** The 4-exit DP state space
+   blow-up is the single biggest wall-time contributor on this
+   machine. Profiling solve_min_grouped under a 4-exit workload
+   would likely identify a tractable improvement (memoization,
+   pruning, different canonical form, etc.).
+2. **Layer 3 heavy phase parallelism.** Currently 4-wide serial
+   forward_bfs_states (memory-safe). A smarter pre-grow strategy in
+   the parallel variant (observed-branching-based instead of
+   worst-case) would let Layer 3 use 16 cores without OOM.
+3. **Stdio flushing.** The progress lines buffer heavily when stderr
+   is redirected to a file and thread 0 is stuck on a hard puzzle.
+   Adding explicit `std::cerr.flush()` in the progress block would
+   help monitoring long runs.
