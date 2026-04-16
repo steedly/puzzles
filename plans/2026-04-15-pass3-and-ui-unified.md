@@ -509,3 +509,14 @@ Steady state. No intervention needed.
 - **RSS: 16 GB**, CPU 1593%, 16/16 R
 - **~486K CPU-sec** consumed. At 16-22 CPU-sec/puzzle ×
   39,080 puzzles = 625K-860K total → **56-78% done**.
+
+### 2026-04-16T09:59Z — Hourly #10: 4+3 pass 3 ~9.5h in; est 63-86% done
+
+- **Elapsed: 16h23m** (4+3 pass 3 ~9h31m in)
+- **RSS: 16 GB**, CPU 1581%, 16/16 R
+- **~540K CPU-sec** consumed → 63-86% done (range narrowing)
+- Hourly CPU deltas have been rock-steady at ~975 CPU-min/hr
+  (16 cores × 100%), confirming the run is not hitting any barriers
+  or stalls — just heavy DP computation.
+- **Mid-range projection**: 18 CPU-sec/puzzle avg → 703K total →
+  163K remaining → ~2.8h more pass 3 solve → ~12:50Z + Layer 3.
