@@ -624,3 +624,34 @@ efficiency. Two follow-up optimizations would make it tractable:
 1. Profile + optimize `solve_min_grouped` for 4-exit workloads
 2. Reduce `max_per_bucket` for 4-exit combos (fewer survivors =
    less total compute)
+
+### 2026-04-16T19:51Z — Hourly #19: 60% done! LPT decay confirmed
+
+**Second progress line flushed at 19:39Z:**
+```
+pass 3 progress: 23500/39080 (60%), 69066.8s elapsed
+```
+
+LPT decay IS working — dramatically. The 7500→23500 batch (16,000
+puzzles in 21,824s wall) averaged **21.8 CPU-sec/puzzle** — 5× faster
+than the first 7500's 100.8 CPU-sec/puzzle. The hardest puzzles were
+concentrated in the LPT head as expected; the remaining 40% will be
+progressively cheaper.
+
+| Batch       | Puzzles | Wall time | CPU-sec/puzzle |
+|-------------|---------|-----------|----------------|
+| 0→7500      | 7,500   | 47,243s   | 100.8          |
+| 7500→23500  | 16,000  | 21,824s   | 21.8           |
+| 23500→39080 | 15,580  | est 3-5h  | est 10-15      |
+
+**Revised ETA: pass 3 done in ~3-5h** (vs the earlier 53h uniform
+estimate — that was wrong because it ignored LPT decay). Then Layer 3
+heavy phase. Total run: **29-32h elapsed** (finishing ~22:00-01:00Z).
+
+**RSS: 19.7 GB** (10 GB free). Growth trend continues (~0.4 GB/hr).
+Survivable if pass 3 finishes in the next few hours, but Layer 3
+will need careful memory management.
+
+**Revised recommendation:** Withdraw the "kill and ship" advice.
+The run is now on track to complete in a reasonable timeframe.
+Let it finish.
