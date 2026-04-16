@@ -489,7 +489,8 @@ button { cursor: pointer; font-family: inherit; }
   cursor: default !important;
 }
 .cell--hex.cell--blocked {
-  background: var(--bg) !important;
+  background: var(--cell-border) !important;
+  opacity: 0.3;
 }
 .cell--hex.cell--blocked::before {
   background: var(--bg) !important;
