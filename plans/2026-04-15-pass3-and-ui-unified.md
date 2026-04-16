@@ -520,3 +520,13 @@ Steady state. No intervention needed.
   or stalls — just heavy DP computation.
 - **Mid-range projection**: 18 CPU-sec/puzzle avg → 703K total →
   163K remaining → ~2.8h more pass 3 solve → ~12:50Z + Layer 3.
+
+### 2026-04-16T11:01Z — Hourly #11: 4+3 pass 3 ~10.5h in; est 69-85% done
+
+- **Elapsed: 17h24m** (4+3 pass 3 ~10h33m in)
+- **RSS: 16.2 GB**, CPU 1593%, 16/16 R, delta 980/62 = 15.8 cores
+- **~594K CPU-sec** consumed → mid-range 85% done (~1.9h remaining),
+  pessimistic 69% (~4.6h remaining)
+- No stdio flush since 00:28Z — **10.5 hours of buffered output**.
+  When pass 3 solve completes and Layer 3 runs, a large flush
+  will dump all accumulated progress lines at once.
