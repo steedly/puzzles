@@ -655,3 +655,38 @@ will need careful memory management.
 **Revised recommendation:** Withdraw the "kill and ship" advice.
 The run is now on track to complete in a reasonable timeframe.
 Let it finish.
+
+### 2026-04-16T21:39Z — v11 OOM-killed in 4+3 Layer 3; 146,988 puzzles saved
+
+**v11 died at 27h57m wall, max RSS 30.1 GB.** Pass 3 solve for 4+3
+completed successfully (the 11-hour single-puzzle tail finished), but
+Layer 3 OOM'd when 4 concurrent serial forward_bfs_states on heavy
+puzzles added ~10 GB on top of the 20 GB pass 3 baseline.
+
+**Output preserved:** `runs/v11-beehive.llp` has **146,988 puzzles**
+from 17/18 combos (all except 4+3). The output is valid and complete
+for those combos — only the last combo's emit was lost.
+
+| Combo | Status | Puzzles |
+|---|---|---|
+| 1+1..1+6 | complete | ~43K |
+| 2+1..2+5 | complete | ~56K |
+| 3+1..3+4 | complete | ~35K |
+| 4+1..4+2 | complete | ~13K |
+| **4+3** | **OOM in Layer 3** | **0** |
+
+**Why 4+3 is impractical on this machine:**
+1. Pass 3 solve: 39,080 survivors × ~25 CPU-sec avg = 16 core-hours
+   = ~20h wall. One outlier puzzle alone took **11 hours**.
+2. Layer 3 heavy: 20 GB baseline + 4 × ~4 GB concurrent FlatMaps
+   = 36 GB → OOM on 32 GB machine.
+3. Even reducing Layer 3 to 2-wide (8 GB concurrent + 20 baseline
+   = 28 GB, tight but possibly survivable), re-running `--only=4,3`
+   requires repeating the full 20h pass 3 solve. Not practical.
+
+**Recommendation: ship with 146,988 puzzles.** The app has puzzles
+for every variant and every exit/helper combo except 4+3. The 4-exit
+DP blow-up (100× slower per puzzle than 3-exit) is an algorithmic
+issue for a follow-up session, not a tuning issue.
+
+**Awaiting user decision** before proceeding with Phase 6 cutover.
