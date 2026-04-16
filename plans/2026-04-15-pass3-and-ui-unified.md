@@ -490,3 +490,15 @@ Steady state. No intervention needed.
 - **Elapsed: 13h20m** (4+3 pass 3 solve ~6h29m in)
 - **RSS: 16.4 GB** (slight uptick), CPU 1593%, 16/16 R
 - **~372K CPU-sec** consumed in pass 3 solve. Estimated 60-80% done.
+
+### 2026-04-16T07:58Z — Hourly #8: 4+3 pass 3 ~7.5h in; slower than projected
+
+- **Elapsed: 14h21m** (4+3 pass 3 solve ~7h30m in)
+- **RSS: 16.1 GB**, CPU 1593%, 16/16 R, delta 975/61 = 16.0 cores
+- **~432K CPU-sec** consumed — surpassed 4+2's extrapolated total
+  (367K), confirming 4+3's per-puzzle cost is 1.5-2.5× higher than
+  4+2 due to 7-piece DP state space. Effective per-puzzle cost
+  estimated at 16-22 CPU-sec (vs 4+2's 9.4). Total needed for
+  39,080 puzzles: ~625K-860K CPU-sec. **Remaining: ~3-7h** for
+  pass 3 solve, then Layer 3 heavy phase adds more.
+- Revised run ETA: **18-22h total elapsed** (finishing 11:00-15:00Z).
