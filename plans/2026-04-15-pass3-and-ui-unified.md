@@ -584,3 +584,20 @@ beehive/hex puzzles but would function with 147K puzzles).
   Still only ~21-23%. LPT decay hasn't visibly kicked in yet —
   per-puzzle cost may be fairly uniform for 4-exit 7-piece puzzles
   rather than bimodally concentrated in the head.
+
+### 2026-04-16T15:47Z — Hourly #15: est ~22%; LPT decay NOT materializing
+
+- **Elapsed: 22h10m** (4+3 pass 3 ~15h19m in)
+- **RSS: 16.2 GB**, CPU 1594%, 16/16 R, delta 974/61 = 16.0 cores
+- **~882K CPU-sec** consumed in pass 3 → est 8,750/39,080 done = 22%
+- **Revised ETA at uniform rate: ~53h remaining** for pass 3 alone,
+  then Layer 3. Total run: ~75h. LPT decay is NOT reducing
+  per-puzzle cost — 4-exit 7-piece DP appears to be uniformly
+  expensive (~100 CPU-sec/puzzle vs 3-exit's 0.64).
+
+**Recommendation:** Ship the unified library **without 4+3**. The
+run has 147K puzzles from 17/18 combos. The app would lack only
+4-exit + 3-helper puzzles for hex/beehive variants. The 4-exit DP
+blow-up is a genuine algorithmic bottleneck that needs profiling and
+optimization in a follow-up session — not something to wait 53h for
+on this machine.
