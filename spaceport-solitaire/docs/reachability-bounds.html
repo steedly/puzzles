@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reachability Bounds for Sliding-Robot Puzzles</title>
+<style>
+  :root {
+    --bg: #fafafa; --text: #222; --muted: #666; --accent: #2563eb;
+    --border: #ddd; --code-bg: #f0f0f0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Georgia','Times New Roman',serif; background: var(--bg);
+    color: var(--text); max-width: 800px; margin: 0 auto;
+    padding: 40px 24px 80px; line-height: 1.7; font-size: 17px;
+  }
+  h1 { font-size: 1.9em; margin-bottom: 8px; line-height: 1.25; }
+  h1+p.subtitle { color: var(--muted); font-style: italic; margin-bottom: 40px; font-size: .95em; }
+  h2 { font-size: 1.35em; margin-top: 48px; margin-bottom: 12px; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
+  h3 { font-size: 1.1em; margin-top: 28px; margin-bottom: 8px; }
+  p { margin-bottom: 14px; }
+  ol, ul { margin-bottom: 14px; padding-left: 28px; }
+  li { margin-bottom: 6px; }
+  strong { font-weight: 700; }
+  blockquote { border-left: 3px solid var(--accent); padding: 10px 16px; margin: 18px 0; background: rgba(37,99,235,.06); font-style: italic; }
+  table { border-collapse: collapse; margin: 18px 0; font-size: .92em; width: 100%; }
+  th, td { border: 1px solid var(--border); padding: 6px 12px; text-align: left; }
+  th { background: var(--code-bg); font-weight: 600; }
+  .figure { margin: 28px 0; text-align: center; }
+  .figure svg { display: inline-block; }
+  .figure figcaption { font-size: .88em; color: var(--muted); margin-top: 8px; font-style: italic; max-width: 600px; margin-left: auto; margin-right: auto; }
+  .grid-label { font-size: 11px; fill: #999; font-family: 'Menlo','Consolas',monospace; text-anchor: middle; dominant-baseline: central; }
+  .robot { font-size: 14px; font-family: 'Menlo','Consolas',monospace; font-weight: bold; fill: white; text-anchor: middle; dominant-baseline: central; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+  .bound-num { display: inline-block; background: var(--accent); color: white; width: 26px; height: 26px; border-radius: 50%; text-align: center; line-height: 26px; font-size: 14px; font-weight: bold; margin-right: 6px; vertical-align: middle; font-family: sans-serif; }
+  .proof-box { background: #f7f7f7; border: 1px solid #e0e0e0; border-radius: 6px; padding: 16px 20px; margin: 18px 0; }
+  .proof-box .proof-title { font-weight: 700; font-size: .95em; margin-bottom: 8px; color: var(--accent); }
+  .hex-note { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 6px; padding: 14px 18px; margin: 18px 0; }
+  .hex-note .hex-title { font-weight: 700; font-size: .95em; margin-bottom: 8px; color: #c2410c; }
+</style>
+</head>
+<body>
+
+<h1>Where Can a Robot End Up?</h1>
+<p class="subtitle">Reachability bounds for sliding-robot puzzles, from loose to exact</p>
+
+<!-- ───────────────────── SETUP ───────────────────── -->
+<h2>The Setup</h2>
+
+<p>Imagine a grid with several robots on it. When you move a robot, it doesn't step one square &mdash; it <strong>slides</strong> in the chosen direction until it slams into another robot, stopping in the cell right next to that blocker. Two rules constrain the movement:</p>
+
+<ol>
+  <li><strong>No voluntary stopping.</strong> A robot can't stop in the middle of an empty lane. It keeps going until something stops it.</li>
+  <li><strong>Another robot must stop it.</strong> If a robot would slide off the edge of the board without hitting another robot first, that move is illegal. You simply can't make it.</li>
+</ol>
+
+<figure class="figure">
+  <svg width="340" height="270" viewBox="0 0 340 270">
+    <defs>
+      <marker id="arB" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6Z" fill="#2563eb"/></marker>
+      <marker id="arR" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6Z" fill="#dc2626"/></marker>
+      <marker id="arG" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0,0 L7,2.5 L0,5Z" fill="#222"/></marker>
+      <marker id="arO" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0,0 L7,2.5 L0,5Z" fill="#ea580c"/></marker>
+    </defs>
+    <g stroke="#ddd" stroke-width="1">
+      <line x1="50" y1="30" x2="50" y2="230"/><line x1="90" y1="30" x2="90" y2="230"/>
+      <line x1="130" y1="30" x2="130" y2="230"/><line x1="170" y1="30" x2="170" y2="230"/>
+      <line x1="210" y1="30" x2="210" y2="230"/><line x1="250" y1="30" x2="250" y2="230"/>
+      <line x1="50" y1="30" x2="250" y2="30"/><line x1="50" y1="70" x2="250" y2="70"/>
+      <line x1="50" y1="110" x2="250" y2="110"/><line x1="50" y1="150" x2="250" y2="150"/>
+      <line x1="50" y1="190" x2="250" y2="190"/><line x1="50" y1="230" x2="250" y2="230"/>
+    </g>
+    <text class="grid-label" x="70" y="18">0</text><text class="grid-label" x="110" y="18">1</text>
+    <text class="grid-label" x="150" y="18">2</text><text class="grid-label" x="190" y="18">3</text>
+    <text class="grid-label" x="230" y="18">4</text>
+    <text class="grid-label" x="38" y="50">0</text><text class="grid-label" x="38" y="90">1</text>
+    <text class="grid-label" x="38" y="130">2</text><text class="grid-label" x="38" y="170">3</text>
+    <text class="grid-label" x="38" y="210">4</text>
+    <circle cx="110" cy="90" r="16" fill="#2563eb"/><text class="robot" x="110" y="90">A</text>
+    <circle cx="230" cy="170" r="16" fill="#dc2626"/><text class="robot" x="230" y="170">B</text>
+    <circle cx="110" cy="210" r="16" fill="#16a34a"/><text class="robot" x="110" y="210">C</text>
+    <line x1="110" y1="110" x2="110" y2="166" stroke="#2563eb" stroke-width="2" stroke-dasharray="5,3" marker-end="url(#arB)"/>
+    <text x="122" y="143" font-size="11" fill="#2563eb" font-family="Georgia" font-style="italic">A slides down,</text>
+    <text x="122" y="157" font-size="11" fill="#2563eb" font-family="Georgia" font-style="italic">stopped by C</text>
+    <line x1="130" y1="90" x2="244" y2="90" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="3,4" opacity=".4"/>
+    <text x="264" y="86" font-size="11" fill="#dc2626" font-family="Georgia" font-style="italic">A can't slide right</text>
+    <text x="264" y="100" font-size="11" fill="#dc2626" font-family="Georgia" font-style="italic">(no blocker)</text>
+  </svg>
+  <figcaption>Robot A can slide down (stopped by C) but not right (nobody to stop it).</figcaption>
+</figure>
+
+<p><strong>The question:</strong> Given a starting arrangement of robots, which cells could <em>any</em> robot <em>ever</em> land on, across all possible sequences of legal moves?</p>
+
+<h3>Square vs. hex boards</h3>
+
+<p>The puzzle comes in two flavors. On <strong>square boards</strong>, robots slide in 4 directions. On <strong>hex boards</strong>, robots get 2 additional diagonal directions, for 6 total:</p>
+
+<figure class="figure">
+  <svg width="420" height="170" viewBox="0 0 420 170">
+    <text x="100" y="16" text-anchor="middle" font-size="13" font-weight="bold" fill="#222" font-family="Georgia">Square (4 directions)</text>
+    <circle cx="100" cy="85" r="4" fill="#666"/>
+    <line x1="100" y1="77" x2="100" y2="44" stroke="#222" stroke-width="1.5" marker-end="url(#arG)"/>
+    <line x1="100" y1="93" x2="100" y2="126" stroke="#222" stroke-width="1.5" marker-end="url(#arG)"/>
+    <line x1="92" y1="85" x2="56" y2="85" stroke="#222" stroke-width="1.5" marker-end="url(#arG)"/>
+    <line x1="108" y1="85" x2="144" y2="85" stroke="#222" stroke-width="1.5" marker-end="url(#arG)"/>
+    <text x="100" y="37" text-anchor="middle" font-size="11" fill="#222" font-family="Georgia">Up</text>
+    <text x="100" y="140" text-anchor="middle" font-size="11" fill="#222" font-family="Georgia">Down</text>
+    <text x="44" y="89" text-anchor="middle" font-size="11" fill="#222" font-family="Georgia">Left</text>
+    <text x="156" y="89" text-anchor="middle" font-size="11" fill="#222" font-family="Georgia">Right</text>
+
+    <text x="310" y="16" text-anchor="middle" font-size="13" font-weight="bold" fill="#222" font-family="Georgia">Hex (6 directions)</text>
+    <circle cx="310" cy="85" r="4" fill="#666"/>
+    <line x1="310" y1="77" x2="310" y2="44" stroke="#222" stroke-width="1.5" marker-end="url(#arG)"/>
+    <line x1="310" y1="93" x2="310" y2="126" stroke="#222" stroke-width="1.5" marker-end="url(#arG)"/>
+    <line x1="302" y1="85" x2="266" y2="85" stroke="#222" stroke-width="1.5" marker-end="url(#arG)"/>
+    <line x1="318" y1="85" x2="354" y2="85" stroke="#222" stroke-width="1.5" marker-end="url(#arG)"/>
+    <line x1="316" y1="78" x2="342" y2="50" stroke="#ea580c" stroke-width="2" marker-end="url(#arO)"/>
+    <line x1="304" y1="92" x2="278" y2="120" stroke="#ea580c" stroke-width="2" marker-end="url(#arO)"/>
+    <text x="310" y="37" text-anchor="middle" font-size="11" fill="#222" font-family="Georgia">NW</text>
+    <text x="310" y="140" text-anchor="middle" font-size="11" fill="#222" font-family="Georgia">SE</text>
+    <text x="254" y="89" text-anchor="middle" font-size="11" fill="#222" font-family="Georgia">SW</text>
+    <text x="366" y="89" text-anchor="middle" font-size="11" fill="#222" font-family="Georgia">NE</text>
+    <text x="354" y="46" text-anchor="end" font-size="11" fill="#ea580c" font-family="Georgia" font-weight="bold">N</text>
+    <text x="270" y="130" text-anchor="start" font-size="11" fill="#ea580c" font-family="Georgia" font-weight="bold">S</text>
+    <text x="310" y="160" text-anchor="middle" font-size="11" fill="#ea580c" font-style="italic" font-family="Georgia">(+2 diagonal directions)</text>
+  </svg>
+  <figcaption>Hex boards add two diagonal directions (orange). On the internal grid, these are (&minus;1,&thinsp;+1) and (+1,&thinsp;&minus;1) &mdash; the robot stays on the same rising diagonal (<em>r</em>&thinsp;+&thinsp;<em>c</em> = constant).</figcaption>
+</figure>
+
+<p>We'll analyze each bound for both board types, noting where the hex diagonals create differences.</p>
+
+<hr>
+
+<!-- ───────────────────── BOUND 1 ───────────────────── -->
+<h2><span class="bound-num">1</span> The Board Itself</h2>
+
+<p><strong>Claim:</strong> No robot can leave the board. Obvious from the rules and true for both square and hex boards. This is the loosest possible bound.</p>
+
+<hr>
+
+<!-- ───────────────────── BOUND 2 ───────────────────── -->
+<h2><span class="bound-num">2</span> The Bounding Box</h2>
+
+<p><strong>Claim:</strong> No robot can ever leave the smallest axis-aligned rectangle that encloses all robots in the starting position.</p>
+
+<div class="proof-box">
+<div class="proof-title">Proof (by induction on the number of moves)</div>
+<p><strong>Base case:</strong> All robots start inside the bounding box by definition.</p>
+<p><strong>Inductive step:</strong> Assume every robot is inside the box. A legal move changes one robot; the rest stay put. We show the slider's new position is still inside the box.</p>
+<p>Consider the rightmost boundary, c<sub>max</sub>. For the slider to land beyond c<sub>max</sub>, it would need a blocker at column c<sub>max</sub>&thinsp;+&thinsp;2 or further right. But by hypothesis, every robot is at column &le;&thinsp;c<sub>max</sub>. No such blocker exists. In fact, if the blocker is at column c<sub>b</sub>&thinsp;&le;&thinsp;c<sub>max</sub>, the slider lands at c<sub>b</sub>&thinsp;&minus;&thinsp;1 &lt; c<sub>max</sub>.</p>
+<p>The identical argument holds for all four boundaries (left, right, top, bottom). &square;</p>
+</div>
+
+<figure class="figure">
+  <svg width="340" height="340" viewBox="0 0 340 340">
+    <g stroke="#ddd" stroke-width="1">
+      <line x1="50" y1="30" x2="330" y2="30"/><line x1="50" y1="70" x2="330" y2="70"/>
+      <line x1="50" y1="110" x2="330" y2="110"/><line x1="50" y1="150" x2="330" y2="150"/>
+      <line x1="50" y1="190" x2="330" y2="190"/><line x1="50" y1="230" x2="330" y2="230"/>
+      <line x1="50" y1="270" x2="330" y2="270"/><line x1="50" y1="310" x2="330" y2="310"/>
+      <line x1="50" y1="30" x2="50" y2="310"/><line x1="90" y1="30" x2="90" y2="310"/>
+      <line x1="130" y1="30" x2="130" y2="310"/><line x1="170" y1="30" x2="170" y2="310"/>
+      <line x1="210" y1="30" x2="210" y2="310"/><line x1="250" y1="30" x2="250" y2="310"/>
+      <line x1="290" y1="30" x2="290" y2="310"/><line x1="330" y1="30" x2="330" y2="310"/>
+    </g>
+    <text class="grid-label" x="70" y="18">0</text><text class="grid-label" x="110" y="18">1</text>
+    <text class="grid-label" x="150" y="18">2</text><text class="grid-label" x="190" y="18">3</text>
+    <text class="grid-label" x="230" y="18">4</text><text class="grid-label" x="270" y="18">5</text>
+    <text class="grid-label" x="310" y="18">6</text>
+    <text class="grid-label" x="38" y="50">0</text><text class="grid-label" x="38" y="90">1</text>
+    <text class="grid-label" x="38" y="130">2</text><text class="grid-label" x="38" y="170">3</text>
+    <text class="grid-label" x="38" y="210">4</text><text class="grid-label" x="38" y="250">5</text>
+    <text class="grid-label" x="38" y="290">6</text>
+    <!-- bbox rows 1-5, cols 0-6 -->
+    <rect x="50" y="70" width="280" height="200" fill="rgba(234,179,8,.10)" stroke="#ca8a04" stroke-width="2" stroke-dasharray="6,3"/>
+    <!-- Robots: diamond A=(1,3), B=(3,0), C=(5,3), D=(3,6) -->
+    <circle cx="190" cy="90" r="13" fill="#2563eb"/><text class="robot" x="190" y="90">A</text>
+    <circle cx="70" cy="170" r="13" fill="#dc2626"/><text class="robot" x="70" y="170">B</text>
+    <circle cx="190" cy="250" r="13" fill="#16a34a"/><text class="robot" x="190" y="250">C</text>
+    <circle cx="310" cy="170" r="13" fill="#ca8a04"/><text class="robot" x="310" y="170">D</text>
+    <text x="190" y="300" text-anchor="middle" font-size="12" fill="#ca8a04" font-family="Georgia" font-style="italic">Bounding box: rows 1&ndash;5, cols 0&ndash;6 = 35 cells</text>
+  </svg>
+  <figcaption>Four robots in a diamond. The bounding box (yellow) is a 5&times;7 rectangle &mdash; much of it is clearly wasteful, since the robots are concentrated along the center cross.</figcaption>
+</figure>
+
+<div class="hex-note">
+<div class="hex-title">Hex boards</div>
+<p>The two diagonal directions (&minus;1,&thinsp;+1) and (+1,&thinsp;&minus;1) also preserve the bounding box. When a robot slides diagonally, its row and column change in opposite directions. The slider lands one step before the blocker, so:</p>
+<ul>
+  <li><strong>Direction (&minus;1,&thinsp;+1):</strong> The slider's new row = blocker's row&thinsp;+&thinsp;1 &gt; r<sub>min</sub>. Its new column = blocker's col&thinsp;&minus;&thinsp;1 &lt; c<sub>max</sub>. Both within bounds.</li>
+  <li><strong>Direction (+1,&thinsp;&minus;1):</strong> Mirror image. New row &lt; r<sub>max</sub>, new column &gt; c<sub>min</sub>.</li>
+</ul>
+<p>The bounding box is preserved for all 6 hex directions.</p>
+</div>
+
+<hr>
+
+<!-- ───────────────────── BOUND 3 ───────────────────── -->
+<h2><span class="bound-num">3</span> The Convex Hull</h2>
+
+<p>The bounding box is a rectangle &mdash; a blunt instrument. We showed it works by proving that min and max of row and column can't grow. But there's nothing special about "row" and "column." The same argument works for <em>any direction of measurement</em>.</p>
+
+<h3>The general result</h3>
+
+<p>Think of laying a ruler across the grid at some angle. Each robot has a position along that ruler. We claim the ruler's min and max readings can never grow, no matter how the robots move.</p>
+
+<p>Formally: pick any linear measurement of position, like "2&times;row + 3&times;column," or "row &minus; column," or any combination <em>a</em>&thinsp;&times;&thinsp;<em>r</em> + <em>b</em>&thinsp;&times;&thinsp;<em>c</em>. We call this a <strong>ruler</strong>.</p>
+
+<div class="proof-box">
+<div class="proof-title">Theorem: Every ruler's range is preserved.</div>
+<p>When a robot slides in direction (<em>dr</em>,&thinsp;<em>dc</em>) and lands one step before a blocker, the ruler <em>f</em> = <em>a</em>&thinsp;&middot;&thinsp;<em>r</em> + <em>b</em>&thinsp;&middot;&thinsp;<em>c</em> changes by <em>a</em>&thinsp;&middot;&thinsp;<em>dr</em> + <em>b</em>&thinsp;&middot;&thinsp;<em>dc</em> at each step along the slide. There are three cases:</p>
+<ul>
+  <li><strong>The ruler increases along the slide</strong> (<em>a</em>&thinsp;&middot;&thinsp;<em>dr</em> + <em>b</em>&thinsp;&middot;&thinsp;<em>dc</em> &gt; 0): The slider's new <em>f</em>-value is one increment below the blocker's. Since the blocker is inside the hull (induction), its <em>f</em> &le; max(<em>f</em>), so the slider's is strictly less. And since <em>f</em> increased from the start, the slider's new value &ge; its starting value &ge; min(<em>f</em>).</li>
+  <li><strong>The ruler decreases along the slide</strong> (<em>a</em>&thinsp;&middot;&thinsp;<em>dr</em> + <em>b</em>&thinsp;&middot;&thinsp;<em>dc</em> &lt; 0): Mirror of the above.</li>
+  <li><strong>The ruler is constant along the slide</strong> (<em>a</em>&thinsp;&middot;&thinsp;<em>dr</em> + <em>b</em>&thinsp;&middot;&thinsp;<em>dc</em> = 0): The slider's value doesn't change. Trivially preserved.</li>
+</ul>
+<p>In all three cases, the slider's new ruler value stays within [min(<em>f</em>), max(<em>f</em>)]. Since this holds for <em>every</em> ruler <em>f</em>, every robot stays inside the intersection of all halfplane constraints &mdash; which is exactly the <strong>convex hull</strong> of the initial positions. &square;</p>
+</div>
+
+<p><strong>Why this matters:</strong> The bounding box is the special case using only two rulers (<em>r</em> and <em>c</em>), giving 4 halfplane constraints. By adding more rulers, we get tighter polygons:</p>
+
+<ul>
+  <li>2 rulers (<em>r</em>, <em>c</em>): bounding box (rectangle, 4 sides)</li>
+  <li>4 rulers (<em>r</em>, <em>c</em>, <em>r</em>+<em>c</em>, <em>r</em>&minus;<em>c</em>): octagonal bound (up to 8 sides)</li>
+  <li>All possible rulers: the full <strong>convex hull</strong> &mdash; the tightest possible convex bound</li>
+</ul>
+
+<p>In practice, for a handful of robots, the exact convex hull is trivial to compute &mdash; it's just the polygon through the outermost robot positions.</p>
+
+<figure class="figure">
+  <svg width="700" height="320" viewBox="0 0 700 320">
+    <!-- ── Left panel: bounding box (rectangle) ── -->
+    <text x="110" y="16" text-anchor="middle" font-size="12" font-weight="bold" fill="#222" font-family="Georgia">Bounding box (2 rulers)</text>
+    <g stroke="#eee" stroke-width="1">
+      <line x1="10" y1="28" x2="210" y2="28"/><line x1="10" y1="68" x2="210" y2="68"/>
+      <line x1="10" y1="108" x2="210" y2="108"/><line x1="10" y1="148" x2="210" y2="148"/>
+      <line x1="10" y1="188" x2="210" y2="188"/><line x1="10" y1="228" x2="210" y2="228"/>
+      <line x1="10" y1="268" x2="210" y2="268"/><line x1="10" y1="308" x2="210" y2="308"/>
+      <line x1="10" y1="28" x2="10" y2="308"/><line x1="50" y1="28" x2="50" y2="308"/>
+      <line x1="90" y1="28" x2="90" y2="308"/><line x1="130" y1="28" x2="130" y2="308"/>
+      <line x1="170" y1="28" x2="170" y2="308"/><line x1="210" y1="28" x2="210" y2="308"/>
+    </g>
+    <!-- bbox: rows 1-5 = y:68..268, cols 0-4 = x:10..210 -->
+    <rect x="10" y="68" width="200" height="200" fill="rgba(234,179,8,.12)" stroke="#ca8a04" stroke-width="2"/>
+    <!-- Robots at cell centers: (r,c) → (10+c*40+20, 28+r*40+20) = (30+c*40, 48+r*40)
+         (1,2)→(110,88) (3,0)→(30,168) (3,4)→(190,168) (5,2)→(110,248) -->
+    <circle cx="110" cy="88" r="10" fill="#555"/><circle cx="30" cy="168" r="10" fill="#555"/>
+    <circle cx="190" cy="168" r="10" fill="#555"/><circle cx="110" cy="248" r="10" fill="#555"/>
+    <text x="110" y="295" text-anchor="middle" font-size="11" fill="#ca8a04" font-family="Georgia" font-style="italic">25 cells</text>
+
+    <!-- ── Middle panel: octagonal approximation ── -->
+    <text x="355" y="16" text-anchor="middle" font-size="12" font-weight="bold" fill="#222" font-family="Georgia">Octagonal bound (4 rulers)</text>
+    <g stroke="#eee" stroke-width="1" transform="translate(245,0)">
+      <line x1="10" y1="28" x2="210" y2="28"/><line x1="10" y1="68" x2="210" y2="68"/>
+      <line x1="10" y1="108" x2="210" y2="108"/><line x1="10" y1="148" x2="210" y2="148"/>
+      <line x1="10" y1="188" x2="210" y2="188"/><line x1="10" y1="228" x2="210" y2="228"/>
+      <line x1="10" y1="268" x2="210" y2="268"/><line x1="10" y1="308" x2="210" y2="308"/>
+      <line x1="10" y1="28" x2="10" y2="308"/><line x1="50" y1="28" x2="50" y2="308"/>
+      <line x1="90" y1="28" x2="90" y2="308"/><line x1="130" y1="28" x2="130" y2="308"/>
+      <line x1="170" y1="28" x2="170" y2="308"/><line x1="210" y1="28" x2="210" y2="308"/>
+    </g>
+    <!-- Diamond: (355,88)→(435,168)→(355,248)→(275,168). For this symmetric diamond,
+         octagon = diamond = convex hull (all 4 ruler constraints intersect at the robots). -->
+    <polygon points="355,88 435,168 355,248 275,168" fill="rgba(37,99,235,.10)" stroke="#2563eb" stroke-width="2"/>
+    <circle cx="355" cy="88" r="10" fill="#555"/><circle cx="275" cy="168" r="10" fill="#555"/>
+    <circle cx="435" cy="168" r="10" fill="#555"/><circle cx="355" cy="248" r="10" fill="#555"/>
+    <text x="355" y="295" text-anchor="middle" font-size="11" fill="#2563eb" font-family="Georgia" font-style="italic">13 cells</text>
+
+    <!-- ── Right panel: convex hull (= diamond for this config) ── -->
+    <text x="600" y="16" text-anchor="middle" font-size="12" font-weight="bold" fill="#222" font-family="Georgia">Convex hull (all rulers)</text>
+    <g stroke="#eee" stroke-width="1" transform="translate(490,0)">
+      <line x1="10" y1="28" x2="210" y2="28"/><line x1="10" y1="68" x2="210" y2="68"/>
+      <line x1="10" y1="108" x2="210" y2="108"/><line x1="10" y1="148" x2="210" y2="148"/>
+      <line x1="10" y1="188" x2="210" y2="188"/><line x1="10" y1="228" x2="210" y2="228"/>
+      <line x1="10" y1="268" x2="210" y2="268"/><line x1="10" y1="308" x2="210" y2="308"/>
+      <line x1="10" y1="28" x2="10" y2="308"/><line x1="50" y1="28" x2="50" y2="308"/>
+      <line x1="90" y1="28" x2="90" y2="308"/><line x1="130" y1="28" x2="130" y2="308"/>
+      <line x1="170" y1="28" x2="170" y2="308"/><line x1="210" y1="28" x2="210" y2="308"/>
+    </g>
+    <polygon points="600,88 680,168 600,248 520,168" fill="rgba(22,163,74,.10)" stroke="#16a34a" stroke-width="2"/>
+    <circle cx="600" cy="88" r="10" fill="#555"/><circle cx="520" cy="168" r="10" fill="#555"/>
+    <circle cx="680" cy="168" r="10" fill="#555"/><circle cx="600" cy="248" r="10" fill="#555"/>
+    <text x="600" y="295" text-anchor="middle" font-size="11" fill="#16a34a" font-family="Georgia" font-style="italic">13 cells (same for this config)</text>
+  </svg>
+  <figcaption>Progression from bounding box to convex hull, using a symmetric diamond of 4 robots. The diagonal rulers <em>r</em>+<em>c</em> and <em>r</em>&minus;<em>c</em> clip the rectangle's corners. For this symmetric diamond, the octagonal bound already matches the full convex hull &mdash; but for less symmetric arrangements, the convex hull can be even tighter.</figcaption>
+</figure>
+
+<div class="hex-note">
+<div class="hex-title">Hex boards</div>
+<p>The convex hull theorem applies to all 6 hex directions with no changes &mdash; the proof only uses the one-step-before-blocker rule, not the specific direction vectors. The convex hull of the initial positions is preserved on hex boards too.</p>
+<p>For hex boards, the intermediate polygon approximations have a natural interpretation using the three hex "axes":</p>
+<ul>
+  <li><strong>2 rulers</strong> (<em>r</em>, <em>c</em>): bounding box (4 sides)</li>
+  <li><strong>3 rulers</strong> (<em>r</em>, <em>c</em>, <em>r</em>+<em>c</em>): hexagonal bound (up to 6 sides) &mdash; uses the three axes aligned with the six hex movement directions</li>
+  <li><strong>4 rulers</strong> (<em>r</em>, <em>c</em>, <em>r</em>+<em>c</em>, <em>r</em>&minus;<em>c</em>): octagonal bound (up to 8 sides) &mdash; adds the "bonus" ruler <em>r</em>&minus;<em>c</em>, which is not aligned with any hex direction yet is still preserved</li>
+  <li><strong>All rulers</strong>: the full convex hull</li>
+</ul>
+
+<figure class="figure">
+  <svg id="hex-convex-hull" width="600" height="300" viewBox="0 0 600 300"></svg>
+  <figcaption>Hex board with 4 robots in a diamond. The hexagonal bound (left, 3 rulers) includes extra corners. Adding the <em>r</em>&minus;<em>c</em> ruler (right, 4 rulers) clips those corners even though no hex direction runs along that axis &mdash; a "free" tightening.</figcaption>
+</figure>
+</div>
+
+<hr>
+
+<!-- ───────────────────── BOUND 4 ───────────────────── -->
+<h2><span class="bound-num">4</span> The Orthogonal Convex Hull</h2>
+
+<p>All the bounds so far are <strong>convex</strong> &mdash; they're polygons with no indentations. But the actual set of reachable cells can be wildly non-convex. The orthogonal convex hull breaks out of convexity to get a much tighter fit.</p>
+
+<h3>Definition</h3>
+
+<p>A region on the grid is <strong>orthogonally convex</strong> if it has no gaps along any row or column: for any row, the cells in the region on that row form a single contiguous run (or the row is empty). Same for every column.</p>
+
+<p>The <strong>orthogonal convex hull</strong> (OCH) of the robot positions is the smallest orthogonally convex region containing all of them. Compute it by filling gaps: if two robots (or previously filled cells) are in the same row, fill all cells between them; same for columns; repeat until stable.</p>
+
+<p>The OCH is guaranteed to be a subset of the convex hull, because any convex region is automatically orthogonally convex (a convex region intersected with a horizontal line is always a single segment). Since the OCH is the <em>smallest</em> orthogonally convex set, and the convex hull is an orthogonally convex set, we have OCH &sube; convex hull.</p>
+
+<h3>Proof for square boards</h3>
+
+<div class="proof-box">
+<div class="proof-title">Theorem: No robot can leave the OCH of the starting configuration.</div>
+<p>Let <strong>H</strong> be the OCH of the initial positions &mdash; a fixed set computed once.</p>
+<p><strong>Base case:</strong> Every robot starts inside H by construction.</p>
+<p><strong>Inductive step:</strong> Assume every robot is inside H. A move changes one robot; the rest stay in H. We show the slider's new position is in H using two facts:</p>
+<ol>
+  <li><strong>Mechanical fact:</strong> The slider and blocker are on the same row (horizontal slide) or same column (vertical slide). The landing spot is between them.</li>
+  <li><strong>Geometric fact:</strong> H is orthogonally convex. Two cells of H on the same row have every cell between them also in H. Same for columns.</li>
+</ol>
+<p>The slider starts in H and the blocker is in H (inductive hypothesis). They share a row or column. By orthogonal convexity, every cell between them on that shared line is in H. The landing spot is between them, so it's in H. &square;</p>
+</div>
+
+<figure class="figure">
+  <svg width="560" height="310" viewBox="0 0 560 310">
+    <!-- Left: convex hull -->
+    <text x="130" y="16" text-anchor="middle" font-size="12" font-weight="bold" fill="#222" font-family="Georgia">Convex hull: 13 cells</text>
+    <g stroke="#eee" stroke-width="1">
+      <line x1="10" y1="28" x2="250" y2="28"/><line x1="10" y1="68" x2="250" y2="68"/>
+      <line x1="10" y1="108" x2="250" y2="108"/><line x1="10" y1="148" x2="250" y2="148"/>
+      <line x1="10" y1="188" x2="250" y2="188"/><line x1="10" y1="228" x2="250" y2="228"/>
+      <line x1="10" y1="268" x2="250" y2="268"/>
+      <line x1="10" y1="28" x2="10" y2="268"/><line x1="50" y1="28" x2="50" y2="268"/>
+      <line x1="90" y1="28" x2="90" y2="268"/><line x1="130" y1="28" x2="130" y2="268"/>
+      <line x1="170" y1="28" x2="170" y2="268"/><line x1="210" y1="28" x2="210" y2="268"/>
+      <line x1="250" y1="28" x2="250" y2="268"/>
+    </g>
+    <!-- Convex hull = diamond: (0,2.5) area. Let's use robots at (0,3),(3,0),(6,3),(3,6) on 7x7,
+         but that's too big. Use (1,3),(3,0),(5,3),(3,6) on 7x7 with cell=40, but we have 5-row.
+         Actually let's use a 7-row, 7-col grid with cell=40 offset (10,28). No that's 280px tall.
+         Let me use smaller cells. 7 rows, cell=34. Height = 7*34 = 238.
+         Actually, let me just use 6 rows (0-5), 5 cols (0-4), cell=40. Robots at (0,2),(2,0),(4,2),(2,4) -->
+    <!-- Convex hull diamond — vertices at cell centers -->
+    <polygon points="110,48 190,128 110,208 30,128" fill="rgba(37,99,235,.08)" stroke="#2563eb" stroke-width="2"/>
+    <circle cx="110" cy="48" r="10" fill="#555"/><circle cx="30" cy="128" r="10" fill="#555"/>
+    <circle cx="190" cy="128" r="10" fill="#555"/><circle cx="110" cy="208" r="10" fill="#555"/>
+
+    <!-- Arrow -->
+    <text x="220" y="112" font-size="20" fill="#666">&rarr;</text>
+
+    <!-- Right: OCH (cross) -->
+    <text x="410" y="16" text-anchor="middle" font-size="12" font-weight="bold" fill="#222" font-family="Georgia">Orthogonal hull: 9 cells</text>
+    <g stroke="#eee" stroke-width="1" transform="translate(280,0)">
+      <line x1="10" y1="28" x2="250" y2="28"/><line x1="10" y1="68" x2="250" y2="68"/>
+      <line x1="10" y1="108" x2="250" y2="108"/><line x1="10" y1="148" x2="250" y2="148"/>
+      <line x1="10" y1="188" x2="250" y2="188"/><line x1="10" y1="228" x2="250" y2="228"/>
+      <line x1="10" y1="268" x2="250" y2="268"/>
+      <line x1="10" y1="28" x2="10" y2="268"/><line x1="50" y1="28" x2="50" y2="268"/>
+      <line x1="90" y1="28" x2="90" y2="268"/><line x1="130" y1="28" x2="130" y2="268"/>
+      <line x1="170" y1="28" x2="170" y2="268"/><line x1="210" y1="28" x2="210" y2="268"/>
+      <line x1="250" y1="28" x2="250" y2="268"/>
+    </g>
+    <!-- Cross: row 2 (cols 0-4) + col 2 (rows 0-4) -->
+    <!-- Row 2: y=108..148, x=290..530 -->
+    <rect x="290" y="108" width="200" height="40" fill="rgba(139,92,246,.12)"/>
+    <!-- Col 2: x=370..410, y=28..228 -->
+    <rect x="370" y="28" width="40" height="200" fill="rgba(139,92,246,.12)"/>
+    <!-- Cross outline -->
+    <path d="M370,28 L410,28 L410,108 L490,108 L490,148 L410,148 L410,228 L370,228 L370,148 L290,148 L290,108 L370,108 Z" fill="none" stroke="#7c3aed" stroke-width="2"/>
+    <circle cx="390" cy="48" r="10" fill="#555"/><circle cx="310" cy="128" r="10" fill="#555"/>
+    <circle cx="470" cy="128" r="10" fill="#555"/><circle cx="390" cy="208" r="10" fill="#555"/>
+
+    <text x="280" y="260" text-anchor="middle" font-size="11" fill="#666" font-family="Georgia" font-style="italic">Square boards: the OCH (purple cross, 9 cells) is much tighter</text>
+    <text x="280" y="276" text-anchor="middle" font-size="11" fill="#666" font-family="Georgia" font-style="italic">than the convex hull (blue diamond, 13 cells).</text>
+  </svg>
+  <figcaption>Same diamond of 4 robots. The convex hull includes all 13 cells inside the diamond. The OCH is only the cross &mdash; 9 cells where the arms connecting pairs of robots intersect.</figcaption>
+</figure>
+
+<div class="hex-note">
+<div class="hex-title">Hex boards: the standard OCH breaks</div>
+<p>On hex boards, diagonal slides break the square OCH proof. The slider and blocker share a <strong>rising diagonal</strong> (<em>r</em>&thinsp;+&thinsp;<em>c</em> = constant), not a row or column. The standard OCH guarantees no gaps along rows and columns, but says nothing about diagonals.</p>
+
+<figure class="figure">
+  <svg id="hex-och-failure" width="340" height="260" viewBox="0 0 340 260"></svg>
+  <figcaption>Robots at (0,&thinsp;2) and (2,&thinsp;0) share no row or column. The OCH (dashed purple) is just those two cells. Robot A slides diagonally to (1,&thinsp;1) &mdash; outside the OCH.</figcaption>
+</figure>
+
+<p><strong>The fix:</strong> Define a region as <strong>hex-orthogonally convex</strong> if it has no gaps along any row, any column, <em>or any rising diagonal</em> (<em>r</em>+<em>c</em> = constant). The <strong>hex-OCH</strong> is the smallest such region containing all robots.</p>
+
+<p>The proof is then identical: for any hex move, the slider and blocker share a row, a column, or a rising diagonal. The hex-OCH is connected along all three, so the landing spot is inside.</p>
+
+<p>In the example above, the hex-OCH fills (1,&thinsp;1) to connect A and B along their shared diagonal <em>r</em>+<em>c</em>=2.</p>
+
+<figure class="figure">
+  <svg id="hex-och-star" width="600" height="300" viewBox="0 0 600 300"></svg>
+  <figcaption>Same diamond on a hex board. The hex-OCH (purple, 11 cells) has a three-armed star shape: it fills arms along rows, columns, AND rising diagonals. Tighter than the convex hull (blue diamond, 13 cells).</figcaption>
+</figure>
+</div>
+
+<hr>
+
+<!-- ───────────────────── NOT EXACT ───────────────────── -->
+<h2>The OCH Is Not Exact</h2>
+
+<p>The orthogonal convex hull is a much tighter bound than the convex hull, but it still <strong>overestimates</strong> the true reachable set.</p>
+
+<h3>Counterexample: two robots on a line</h3>
+
+<figure class="figure">
+  <svg width="310" height="130" viewBox="0 0 310 130">
+    <g stroke="#ddd" stroke-width="1">
+      <line x1="20" y1="30" x2="260" y2="30"/><line x1="20" y1="70" x2="260" y2="70"/>
+      <line x1="20" y1="30" x2="20" y2="70"/><line x1="60" y1="30" x2="60" y2="70"/>
+      <line x1="100" y1="30" x2="100" y2="70"/><line x1="140" y1="30" x2="140" y2="70"/>
+      <line x1="180" y1="30" x2="180" y2="70"/><line x1="220" y1="30" x2="220" y2="70"/>
+      <line x1="260" y1="30" x2="260" y2="70"/>
+    </g>
+    <text class="grid-label" x="40" y="22">0</text><text class="grid-label" x="80" y="22">1</text>
+    <text class="grid-label" x="120" y="22">2</text><text class="grid-label" x="160" y="22">3</text>
+    <text class="grid-label" x="200" y="22">4</text><text class="grid-label" x="240" y="22">5</text>
+    <rect x="20" y="30" width="40" height="40" fill="rgba(22,163,74,.15)"/>
+    <rect x="60" y="30" width="40" height="40" fill="rgba(22,163,74,.15)"/>
+    <rect x="180" y="30" width="40" height="40" fill="rgba(22,163,74,.15)"/>
+    <rect x="220" y="30" width="40" height="40" fill="rgba(22,163,74,.15)"/>
+    <rect x="100" y="30" width="40" height="40" fill="rgba(220,38,38,.10)"/>
+    <rect x="140" y="30" width="40" height="40" fill="rgba(220,38,38,.10)"/>
+    <circle cx="40" cy="50" r="14" fill="#2563eb"/><text class="robot" x="40" y="50">A</text>
+    <circle cx="240" cy="50" r="14" fill="#dc2626"/><text class="robot" x="240" y="50">B</text>
+    <text x="120" y="96" text-anchor="middle" font-size="12" fill="#dc2626" font-family="Georgia" font-style="italic">unreachable</text>
+    <text x="37" y="96" text-anchor="middle" font-size="11" fill="#16a34a" font-family="Georgia">&#10003;</text>
+    <text x="77" y="96" text-anchor="middle" font-size="11" fill="#16a34a" font-family="Georgia">&#10003;</text>
+    <text x="197" y="96" text-anchor="middle" font-size="11" fill="#16a34a" font-family="Georgia">&#10003;</text>
+    <text x="237" y="96" text-anchor="middle" font-size="11" fill="#16a34a" font-family="Georgia">&#10003;</text>
+  </svg>
+  <figcaption>The OCH is all 6 cells, but only {0,&thinsp;1,&thinsp;4,&thinsp;5} are truly reachable. This applies equally to square and hex boards.</figcaption>
+</figure>
+
+<p>Robots A and B at columns 0 and 5. The OCH fills the entire row between them. But:</p>
+
+<ul>
+  <li>A slides right, stopped by B &rarr; A lands at <strong>column 4</strong>. Now adjacent at 4 and 5.</li>
+  <li>B slides left, stopped by A &rarr; B lands at <strong>column 1</strong>. Now adjacent at 0 and 1.</li>
+</ul>
+
+<p>From either adjacent position, neither robot can reach the interior. <strong>Actual reachable set: {0, 1, 4, 5}</strong> &mdash; four of six cells. The OCH doesn't see the "adjacency trap" that prevents interior access.</p>
+
+<hr>
+
+<!-- ───────────────────── BOUND 5 ───────────────────── -->
+<h2><span class="bound-num">5</span> Exhaustive Search</h2>
+
+<p>The only way to find the exact reachable set is brute-force search:</p>
+
+<ol>
+  <li>Start with the initial arrangement.</li>
+  <li>Try every legal move, generating new arrangements.</li>
+  <li>For each new arrangement, repeat step 2.</li>
+  <li>When no new arrangements appear, stop.</li>
+  <li>Collect every cell occupied by any robot in any visited arrangement.</li>
+</ol>
+
+<p>This breadth-first search is guaranteed to find the exact set. The cost: with <em>k</em> robots on an <em>N</em>&thinsp;&times;&thinsp;<em>N</em> board, the state space can reach <em>N</em><sup>2<em>k</em></sup> configurations. Feasible for small puzzles, expensive for large ones. The same approach works identically for square and hex boards.</p>
+
+<h3>Interactive: watch the BFS explore</h3>
+
+<p>Enter a puzzle's <strong>stable ID</strong> (from the game) or pick an example. Press <strong>Play</strong> to watch the BFS explore all reachable states. Each cell lights up the first time any robot lands on it. <span style="color:#7c3aed;">Purple cells</span> are in the orthogonal hull but <em>not</em> reachable &mdash; that's the gap between bounds 4 and 5.</p>
+
+<div id="bfs-app" style="margin:24px 0;font-family:sans-serif;font-size:13px;"></div>
+
+<script>
+// ── BFS Explorer with stableId input, OCH overlay, square + hex boards ──
+(function() {
+  const N = 7, CTR = 3;
+  const SQ_DIRS = [{dr:-1,dc:0},{dr:1,dc:0},{dr:0,dc:-1},{dr:0,dc:1}];
+  const HEX_DIRS = [{dr:-1,dc:0},{dr:1,dc:0},{dr:0,dc:-1},{dr:0,dc:1},{dr:-1,dc:1},{dr:1,dc:-1}];
+  const BLOCKS = {
+    solitaire: new Set([0,1,5,6].flatMap(r=>[0,1,5,6].map(c=>r+','+c))),
+    standard: new Set(),
+    ufo: new Set(Array.from({length:7},(_,r)=>Array.from({length:7},(_,c)=>({r,c}))).flat().filter(({r,c})=>r===0||r===6||c===0||c===6).map(({r,c})=>r+','+c)),
+    french: new Set([[0,0],[0,1],[1,0],[0,5],[0,6],[1,6],[5,0],[6,0],[6,1],[5,6],[6,5],[6,6]].map(([r,c])=>r+','+c)),
+    hex: new Set(Array.from({length:7},(_,r)=>Array.from({length:7},(_,c)=>({r,c}))).flat().filter(({r,c})=>r===0||r===6||c===0||c===6).map(({r,c})=>r+','+c)),
+    beehive: new Set(),
+  };
+  const SQUARE_VARIANTS = ['solitaire','standard','ufo','french'];
+  const HEX_VARIANTS = ['hex','beehive'];
+
+  // ── StableId decode ──
+  function decodeStableId(sid) {
+    const d = sid.indexOf('-');
+    if (d < 0) return null;
+    const ne = parseInt(sid.slice(0, d), 10);
+    if (isNaN(ne) || ne < 1) return null;
+    let v = parseInt(sid.slice(d + 1), 36);
+    if (isNaN(v) || v < 0) return null;
+    const cells = [];
+    while (v > 0) { cells.unshift(v % 49); v = Math.floor(v / 49); }
+    const robots = cells.map((c, i) => ({
+      id: i < ne ? (i === 0 ? 'target' : 'exit'+(i)) : 'r'+(i-ne+1),
+      row: Math.floor(c/7), col: c%7, isExit: i < ne,
+    }));
+    return { numExits: ne, robots };
+  }
+
+  // ── Slide ──
+  function slide(positions, robotId, dirIdx, dirs, blocked, exitIds) {
+    const start = positions[robotId];
+    if (!start) return null;
+    const {dr,dc} = dirs[dirIdx];
+    const occ = {};
+    for (const [id, p] of Object.entries(positions)) if (id !== robotId) occ[p.row+','+p.col] = id;
+    let r = start.row, c = start.col, bid = null;
+    while (true) {
+      const nr = r+dr, nc = c+dc;
+      if (nr<0||nr>=N||nc<0||nc>=N) break;
+      if (blocked.has(nr+','+nc)) break;
+      if (occ[nr+','+nc] !== undefined) { bid = occ[nr+','+nc]; break; }
+      r = nr; c = nc;
+    }
+    if (bid === null || (r === start.row && c === start.col)) return null;
+    const np = {...positions};
+    if (exitIds.has(robotId) && r === CTR && c === CTR) delete np[robotId];
+    else np[robotId] = {row:r, col:c};
+    return np;
+  }
+
+  // ── State key ──
+  function stateKey(positions, robots) {
+    const ep = [], hp = [];
+    for (const r of robots) { const p = positions[r.id]; if (r.isExit) ep.push(p?p.row+','+p.col:'X'); else if (p) hp.push(p.row+','+p.col); }
+    hp.sort();
+    return ep.join('|')+'|'+hp.join('|');
+  }
+
+  // ── BFS ──
+  function runBFS(robots, dirs, blocked) {
+    const exitIds = new Set(robots.filter(r=>r.isExit).map(r=>r.id));
+    const initPos = {}; for (const r of robots) initPos[r.id] = {row:r.row, col:r.col};
+    const visited = new Map();
+    const queue = [{positions:initPos, depth:0}];
+    visited.set(stateKey(initPos, robots), 0);
+    const cellFirst = {}, depthCells = {};
+    let maxD = 0, total = 0;
+    for (const p of Object.values(initPos)) { const k=p.row+','+p.col; if(!(k in cellFirst)){cellFirst[k]=0; depthCells[0]=depthCells[0]||[]; depthCells[0].push(k);} }
+    let qi = 0;
+    while (qi < queue.length) {
+      const {positions, depth} = queue[qi++]; total++;
+      for (const rid of Object.keys(positions)) {
+        for (let d=0; d<dirs.length; d++) {
+          const np = slide(positions, rid, d, dirs, blocked, exitIds);
+          if (!np) continue;
+          const nk = stateKey(np, robots);
+          if (visited.has(nk)) continue;
+          const nd = depth+1; visited.set(nk, nd); if(nd>maxD) maxD=nd;
+          queue.push({positions:np, depth:nd});
+          for (const p of Object.values(np)) { const ck=p.row+','+p.col; if(!(ck in cellFirst)){cellFirst[ck]=nd; if(!depthCells[nd])depthCells[nd]=[]; depthCells[nd].push(ck);} }
+          // If an exit robot was removed, it landed on center — record center as reachable
+          if (Object.keys(np).length < Object.keys(positions).length) { const ck=CTR+','+CTR; if(!(ck in cellFirst)){cellFirst[ck]=nd; if(!depthCells[nd])depthCells[nd]=[]; depthCells[nd].push(ck);} }
+        }
+      }
+    }
+    return {cellFirst, depthCells, maxD, total, nCells:Object.keys(cellFirst).length};
+  }
+
+  // ── OCH computation ──
+  function computeOCH(positions, isHex) {
+    const cells = new Set(positions.map(([r,c])=>r+','+c));
+    let changed = true;
+    while (changed) {
+      changed = false;
+      // rows
+      const rows = {}; for (const k of cells) { const [r,c]=k.split(',').map(Number); if(!rows[r])rows[r]={mn:c,mx:c}; else{rows[r].mn=Math.min(rows[r].mn,c);rows[r].mx=Math.max(rows[r].mx,c);} }
+      for (const [r,{mn,mx}] of Object.entries(rows)) for (let c=mn;c<=mx;c++) { const k=r+','+c; if(!cells.has(k)){cells.add(k);changed=true;} }
+      // cols
+      const cols = {}; for (const k of cells) { const [r,c]=k.split(',').map(Number); if(!cols[c])cols[c]={mn:r,mx:r}; else{cols[c].mn=Math.min(cols[c].mn,r);cols[c].mx=Math.max(cols[c].mx,r);} }
+      for (const [c,{mn,mx}] of Object.entries(cols)) for (let r=mn;r<=mx;r++) { const k=r+','+c; if(!cells.has(k)){cells.add(k);changed=true;} }
+      // diagonals (r+c = const) for hex
+      if (isHex) {
+        const diags = {}; for (const k of cells) { const [r,c]=k.split(',').map(Number); const d=r+c; if(!diags[d])diags[d]={mn:r,mx:r}; else{diags[d].mn=Math.min(diags[d].mn,r);diags[d].mx=Math.max(diags[d].mx,r);} }
+        for (const [d,{mn,mx}] of Object.entries(diags)) for (let r=mn;r<=mx;r++) { const c=d-r; if(c>=0&&c<N&&r>=0&&r<N){const k=r+','+c; if(!cells.has(k)){cells.add(k);changed=true;}}}
+      }
+    }
+    return cells;
+  }
+
+  // ── Color ──
+  function dColor(d, mx) { const t=mx>0?d/mx:0; return 'rgb('+Math.round(t<.5?t*2*255:255)+','+Math.round(t<.5?255:(1-t)*2*255)+',40)'; }
+
+  // ── Hex rendering helpers (Board.jsx transform) ──
+  const S3 = Math.sqrt(3);
+  function hexPos(r,c,R) {
+    const mid=3, bx=1.5*R*c, by=S3*R*(r+c/2), cx=1.5*R*mid, cy=S3*R*(mid+mid/2);
+    const dx=bx-cx, dy=by-cy;
+    return {x:.5*dx+S3/2*dy, y:-S3/2*dx+.5*dy};
+  }
+  function hexPts(cx,cy,R) {
+    const hw=R*.95, hh=R*S3/2*.95;
+    return [(cx-hw/2)+','+(cy-hh),(cx+hw/2)+','+(cy-hh),(cx+hw)+','+cy,(cx+hw/2)+','+(cy+hh),(cx-hw/2)+','+(cy+hh),(cx-hw)+','+cy].join(' ');
+  }
+
+  // ── Panel class ──
+  function createPanel(containerId, isHex) {
+    const dirs = isHex ? HEX_DIRS : SQ_DIRS;
+    const blocked = new Set(); // 7x7 board, no blocked cells
+    const examples = isHex
+      ? [{sid:'1-2xz2e',label:'gap=5'},{sid:'1-1yo60',label:'gap=4'},{sid:'1-xj0x',label:'gap=2'},{sid:'1-s9dhc',label:'gap=0, 476 states'}]
+      : [{sid:'1-2l13ul',label:'gap=4'},{sid:'1-321st0',label:'gap=3'},{sid:'1-3c56oa',label:'gap=2, 221 states'},{sid:'1-3qnd4n',label:'gap=0, 513 states'}];
+
+    const container = document.getElementById(containerId);
+    const CELL = isHex ? 0 : 44;
+    const PAD = 20;
+    const svgW = isHex ? 360 : N*CELL+PAD*2;
+    const svgH = isHex ? 340 : N*CELL+PAD*2;
+
+    // Build HTML
+    let h = '<div style="margin-bottom:8px;"><strong style="font-size:14px;">'+(isHex?'Hex':'Square')+' board</strong> <span style="font-size:12px;color:#888;">(7&times;7'+(isHex?' with 6 directions':' with 4 directions')+')</span></div>';
+    h += '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:6px;">';
+    h += '<label>Stable ID: <input class="bfs-sid" type="text" value="'+examples[0].sid+'" style="width:130px;font-size:13px;font-family:monospace;padding:2px 4px;"></label>';
+    h += '<button class="bfs-load" style="font-size:12px;padding:3px 10px;cursor:pointer;">Load</button>';
+    h += '</div>';
+    h += '<div style="margin-bottom:8px;font-size:11px;color:#888;">Try: '+examples.map(e=>'<a href="#" class="bfs-ex" data-sid="'+e.sid+'" style="color:#2563eb;">'+e.sid+'</a> <span style="color:#aaa;">('+e.label+')</span>').join(' &middot; ')+'</div>';
+    h += '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">';
+    h += '<button class="bfs-play" style="padding:4px 12px;cursor:pointer;">&#9654; Play</button>';
+    h += '<button class="bfs-step" style="padding:4px 8px;cursor:pointer;">Step</button>';
+    h += '<button class="bfs-reset" style="padding:4px 8px;cursor:pointer;">Reset</button>';
+    h += '<label style="color:#888;">Speed: <input class="bfs-speed" type="range" min="1" max="100" value="30" style="width:80px;vertical-align:middle;"></label>';
+    h += '</div>';
+    h += '<svg class="bfs-svg" width="'+svgW+'" height="'+svgH+'" style="border:1px solid #eee;border-radius:4px;background:#fff;"></svg>';
+    h += '<div class="bfs-info" style="margin-top:6px;font-size:12px;color:#555;"></div>';
+    container.innerHTML = h;
+
+    const svgEl = container.querySelector('.bfs-svg');
+    const infoEl = container.querySelector('.bfs-info');
+    let bfsData=null, ochCells=null, revDepth=-1, playing=false, anim=null, lastT=0, curRobots=null;
+
+    function load() {
+      playing=false; if(anim)cancelAnimationFrame(anim);
+      const sid = container.querySelector('.bfs-sid').value.trim();
+      const decoded = decodeStableId(sid);
+      if (!decoded) { infoEl.innerHTML='<span style="color:red;">Invalid stable ID</span>'; svgEl.innerHTML=''; return; }
+      curRobots = decoded.robots;
+      bfsData = runBFS(curRobots, dirs, blocked);
+      const positions = curRobots.map(r=>[r.row,r.col]);
+      ochCells = computeOCH(positions, isHex);
+      revDepth = -1;
+      render(blocked);
+    }
+
+    function cellXY(r,c) { return {x:PAD+c*CELL, y:PAD+r*CELL}; }
+
+    function render(blocked) {
+      let html = '';
+      if (!isHex) {
+        // Square grid
+        for (let i=0;i<=N;i++) {
+          html+='<line x1="'+PAD+'" y1="'+(PAD+i*CELL)+'" x2="'+(PAD+N*CELL)+'" y2="'+(PAD+i*CELL)+'" stroke="#ddd" stroke-width="1"/>';
+          html+='<line x1="'+(PAD+i*CELL)+'" y1="'+PAD+'" x2="'+(PAD+i*CELL)+'" y2="'+(PAD+N*CELL)+'" stroke="#ddd" stroke-width="1"/>';
+        }
+        for (const k of blocked) { const [r,c]=k.split(',').map(Number); const p=cellXY(r,c); html+='<rect x="'+p.x+'" y="'+p.y+'" width="'+CELL+'" height="'+CELL+'" fill="#e8e8e8"/>'; }
+        // OCH cells (purple, shown immediately)
+        for (const k of ochCells) {
+          if (bfsData.cellFirst[k] !== undefined) continue; // will be colored by BFS
+          const [r,c]=k.split(',').map(Number);
+          const p=cellXY(r,c);
+          html+='<rect x="'+p.x+'" y="'+p.y+'" width="'+CELL+'" height="'+CELL+'" fill="rgba(139,92,246,.12)" rx="2"/>';
+        }
+        // BFS cells (hidden initially)
+        for (const [k,d] of Object.entries(bfsData.cellFirst)) {
+          const [r,c]=k.split(',').map(Number); const p=cellXY(r,c);
+          html+='<rect data-ck="'+k+'" x="'+p.x+'" y="'+p.y+'" width="'+CELL+'" height="'+CELL+'" fill="'+dColor(d,bfsData.maxD)+'" opacity="0" rx="2"/>';
+        }
+        // Center marker
+        const ctr=cellXY(CTR,CTR);
+        html+='<rect x="'+ctr.x+'" y="'+ctr.y+'" width="'+CELL+'" height="'+CELL+'" fill="none" stroke="#999" stroke-width="1" stroke-dasharray="3,2"/>';
+        // Robots
+        for (const rb of curRobots) {
+          const p=cellXY(rb.row,rb.col);
+          html+='<circle class="rb" cx="'+(p.x+CELL/2)+'" cy="'+(p.y+CELL/2)+'" r="'+(CELL/2-5)+'" fill="'+(rb.isExit?'#dc2626':'#2563eb')+'" opacity=".9"/>';
+        }
+      } else {
+        // Hex grid
+        const R = 22;
+        const allPos = []; for(let r=0;r<N;r++) for(let c=0;c<N;c++) allPos.push([r,c]);
+        let mnX=1e9,mxX=-1e9,mnY=1e9,mxY=-1e9;
+        for(const [r,c] of allPos){const p=hexPos(r,c,R); mnX=Math.min(mnX,p.x-R);mxX=Math.max(mxX,p.x+R);mnY=Math.min(mnY,p.y-R*S3/2);mxY=Math.max(mxY,p.y+R*S3/2);}
+        const ox=-mnX+10, oy=-mnY+10;
+        const w=mxX-mnX+20, ht=mxY-mnY+20;
+        svgEl.setAttribute('width',Math.ceil(w)); svgEl.setAttribute('height',Math.ceil(ht));
+        svgEl.setAttribute('viewBox','0 0 '+Math.ceil(w)+' '+Math.ceil(ht));
+        // Background cells
+        for(const [r,c] of allPos){
+          const p=hexPos(r,c,R); const px=p.x+ox, py=p.y+oy;
+          const bl = blocked.has(r+','+c);
+          html+='<polygon points="'+hexPts(px,py,R)+'" fill="'+(bl?'#e8e8e8':'none')+'" stroke="#ddd" stroke-width=".8"/>';
+        }
+        // OCH cells (purple)
+        for (const k of ochCells) {
+          if (bfsData.cellFirst[k] !== undefined) continue;
+          const [r,c]=k.split(',').map(Number); const p=hexPos(r,c,R); const px=p.x+ox, py=p.y+oy;
+          html+='<polygon points="'+hexPts(px,py,R)+'" fill="rgba(139,92,246,.15)" stroke="rgba(139,92,246,.4)" stroke-width=".8"/>';
+        }
+        // BFS cells
+        for (const [k,d] of Object.entries(bfsData.cellFirst)) {
+          const [r,c]=k.split(',').map(Number); const p=hexPos(r,c,R); const px=p.x+ox, py=p.y+oy;
+          html+='<polygon data-ck="'+k+'" points="'+hexPts(px,py,R)+'" fill="'+dColor(d,bfsData.maxD)+'" opacity="0"/>';
+        }
+        // Center
+        const cp=hexPos(CTR,CTR,R);
+        html+='<polygon points="'+hexPts(cp.x+ox,cp.y+oy,R)+'" fill="none" stroke="#999" stroke-width="1" stroke-dasharray="3,2"/>';
+        // Robots
+        for (const rb of curRobots) {
+          const p=hexPos(rb.row,rb.col,R); const px=p.x+ox, py=p.y+oy;
+          html+='<circle class="rb" cx="'+px.toFixed(1)+'" cy="'+py.toFixed(1)+'" r="'+(R*.4)+'" fill="'+(rb.isExit?'#dc2626':'#2563eb')+'" opacity=".9"/>';
+        }
+      }
+      svgEl.innerHTML = html;
+      updateInfo();
+    }
+
+    function updateInfo() {
+      let revealed = 0;
+      for (let d=0;d<=revDepth;d++) revealed += (bfsData.depthCells[d]||[]).length;
+      const ochSize = ochCells ? ochCells.size : 0;
+      const gap = ochSize - bfsData.nCells;
+      infoEl.innerHTML =
+        '<strong>BFS depth:</strong> '+(revDepth<0?'&mdash;':revDepth)+' / '+bfsData.maxD+
+        ' &nbsp; <strong>Cells:</strong> '+revealed+' / '+bfsData.nCells+
+        ' &nbsp; <strong>States:</strong> '+bfsData.total.toLocaleString()+
+        '<br><strong>'+(isHex?'Hex-':'')+'OCH:</strong> '+ochSize+' cells'+
+        (gap > 0 ? ' &nbsp; <span style="color:#7c3aed;font-weight:bold;">Gap: '+gap+' cells unreachable inside hull</span>' : ' &nbsp; <span style="color:#888;">(no gap — reachable = OCH)</span>');
+    }
+
+    function step() {
+      if (!bfsData || revDepth >= bfsData.maxD) return false;
+      revDepth++;
+      const cells = bfsData.depthCells[revDepth]||[];
+      for (const k of cells) { const el = svgEl.querySelector('[data-ck="'+k+'"]'); if(el) el.setAttribute('opacity','.7'); }
+      if (revDepth===1) svgEl.querySelectorAll('.rb').forEach(e=>e.setAttribute('opacity','.3'));
+      updateInfo();
+      return revDepth < bfsData.maxD;
+    }
+
+    function animate(ts) {
+      if (!playing) return;
+      const spd = container.querySelector('.bfs-speed').value;
+      if (ts-lastT >= 1000/(spd*.5+1)) { lastT=ts; if(!step()){playing=false;container.querySelector('.bfs-play').innerHTML='&#9654; Replay';updateInfo();return;} }
+      anim = requestAnimationFrame(animate);
+    }
+
+    container.querySelector('.bfs-load').onclick = load;
+    container.querySelector('.bfs-play').onclick = function() {
+      if(!bfsData) return;
+      if(revDepth>=bfsData.maxD){load();} // replay from start
+      playing=!playing; this.innerHTML=playing?'&#9646;&#9646; Pause':'&#9654; Play';
+      if(playing){lastT=0;anim=requestAnimationFrame(animate);}
+    };
+    container.querySelector('.bfs-step').onclick = function() { playing=false; container.querySelector('.bfs-play').innerHTML='&#9654; Play'; step(); };
+    container.querySelector('.bfs-reset').onclick = function() { playing=false; container.querySelector('.bfs-play').innerHTML='&#9654; Play'; if(anim)cancelAnimationFrame(anim); load(); };
+    container.querySelectorAll('.bfs-ex').forEach(a => a.onclick = function(e) { e.preventDefault(); container.querySelector('.bfs-sid').value=this.dataset.sid; load(); });
+
+    load();
+  }
+
+  // Build the two panels
+  const app = document.getElementById('bfs-app');
+  app.innerHTML = '<div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;"><div id="bfs-square" style="flex:1;min-width:340px;"></div><div id="bfs-hex" style="flex:1;min-width:340px;"></div></div>';
+  createPanel('bfs-square', false);
+  createPanel('bfs-hex', true);
+})();
+</script>
+
+<hr>
+
+<!-- ───────────────────── COMPARISON ───────────────────── -->
+<h2>All Bounds Compared</h2>
+
+<p>Here are all the bounds overlaid on one diagram, using the same diamond of four robots on both a square and hex board:</p>
+
+<figure class="figure">
+  <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;align-items:flex-start;">
+  <svg width="310" height="330" viewBox="0 0 310 330">
+    <!-- ── Square board ── -->
+    <text x="155" y="16" text-anchor="middle" font-size="13" font-weight="bold" fill="#222" font-family="Georgia">Square board</text>
+    <!-- 7x7 grid, cell=40, offset=(15,28) -->
+    <g stroke="#eee" stroke-width="1">
+      <line x1="15" y1="28" x2="295" y2="28"/><line x1="15" y1="68" x2="295" y2="68"/>
+      <line x1="15" y1="108" x2="295" y2="108"/><line x1="15" y1="148" x2="295" y2="148"/>
+      <line x1="15" y1="188" x2="295" y2="188"/><line x1="15" y1="228" x2="295" y2="228"/>
+      <line x1="15" y1="268" x2="295" y2="268"/><line x1="15" y1="308" x2="295" y2="308"/>
+      <line x1="15" y1="28" x2="15" y2="308"/><line x1="55" y1="28" x2="55" y2="308"/>
+      <line x1="95" y1="28" x2="95" y2="308"/><line x1="135" y1="28" x2="135" y2="308"/>
+      <line x1="175" y1="28" x2="175" y2="308"/><line x1="215" y1="28" x2="215" y2="308"/>
+      <line x1="255" y1="28" x2="255" y2="308"/><line x1="295" y1="28" x2="295" y2="308"/>
+    </g>
+    <!-- Robots: A=(1,3), B=(3,0), C=(5,3), D=(3,6) -->
+    <!-- Bounding box: rows 1-5, cols 0-6 -->
+    <rect x="15" y="68" width="280" height="200" fill="none" stroke="#ca8a04" stroke-width="2" stroke-dasharray="6,3"/>
+    <!-- Convex hull (=diamond through robot centers) -->
+    <polygon points="155,88 275,168 155,248 35,168" fill="none" stroke="#2563eb" stroke-width="2"/>
+    <!-- OCH (cross): row 3 (cols 0-6) + col 3 (rows 1-5) -->
+    <rect x="15" y="148" width="280" height="40" fill="rgba(139,92,246,.10)"/>
+    <rect x="135" y="68" width="40" height="200" fill="rgba(139,92,246,.10)"/>
+    <path d="M135,68 L175,68 L175,148 L295,148 L295,188 L175,188 L175,268 L135,268 L135,188 L15,188 L15,148 L135,148 Z" fill="none" stroke="#7c3aed" stroke-width="2"/>
+    <!-- Robots on top -->
+    <circle cx="155" cy="88" r="11" fill="#333"/><circle cx="35" cy="168" r="11" fill="#333"/>
+    <circle cx="275" cy="168" r="11" fill="#333"/><circle cx="155" cy="248" r="11" fill="#333"/>
+  </svg>
+  <svg id="hex-comparison" width="350" height="330" viewBox="0 0 350 330"></svg>
+  </div>
+  <div style="display:flex;gap:16px;justify-content:center;margin-top:8px;flex-wrap:wrap;">
+    <span style="font-size:11px;color:#ca8a04;">&#9644;&#9644; Bounding box</span>
+    <span style="font-size:11px;color:#2563eb;">&#9644; Convex hull</span>
+    <span style="font-size:11px;color:#7c3aed;">&#9632; OCH / Hex-OCH</span>
+  </div>
+  <figcaption>Same four robots, both board types. On the square board, the OCH is a tight cross (13 cells). On the hex board, the hex-OCH is a three-armed star (13 cells) &mdash; the diagonal arm connects robots along the r+c axis, which squares don't have. Both are much tighter than the bounding box (35 cells) and the convex hull (19 cells).</figcaption>
+</figure>
+
+<hr>
+
+<!-- ───────────────────── SUMMARY ───────────────────── -->
+<h2>Summary</h2>
+
+<table>
+  <tr><th>#</th><th>Bound</th><th>What it tracks</th><th>Shape</th><th>Cost</th></tr>
+  <tr>
+    <td><span class="bound-num" style="font-size:12px;width:22px;height:22px;line-height:22px;">1</span></td>
+    <td>Board</td><td>Grid dimensions</td><td>Full rectangle</td><td>Free</td>
+  </tr>
+  <tr>
+    <td><span class="bound-num" style="font-size:12px;width:22px;height:22px;line-height:22px;">2</span></td>
+    <td>Bounding box</td><td>Min/max row &amp; column (2 rulers)</td><td>Rectangle</td><td>Trivial</td>
+  </tr>
+  <tr>
+    <td><span class="bound-num" style="font-size:12px;width:22px;height:22px;line-height:22px;">3</span></td>
+    <td>Convex hull</td><td>All linear rulers (tightest convex bound)</td><td>Convex polygon</td><td>Trivial</td>
+  </tr>
+  <tr>
+    <td><span class="bound-num" style="font-size:12px;width:22px;height:22px;line-height:22px;">4</span></td>
+    <td>Orthogonal hull</td><td>Row &amp; column connectedness (+ diagonal for hex)</td><td>Staircase / star</td><td>Cheap</td>
+  </tr>
+  <tr>
+    <td><span class="bound-num" style="font-size:12px;width:22px;height:22px;line-height:22px;">5</span></td>
+    <td>Exhaustive search</td><td>Full BFS over all states</td><td>Exact</td><td>Expensive</td>
+  </tr>
+</table>
+
+<p>Each bound is <strong>strictly tighter</strong> than the one above it (in general):</p>
+<ul>
+  <li>The bounding box is smaller than the board whenever robots don't fill the grid.</li>
+  <li>The convex hull is smaller than the bounding box whenever robots aren't arranged in a rectangle.</li>
+  <li>The OCH is smaller than the convex hull whenever robots aren't arranged in a convex blob &mdash; its staircase boundary follows the actual robot geometry far more closely.</li>
+  <li>The exact reachable set is smaller than the OCH because the OCH ignores how robots physically interact &mdash; it only knows about alignment, not adjacency.</li>
+</ul>
+
+<p>The first four bounds are cheap to compute from the starting positions. The fifth requires exploring the full game tree. The conceptual divide is between <strong>convex bounds</strong> (bounds 2&ndash;3, which are polygons getting closer to the convex hull) and <strong>connectedness bounds</strong> (bound 4, which breaks out of convexity entirely). Each world has a natural "tightest" answer: the convex hull is the tightest convex bound, and the OCH is the tightest connectedness bound.</p>
+
+<figure class="figure">
+  <svg width="380" height="320" viewBox="0 0 380 320">
+    <!-- Board -->
+    <rect x="10" y="10" width="360" height="300" rx="6" fill="#f8f8f8" stroke="#bbb" stroke-width="1.5"/>
+    <text x="26" y="34" font-size="13" fill="#888" font-family="Georgia">Board</text>
+    <!-- Bounding box -->
+    <rect x="30" y="42" width="320" height="248" rx="4" fill="rgba(234,179,8,.08)" stroke="#ca8a04" stroke-width="1.5" stroke-dasharray="6,3"/>
+    <text x="48" y="62" font-size="13" fill="#ca8a04" font-family="Georgia">Bounding box</text>
+    <!-- Convex hull — diamond fully inside bbox -->
+    <polygon points="190,68 320,166 190,264 60,166" fill="rgba(37,99,235,.07)" stroke="#2563eb" stroke-width="1.5"/>
+    <text x="220" y="98" text-anchor="start" font-size="13" fill="#2563eb" font-family="Georgia">Convex hull</text>
+    <!-- OCH (cross) — fully inside convex hull diamond
+         Cross center at (190,166). Horizontal arm ±90px, vertical arm ±60px, arm width 40px.
+         Must stay inside diamond: at y=166 diamond goes from x=60 to x=320. At x=190 diamond goes from y=68 to y=264.
+         Cross arm edges at y=146 and y=186: diamond half-width at those y's ≈ ±110px → arms can go to ±90px safely. -->
+    <path d="M172,106 L208,106 L208,146 L280,146 L280,186 L208,186 L208,226 L172,226 L172,186 L100,186 L100,146 L172,146 Z" fill="rgba(139,92,246,.12)" stroke="#7c3aed" stroke-width="1.5"/>
+    <text x="190" y="152" text-anchor="middle" font-size="12" fill="#7c3aed" font-family="Georgia">Orthogonal</text>
+    <text x="190" y="166" text-anchor="middle" font-size="12" fill="#7c3aed" font-family="Georgia">hull</text>
+    <!-- Exact set — ellipse fully inside the cross. Cross center column is x=172..208, rows 106..226.
+         Ellipse centered at (190,185), rx=16 (fits in 172..208), ry=30 (fits in 146..226 range). -->
+    <ellipse cx="190" cy="196" rx="16" ry="28" fill="rgba(22,163,74,.15)" stroke="#16a34a" stroke-width="1.5"/>
+    <text x="190" y="200" text-anchor="middle" font-size="11" fill="#16a34a" font-family="Georgia">Exact set</text>
+  </svg>
+  <figcaption>The full hierarchy, from loosest to tightest. The gap between the orthogonal hull and the exact set is where the combinatorial complexity lives &mdash; and why these puzzles are fun to solve.</figcaption>
+</figure>
+
+<script>
+// ── Hex diagram rendering ──
+(function() {
+  const S3 = Math.sqrt(3), COS60 = 0.5, SIN60 = S3/2;
+
+  // Grid (r,c) → rotated hex pixel position (matching Board.jsx)
+  function hexPos(r, c, N, R) {
+    const mid = (N-1)/2;
+    const bx = 1.5*R*c, by = S3*R*(r + c/2);
+    const cx = 1.5*R*mid, cy = S3*R*(mid + mid/2);
+    const dx = bx-cx, dy = by-cy;
+    return { x: COS60*dx + SIN60*dy, y: -SIN60*dx + COS60*dy };
+  }
+
+  // Flat-top hexagon matching the app's CSS clip-path:
+  // polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)
+  // cellW = 2*R, cellH = R*√3
+  function hexPts(cx, cy, R, shrink) {
+    const s = shrink || 0.97; // slight gap between cells
+    const hw = R * s, hh = R * S3/2 * s;
+    return [
+      (cx - hw/2).toFixed(1)+','+(cy - hh).toFixed(1),
+      (cx + hw/2).toFixed(1)+','+(cy - hh).toFixed(1),
+      (cx + hw   ).toFixed(1)+','+(cy     ).toFixed(1),
+      (cx + hw/2).toFixed(1)+','+(cy + hh).toFixed(1),
+      (cx - hw/2).toFixed(1)+','+(cy + hh).toFixed(1),
+      (cx - hw   ).toFixed(1)+','+(cy     ).toFixed(1),
+    ].join(' ');
+  }
+
+  // Compute centering offset for a set of grid cells
+  function hexLayout(cells, N, R) {
+    const cellH = R * S3;
+    let minX=1e9, maxX=-1e9, minY=1e9, maxY=-1e9;
+    for (const [r,c] of cells) {
+      const p = hexPos(r,c,N,R);
+      minX = Math.min(minX, p.x-R); maxX = Math.max(maxX, p.x+R);
+      minY = Math.min(minY, p.y-cellH/2); maxY = Math.max(maxY, p.y+cellH/2);
+    }
+    return { ox: -minX, oy: -minY, w: maxX-minX, h: maxY-minY };
+  }
+
+  // Render a hex diagram into an SVG element
+  function renderHex(svgId, cfg) {
+    const el = document.getElementById(svgId);
+    if (!el) return;
+    const { N, R, allCells, layers, robots, title, titleX, arrow } = cfg;
+    const lay = hexLayout(allCells, N, R);
+    const padX = 12, padY = 24;
+    const ox = lay.ox + padX, oy = lay.oy + padY;
+
+    let html = '';
+    if (title) html += '<text x="'+titleX+'" y="14" text-anchor="middle" font-size="12" font-weight="bold" fill="#222" font-family="Georgia">'+title+'</text>';
+
+    // Draw layers (colored cells, outlines) — order matters for z-stacking
+    for (const layer of (layers||[])) {
+      for (const [r,c] of (layer.cells||[])) {
+        const p = hexPos(r,c,N,R);
+        html += '<polygon points="'+hexPts(p.x+ox+layer.offX, p.y+oy, R)+'" fill="'+(layer.fill||'none')+'" stroke="'+(layer.stroke||'none')+'" stroke-width="'+(layer.strokeWidth||1)+'"'+(layer.dash?' stroke-dasharray="'+layer.dash+'"':'')+'/>';
+      }
+    }
+
+    // Background hex cells (gray outlines)
+    for (const [r,c] of allCells) {
+      const p = hexPos(r,c,N,R);
+      html += '<polygon points="'+hexPts(p.x+ox, p.y+oy, R)+'" fill="none" stroke="#ddd" stroke-width="1"/>';
+    }
+
+    // Overlay layers on top of grid
+    for (const layer of (layers||[])) {
+      if (!layer.onTop) continue;
+      for (const [r,c] of (layer.cells||[])) {
+        const p = hexPos(r,c,N,R);
+        html += '<polygon points="'+hexPts(p.x+ox+layer.offX, p.y+oy, R)+'" fill="'+(layer.fill||'none')+'" stroke="'+(layer.stroke||'none')+'" stroke-width="'+(layer.strokeWidth||1)+'"'+(layer.dash?' stroke-dasharray="'+layer.dash+'"':'')+'/>';
+      }
+    }
+
+    // Convex hull outlines (connecting robot positions)
+    for (const layer of (layers||[])) {
+      if (!layer.hullRobots) continue;
+      const pts = layer.hullRobots.map(([r,c]) => {
+        const p = hexPos(r,c,N,R);
+        return (p.x+ox+layer.offX).toFixed(1)+','+(p.y+oy).toFixed(1);
+      }).join(' ');
+      html += '<polygon points="'+pts+'" fill="none" stroke="'+(layer.hullStroke||'#2563eb')+'" stroke-width="'+(layer.hullStrokeWidth||2)+'"'+(layer.hullDash?' stroke-dasharray="'+layer.hullDash+'"':'')+'/>';
+    }
+
+    // Arrow between panels
+    if (arrow) html += '<text x="'+arrow.x+'" y="'+arrow.y+'" text-anchor="middle" font-size="18" fill="#666" font-family="Georgia">&rarr;</text>';
+
+    // Robots
+    for (const rb of (robots||[])) {
+      const p = hexPos(rb.r, rb.c, N, R);
+      const px = p.x+ox+(rb.offX||0), py = p.y+oy;
+      html += '<circle cx="'+px.toFixed(1)+'" cy="'+py.toFixed(1)+'" r="'+(R*.42)+'" fill="'+(rb.color||'#333')+'"/>';
+      if (rb.label) html += '<text x="'+px.toFixed(1)+'" y="'+py.toFixed(1)+'" text-anchor="middle" dominant-baseline="central" font-size="'+(R*.45)+'" font-weight="bold" fill="white" font-family="Menlo,monospace">'+rb.label+'</text>';
+    }
+
+    // Annotations
+    for (const a of (cfg.annotations||[])) {
+      html += '<text x="'+a.x+'" y="'+a.y+'" text-anchor="'+(a.anchor||'middle')+'" font-size="'+(a.size||11)+'" fill="'+(a.color||'#666')+'" font-family="Georgia"'+(a.italic?' font-style="italic"':'')+'>'+a.text+'</text>';
+    }
+
+    el.innerHTML = html;
+  }
+
+  // ── All 5x5 grid cells ──
+  const grid5 = [];
+  for (let r=0;r<5;r++) for (let c=0;c<5;c++) grid5.push([r,c]);
+  // ── 3x3 grid cells ──
+  const grid3 = [];
+  for (let r=0;r<3;r++) for (let c=0;c<3;c++) grid3.push([r,c]);
+  // ── 7x7 grid cells ──
+  const grid7 = [];
+  for (let r=0;r<7;r++) for (let c=0;c<7;c++) grid7.push([r,c]);
+
+  const R5 = 22; // hex radius for 5x5 diagrams
+
+  // ═══ Diagram 1: Hexagonal bound (3 rulers) vs Octagonal bound (4 rulers) ═══
+  // Robots at (0,2),(2,0),(4,2),(2,4) on 5x5
+  // Hex hull cells: r∈[0,4], c∈[0,4], r+c∈[2,6]
+  const hexHullCells = grid5.filter(([r,c]) => r+c>=2 && r+c<=6);
+  // Octagonal cells: adds r-c∈[-2,2]
+  const octCells = hexHullCells.filter(([r,c]) => r-c>=-2 && r-c<=2);
+  const panelOff = 290; // x offset for right panel
+
+  renderHex('hex-convex-hull', {
+    N:5, R:R5, allCells: grid5.concat(grid5.map(([r,c])=>[r,c])), // draw grid twice for two panels
+    layers: [
+      // Left panel: hexagonal bound
+      { cells: hexHullCells, fill:'rgba(234,179,8,.12)', stroke:'rgba(234,179,8,.3)', strokeWidth:1, offX:0,
+        hullRobots:[[0,2],[0,4],[2,4],[4,2],[4,0],[2,0]], hullStroke:'#ca8a04', hullStrokeWidth:2, hullDash:'' },
+      // Right panel: octagonal bound
+      { cells: octCells, fill:'rgba(37,99,235,.10)', stroke:'rgba(37,99,235,.25)', strokeWidth:1, offX:panelOff,
+        hullRobots:[[0,2],[2,4],[4,2],[2,0]], hullStroke:'#2563eb', hullStrokeWidth:2, hullDash:'' },
+    ],
+    robots: [
+      {r:0,c:2,color:'#555'},{r:2,c:0,color:'#555'},{r:4,c:2,color:'#555'},{r:2,c:4,color:'#555'},
+      {r:0,c:2,color:'#555',offX:panelOff},{r:2,c:0,color:'#555',offX:panelOff},{r:4,c:2,color:'#555',offX:panelOff},{r:2,c:4,color:'#555',offX:panelOff},
+    ],
+    arrow: {x:300, y:150},
+    annotations: [
+      {x:140,y:14,text:'Hexagonal bound (3 rulers)',size:12,color:'#222'},
+      {x:140+panelOff,y:14,text:'Octagonal bound (4 rulers)',size:12,color:'#222'},
+      {x:140,y:290,text:hexHullCells.length+' cells',size:11,color:'#ca8a04',italic:true},
+      {x:140+panelOff,y:290,text:octCells.length+' cells',size:11,color:'#2563eb',italic:true},
+    ],
+  });
+
+  // Fix: renderHex draws grid at offset 0 but we need two side-by-side panels.
+  // Let me redo this with a simpler approach: render into the SVG directly with two groups.
+
+  // Actually, let me rewrite renderHex to handle dual-panel layouts properly.
+  // The issue is that allCells and the layout only account for one panel.
+  // Let me use a different approach: build SVG strings for each panel and combine.
+
+  function buildHexPanel(N, R, allCells, layers, robots, annotations) {
+    const lay = hexLayout(allCells, N, R);
+    const padX = 8, padY = 8;
+    const ox = lay.ox + padX, oy = lay.oy + padY;
+    const w = lay.w + padX*2, h = lay.h + padY*2;
+    let html = '';
+
+    // Background cells
+    for (const [r,c] of allCells) {
+      const p = hexPos(r,c,N,R);
+      html += '<polygon points="'+hexPts(p.x+ox, p.y+oy, R)+'" fill="none" stroke="#ddd" stroke-width=".8"/>';
+    }
+    // Layers
+    for (const layer of (layers||[])) {
+      for (const [r,c] of (layer.cells||[])) {
+        const p = hexPos(r,c,N,R);
+        html += '<polygon points="'+hexPts(p.x+ox, p.y+oy, R)+'" fill="'+(layer.fill||'none')+'" stroke="'+(layer.stroke||'none')+'" stroke-width="'+(layer.strokeWidth||1)+'"'+(layer.dash?' stroke-dasharray="'+layer.dash+'"':'')+'/>';
+      }
+      if (layer.hullRobots) {
+        const pts = layer.hullRobots.map(([r,c]) => {
+          const p = hexPos(r,c,N,R);
+          return (p.x+ox).toFixed(1)+','+(p.y+oy).toFixed(1);
+        }).join(' ');
+        html += '<polygon points="'+pts+'" fill="'+(layer.hullFill||'none')+'" stroke="'+(layer.hullStroke||'#2563eb')+'" stroke-width="'+(layer.hullStrokeWidth||2)+'"'+(layer.hullDash?' stroke-dasharray="'+layer.hullDash+'"':'')+'/>';
+      }
+    }
+    // Robots
+    for (const rb of (robots||[])) {
+      const p = hexPos(rb.r, rb.c, N, R);
+      const px = p.x+ox, py = p.y+oy;
+      const rs = R*.4;
+      html += '<circle cx="'+px.toFixed(1)+'" cy="'+py.toFixed(1)+'" r="'+rs+'" fill="'+(rb.color||'#333')+'"/>';
+      if (rb.label) html += '<text x="'+px.toFixed(1)+'" y="'+py.toFixed(1)+'" text-anchor="middle" dominant-baseline="central" font-size="'+(rs*1.1)+'" font-weight="bold" fill="white" font-family="Menlo,monospace">'+rb.label+'</text>';
+    }
+    // Annotations
+    for (const a of (annotations||[])) {
+      html += '<text x="'+(a.rx!==undefined?a.rx*w:a.x)+'" y="'+(a.ry!==undefined?a.ry*h:a.y)+'" text-anchor="'+(a.anchor||'middle')+'" font-size="'+(a.size||11)+'" fill="'+(a.color||'#666')+'" font-family="Georgia"'+(a.italic?' font-style="italic"':'')+'>'+a.text+'</text>';
+    }
+    return { html, w, h, ox, oy };
+  }
+
+  function renderDualHex(svgId, leftCfg, rightCfg, opts) {
+    const el = document.getElementById(svgId);
+    if (!el) return;
+    const L = buildHexPanel(leftCfg.N, leftCfg.R, leftCfg.allCells, leftCfg.layers, leftCfg.robots, leftCfg.annotations||[]);
+    const Rt = buildHexPanel(rightCfg.N, rightCfg.R, rightCfg.allCells, rightCfg.layers, rightCfg.robots, rightCfg.annotations||[]);
+    const gap = opts.gap || 30;
+    const titleH = opts.titles ? 22 : 0;
+    const totalW = L.w + gap + Rt.w;
+    const totalH = Math.max(L.h, Rt.h) + titleH + (opts.footerH||20);
+    el.setAttribute('width', Math.ceil(totalW));
+    el.setAttribute('height', Math.ceil(totalH));
+    el.setAttribute('viewBox', '0 0 '+Math.ceil(totalW)+' '+Math.ceil(totalH));
+    let html = '';
+    if (opts.titles) {
+      html += '<text x="'+(L.w/2)+'" y="14" text-anchor="middle" font-size="12" font-weight="bold" fill="#222" font-family="Georgia">'+opts.titles[0]+'</text>';
+      html += '<text x="'+(L.w+gap+Rt.w/2)+'" y="14" text-anchor="middle" font-size="12" font-weight="bold" fill="#222" font-family="Georgia">'+opts.titles[1]+'</text>';
+    }
+    html += '<g transform="translate(0,'+titleH+')">'+L.html+'</g>';
+    html += '<g transform="translate('+(L.w+gap)+','+titleH+')">'+Rt.html+'</g>';
+    html += '<text x="'+(L.w+gap/2)+'" y="'+(titleH+Math.max(L.h,Rt.h)/2)+'" text-anchor="middle" font-size="18" fill="#666" font-family="Georgia">&rarr;</text>';
+    // Footer annotations
+    for (const a of (opts.footer||[])) {
+      html += '<text x="'+a.x+'" y="'+(titleH+Math.max(L.h,Rt.h)+(a.dy||14))+'" text-anchor="middle" font-size="11" fill="'+(a.color||'#666')+'" font-family="Georgia" font-style="italic">'+a.text+'</text>';
+    }
+    el.innerHTML = html;
+  }
+
+  function renderSingleHex(svgId, cfg, opts) {
+    const el = document.getElementById(svgId);
+    if (!el) return;
+    const P = buildHexPanel(cfg.N, cfg.R, cfg.allCells, cfg.layers, cfg.robots, cfg.annotations||[]);
+    const titleH = opts.title ? 22 : 0;
+    const totalW = Math.max(P.w, (opts.minW||0));
+    const totalH = P.h + titleH + (opts.footerH||10);
+    el.setAttribute('width', Math.ceil(totalW));
+    el.setAttribute('height', Math.ceil(totalH));
+    el.setAttribute('viewBox', '0 0 '+Math.ceil(totalW)+' '+Math.ceil(totalH));
+    let html = '';
+    if (opts.title) html += '<text x="'+(totalW/2)+'" y="14" text-anchor="middle" font-size="12" font-weight="bold" fill="#222" font-family="Georgia">'+opts.title+'</text>';
+    const offX = (totalW - P.w)/2;
+    html += '<g transform="translate('+offX+','+titleH+')">'+P.html+'</g>';
+    // Extra SVG elements (arrows, labels positioned absolutely)
+    for (const e of (opts.extras||[])) html += e;
+    el.innerHTML = html;
+  }
+
+  // ═══ Diagram 1: Hexagonal bound vs Octagonal bound ═══
+  const robots5dia = [{r:0,c:2},{r:2,c:0},{r:4,c:2},{r:2,c:4}];
+  renderDualHex('hex-convex-hull',
+    { N:5, R:R5, allCells:grid5,
+      layers: [{ cells: hexHullCells, fill:'rgba(234,179,8,.15)', stroke:'rgba(234,179,8,.4)', strokeWidth:1,
+                 hullRobots:[[0,2],[0,4],[2,4],[4,2],[4,0],[2,0]], hullStroke:'#ca8a04', hullStrokeWidth:2 }],
+      robots: robots5dia.map(r=>({...r, color:'#555'})) },
+    { N:5, R:R5, allCells:grid5,
+      layers: [{ cells: octCells, fill:'rgba(37,99,235,.12)', stroke:'rgba(37,99,235,.3)', strokeWidth:1,
+                 hullRobots:[[0,2],[2,4],[4,2],[2,0]], hullStroke:'#2563eb', hullStrokeWidth:2 }],
+      robots: robots5dia.map(r=>({...r, color:'#555'})) },
+    { gap:36, titles:['Hexagonal bound (3 rulers)','Octagonal bound (4 rulers)'], footerH:24,
+      footer: [
+        {x:120, text:hexHullCells.length+' cells', color:'#ca8a04'},
+        {x:380, text:octCells.length+' cells (corners clipped)', color:'#2563eb'},
+      ]}
+  );
+
+  // ═══ Diagram 2: OCH hex failure ═══
+  renderSingleHex('hex-och-failure',
+    { N:3, R:30, allCells:grid3,
+      layers: [
+        // OCH cells (just the two robots) — dashed purple
+        { cells:[[0,2],[2,0]], fill:'rgba(139,92,246,.12)', stroke:'#7c3aed', strokeWidth:1.5, dash:'4,2' },
+        // Landing cell — red
+        { cells:[[1,1]], fill:'rgba(220,38,38,.15)', stroke:'#dc2626', strokeWidth:1.5 },
+      ],
+      robots: [
+        {r:0,c:2,color:'#2563eb',label:'A'},
+        {r:2,c:0,color:'#dc2626',label:'B'},
+      ],
+      annotations: [],
+    },
+    { title:'', minW:280, footerH:10,
+      extras: (function(){
+        // Compute arrow from A toward (1,1)
+        const lay = hexLayout(grid3, 3, 30);
+        const ox = lay.ox+8, oy = lay.oy+8+0; // no title offset since title=''
+        const pA = hexPos(0,2,3,30), p11 = hexPos(1,1,3,30);
+        const ax1 = pA.x+ox + (280-lay.w-16)/2, ay1 = pA.y+oy;
+        const ax2 = p11.x+ox + (280-lay.w-16)/2, ay2 = p11.y+oy;
+        // Label
+        return [
+          '<line x1="'+(ax1+(ax2-ax1)*.2)+'" y1="'+(ay1+(ay2-ay1)*.2)+'" x2="'+(ax1+(ax2-ax1)*.75)+'" y2="'+(ay1+(ay2-ay1)*.75)+'" stroke="#2563eb" stroke-width="2" stroke-dasharray="4,3" marker-end="url(#arB)"/>',
+          '<text x="225" y="130" font-size="11" fill="#dc2626" font-family="Georgia" font-style="italic">(1,1): outside</text>',
+          '<text x="225" y="144" font-size="11" fill="#dc2626" font-family="Georgia" font-style="italic">the OCH!</text>',
+        ];
+      })(),
+    }
+  );
+
+  // ═══ Diagram 3: Convex hull → Hex-OCH ═══
+  const hexOchCells5 = [[0,2],[1,1],[1,2],[2,0],[2,1],[2,2],[2,3],[2,4],[3,2],[3,3],[4,2]];
+  const convexHullCells5 = grid5.filter(([r,c]) => {
+    // Inside the diamond (0,2)-(2,0)-(4,2)-(2,4)
+    return r+c>=2 && r+c<=6 && r-c>=-2 && r-c<=2;
+  });
+
+  renderDualHex('hex-och-star',
+    { N:5, R:R5, allCells:grid5,
+      layers: [{ cells: convexHullCells5, fill:'rgba(37,99,235,.10)', stroke:'rgba(37,99,235,.25)', strokeWidth:1,
+                 hullRobots:[[0,2],[2,4],[4,2],[2,0]], hullStroke:'#2563eb', hullStrokeWidth:2, hullFill:'none' }],
+      robots: robots5dia.map(r=>({...r, color:'#555'})) },
+    { N:5, R:R5, allCells:grid5,
+      layers: [{ cells: hexOchCells5, fill:'rgba(139,92,246,.15)', stroke:'rgba(139,92,246,.4)', strokeWidth:1 }],
+      robots: robots5dia.map(r=>({...r, color:'#555'})) },
+    { gap:36, titles:['Convex hull: '+convexHullCells5.length+' cells','Hex-OCH: '+hexOchCells5.length+' cells'], footerH:10 }
+  );
+
+  // ═══ Diagram 4: Comparison overlay — hex panel ═══
+  // Robots at (1,3),(3,0),(5,3),(3,6) on 7x7
+  const R7 = 16;
+  const hexOchCells7 = [[1,3],[2,2],[2,3],[3,0],[3,1],[3,2],[3,3],[3,4],[3,5],[3,6],[4,3],[4,4],[5,3]];
+  const convexHullCells7 = grid7.filter(([r,c]) => {
+    // Diamond (1,3)-(3,0)-(5,3)-(3,6): r+c∈[3,9], r-c∈[-3,3], r∈[1,5], c∈[0,6]
+    return r>=1 && r<=5 && c>=0 && c<=6 && r+c>=3 && r+c<=9 && r-c>=-3 && r-c<=3;
+  });
+
+  renderSingleHex('hex-comparison',
+    { N:7, R:R7, allCells:grid7,
+      layers: [
+        // Convex hull outline
+        { cells:[], hullRobots:[[1,3],[3,6],[5,3],[3,0]], hullStroke:'#2563eb', hullStrokeWidth:2 },
+        // Hex-OCH filled
+        { cells: hexOchCells7, fill:'rgba(139,92,246,.15)', stroke:'rgba(139,92,246,.35)', strokeWidth:.8 },
+      ],
+      robots: [{r:1,c:3,color:'#333'},{r:3,c:0,color:'#333'},{r:5,c:3,color:'#333'},{r:3,c:6,color:'#333'}],
+    },
+    { title:'Hex board', minW:340, footerH:10 }
+  );
+
+})();
+</script>
+
+</body>
+</html>
