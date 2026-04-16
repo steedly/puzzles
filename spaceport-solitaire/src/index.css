@@ -380,8 +380,6 @@ button { cursor: pointer; font-family: inherit; }
 
 .board--hex {
   background: var(--board-bg);
-  border-radius: var(--border-radius);
-  border: 1px solid var(--cell-border);
 }
 
 /* ── Cell: hex shape override ──────────────────────────────────────────────── */

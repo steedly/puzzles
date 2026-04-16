@@ -29,28 +29,51 @@ function hexCellPosition(r, c, N, hexR) {
   };
 }
 
+/** Convex hull (Andrew's monotone chain) for 2D points. */
+function convexHull(points) {
+  const pts = [...points].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  if (pts.length <= 1) return pts;
+  const cross = (o, a, b) => (a[0]-o[0])*(b[1]-o[1]) - (a[1]-o[1])*(b[0]-o[0]);
+  const lower = [];
+  for (const p of pts) { while (lower.length >= 2 && cross(lower[lower.length-2], lower[lower.length-1], p) <= 0) lower.pop(); lower.push(p); }
+  const upper = [];
+  for (let i = pts.length - 1; i >= 0; i--) { const p = pts[i]; while (upper.length >= 2 && cross(upper[upper.length-2], upper[upper.length-1], p) <= 0) upper.pop(); upper.push(p); }
+  lower.pop(); upper.pop();
+  return lower.concat(upper);
+}
+
 function hexBoardDimensions(N, hexR) {
-  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  const cellW = hexR * 2;
+  const cellH = hexR * Math.sqrt(3);
+
+  // Collect all 6 vertex positions for every cell
+  const allVerts = [];
   for (let r = 0; r < N; r++) {
     for (let c = 0; c < N; c++) {
       const { x, y } = hexCellPosition(r, c, N, hexR);
-      if (x < minX) minX = x;
-      if (x > maxX) maxX = x;
-      if (y < minY) minY = y;
-      if (y > maxY) maxY = y;
+      // Hex vertices matching the CSS clip-path (flat-top hex)
+      const hw = cellW / 2, hh = cellH / 2;
+      allVerts.push([x - hw/2, y - hh], [x + hw/2, y - hh], [x + hw, y],
+                     [x + hw/2, y + hh], [x - hw/2, y + hh], [x - hw, y]);
     }
   }
-  // Pad by exactly half-cell so outermost cells aren't clipped
-  const cellW = hexR * 2;
-  const cellH = hexR * Math.sqrt(3);
-  const padX = cellW / 2;
-  const padY = cellH / 2;
-  return {
-    width:   maxX - minX + padX * 2,
-    height:  maxY - minY + padY * 2,
-    offsetX: -minX + padX,
-    offsetY: -minY + padY,
-  };
+  const hull = convexHull(allVerts);
+
+  // Bounding box of hull
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const [x, y] of hull) { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y); }
+
+  // Add uniform padding matching the square board (10px)
+  const pad = 10;
+  const offsetX = -minX + pad;
+  const offsetY = -minY + pad;
+  const width = maxX - minX + pad * 2;
+  const height = maxY - minY + pad * 2;
+
+  // Convert hull to pixel coords within the padded container
+  const outline = hull.map(([x, y]) => [x + offsetX, y + offsetY]);
+
+  return { width, height, offsetX, offsetY, outline };
 }
 
 // ── Responsive scaling wrapper ────────────────────────────────────────────────
@@ -235,8 +258,8 @@ export default function Board({ state, dispatch, puzzle, variantBlocks, buildMod
         const { x, y } = hexCellPosition(r, c, N, hexR);
         style = {
           position: 'absolute',
-          left: x + hexDims.offsetX - cellW / 2 + 10,
-          top:  y + hexDims.offsetY - cellH / 2 + 10,
+          left: x + hexDims.offsetX - cellW / 2,
+          top:  y + hexDims.offsetY - cellH / 2,
           width: cellW,
           height: cellH,
         };
@@ -269,12 +292,17 @@ export default function Board({ state, dispatch, puzzle, variantBlocks, buildMod
 
   // ── Render: board container ──
   if (isHex) {
-    const boardPad = 20; // 10px padding on each side, matching .board--hex CSS
+    const { width: bw, height: bh, outline } = hexDims;
+    const clipPath = 'polygon(' + outline.map(([x, y]) => `${x}px ${y}px`).join(', ') + ')';
+    const svgPoints = outline.map(([x, y]) => `${x},${y}`).join(' ');
     return (
       <div className="board-container">
-        <ScaledBoard naturalWidth={hexDims.width + boardPad} naturalHeight={hexDims.height + boardPad}>
-          <div className="board board--hex" style={{ width: hexDims.width + boardPad, height: hexDims.height + boardPad, position: 'relative' }}>
+        <ScaledBoard naturalWidth={bw} naturalHeight={bh}>
+          <div className="board board--hex" style={{ width: bw, height: bh, position: 'relative', clipPath }}>
             {cells}
+            <svg style={{ position: 'absolute', left: 0, top: 0, width: bw, height: bh, pointerEvents: 'none' }}>
+              <polygon points={svgPoints} fill="none" stroke="var(--cell-border)" strokeWidth="1" />
+            </svg>
           </div>
         </ScaledBoard>
       </div>
