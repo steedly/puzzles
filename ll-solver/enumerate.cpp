@@ -809,6 +809,13 @@ static void generate_augmented_predecessors(
                         if (m == EXITED || m == wp) continue;
                         out_one.push_back(canonical_aug(ps, m, n, num_exits, shift));
                     }
+                    // Multi-exit: if predecessor still has EXITED exits, emit (P, EXITED).
+                    for (int e = 0; e < num_exits; e++) {
+                        if (nr[e] == EXITED) {
+                            out_one.push_back(canonical_aug(ps, EXITED, n, num_exits, shift));
+                            break;
+                        }
+                    }
                 }
             }
         }
@@ -863,6 +870,15 @@ static void generate_augmented_predecessors(
                 const int m = nr[j];
                 if (m == EXITED || m == wp) continue;
                 out_one.push_back(canonical_aug(ps, m, n, num_exits, shift));
+            }
+            // Multi-exit: if the predecessor has any EXITED exit, also emit
+            // (P, EXITED) as a cost-1 predecessor. This represents "the last
+            // forward move from P was an exit reaching center."
+            for (int e = 0; e < num_exits; e++) {
+                if (nr[e] == EXITED) {
+                    out_one.push_back(canonical_aug(ps, EXITED, n, num_exits, shift));
+                    break;  // one EXITED suffices
+                }
             }
         }
     }

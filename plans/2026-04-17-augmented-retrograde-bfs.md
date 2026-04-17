@@ -91,3 +91,53 @@ Decoded example: exit at (3,4), helpers at (2,1), (2,5), (4,2). Forward solver f
 **Hypothesis:** the `generate_augmented_predecessors` function's un-exit logic doesn't generate all valid predecessor configurations for states where the exit reaches center via an indirect path. The un-exit code assumes the exit slid to center in a single move from some position along a cardinal/diagonal line through center. But if the exit took multiple moves to reach center (sliding in different directions), the LAST move to center is what matters — and that last move must have the exit sliding to center from an adjacent line. This part should be correct (it generates all positions along each direction from center with a valid blocker past center).
 
 **Next steps:** add detailed debug tracing for the specific mismatch state to see what the forward solver's optimal path is, and whether the augmented BFS's reverse exploration covers it. The issue may be in how multi-exit un-exit interacts with helper positions, or in the cost-0/cost-1 edge generation for the un-exit case.
+
+### 2026-04-17T07:00Z — Two bugs found and fixed, all 1-exit combos PASS
+
+**Bug 1 — insert_new doesn't update higher costs.** Within Phase A, a state could be discovered at cost `c+1` (via a cost-1 edge) before being discovered at cost `c` (via a cost-0 edge from a different state at the same level). `insert_new` ignores the second insertion. Fix: check-and-upsert — update the stored cost if the new cost is lower.
+
+**Bug 2 — cost-1 skip incorrect after sort.** The cost-1 predecessor loop used `j == ridx` to skip the reversed robot (avoiding duplicate with cost-0). But after `std::sort(nr + num_exits, nr + n)`, the reversed robot may have moved to a different index. Fix: skip by position (`m == wp`) instead of index (`j == ridx`).
+
+**Validation results:**
+| Combo | Board | States | Result |
+|-------|-------|--------|--------|
+| 1+1 | standard | 3 | PASS |
+| 1+2 | standard | 96 | PASS |
+| 1+3 | standard | 2,847 | PASS |
+| 1+4 | standard | ~40K | PASS |
+| 1+3 | beehive | 16,769 | PASS |
+| 2+2 | standard | — | FAIL (MISS) |
+| 2+3 | standard | — | FAIL (MISS) |
+
+Multi-exit failures are all MISS (states not found in augmented map), not MISMATCH. The core BFS cost computation is correct. The multi-exit un-exit seeding has a separate issue — likely related to intermediate goal states where only SOME exits have exited.
+
+**Next:** debug multi-exit MISS states. The seeding only inserts fully-solved goals (all exits EXITED). For multi-exit puzzles, intermediate states where N-1 exits are EXITED and 1 is still on the board need to be discovered through BFS expansion, not seeding. The un-exit code only fires when `last_cell == EXITED`, which only applies to the seed states. Intermediate "partial goal" states have `last_cell` = some robot position, and the BFS expands normally. Need to verify this chain works.
+
+Commit: `223820e`
+
+### 2026-04-17T08:00Z — Multi-exit bug fixed, ALL combos PASS
+
+**Root cause of multi-exit MISS:** The BFS only enters the un-exit branch when `last_cell == EXITED`. For multi-exit puzzles, intermediate states where some (not all) exits have exited need `last_cell = EXITED` to trigger un-exiting of earlier exits. But `last_cell = EXITED` was never generated as a cost-1 predecessor — the cost-1 loop skips EXITED values.
+
+**Fix:** when generating cost-1 predecessors, if the predecessor has any EXITED exit, also emit `(P, EXITED)` as a cost-1 predecessor. This enables the BFS to later un-exit the remaining EXITED exits via the un-exit branch.
+
+**Comprehensive validation results — 12/12 PASS:**
+
+| Combo | Board | Result |
+|-------|-------|--------|
+| 1+1 | standard | PASS |
+| 1+2 | standard | PASS |
+| 1+3 | standard | PASS |
+| 1+4 | standard | PASS |
+| 2+1 | standard | PASS |
+| 2+2 | standard | PASS |
+| 2+3 | standard | PASS |
+| 3+1 | standard | PASS |
+| 3+2 | standard | PASS |
+| 1+2 | beehive | PASS |
+| 1+3 | beehive | PASS |
+| 2+2 | beehive | PASS |
+
+The augmented retrograde 0-1 BFS is **correct** for all tested combinations on both square and hex boards.
+
+**Next:** re-enable symmetry canonicalization and validate. Then test larger combos (1+5, 2+4) for performance/memory measurements. Finally, integrate into the main pipeline.
