@@ -690,3 +690,78 @@ DP blow-up (100× slower per puzzle than 3-exit) is an algorithmic
 issue for a follow-up session, not a tuning issue.
 
 **Awaiting user decision** before proceeding with Phase 6 cutover.
+
+### 2026-04-17T03:21Z — Phase 6 COMPLETE: cutover shipped with 172,121 puzzles
+
+User chose **Option B** (preserve legacy square 4+3 coverage). Full
+cutover executed in ~40 minutes.
+
+**Final unified library:** `spaceport-solitaire/public/puzzles.llp`
+- Total puzzles: **172,121**
+- v11 beehive run (17/18 combos): 146,988
+- Legacy 4+3 square (extracted from old standard puzzles.llp): 25,133
+- Per-variant coverage (via runtime variantFlags filter):
+  - standard: 31,740
+  - solitaire: 3,268
+  - ufo: 4,945
+  - french: 7,401
+  - hex: 35,841
+  - beehive: 172,121
+
+**Commits landed on `wip/pass3-and-ui-unified`:**
+- `ccc301a` Cut over to v11+legacy4x3 unified library
+- `ad3f9ac` Delete legacy per-variant .llp files
+
+**Verification:**
+- `validate_solutions.py` on merged file: 172,121/172,121 valid,
+  sequential IDs OK, 0 D4/collision-sig duplicates
+- `test-unified-integration.mjs`: all 6 variants populated, one-per-
+  variant solution replay PASS
+- `npx vitest run`: 39 passed (7 pre-existing skipped)
+- `npm run build`: 780ms, 82 KB gzipped JS
+
+**Backups in S3 (`s3://home-cloud-xfer-919968175881/puzzles/`):**
+- `v11-beehive.llp` — 20.9 MB raw v11 output
+- `puzzles-unified-v11plus.llp` — 24.2 MB merged deployment file
+- `v11-beehive.log` — full run log
+
+**New/modified scripts on branch:**
+- `ll-solver/merge_legacy_4x3.py` — one-shot extraction script with
+  Python reimplementation of `compute_variant_flags()`
+- `ll-solver/validate_solutions.py` — per-puzzle hex/square format
+  detection based on move length (was globally hex-or-square),
+  required for validating mixed unified files
+
+**What's still missing (follow-up work):**
+
+1. **Hex/beehive 4+3 coverage.** The hex 4-exit+3-helper combo has
+   never been enumerated successfully — not in v11, not in prior
+   legacy runs. Root cause: `solve_min_grouped` per-puzzle cost
+   scales dramatically with exit count (observed ~100 CPU-sec/puzzle
+   for 4-exit 7-piece vs 0.64 for 3-exit 7-piece). Follow-up: profile
+   and optimize solve_min_grouped for 4-exit workloads. Once tractable,
+   a 4+3-only enumerate run can produce hex/beehive 4+3 puzzles to
+   append to the library.
+
+2. **Square 4+3 dedup symmetry mismatch.** The appended legacy 4+3
+   puzzles were dedup'd under square D4 (8 symmetries). The v11
+   beehive portion uses Klein 4-subgroup. Cross-section cross-variant
+   duplicates won't collide (different board types), but this is worth
+   noting if someone later wonders why square slices have no 90°/270°
+   rotation twins while the beehive slice can.
+
+3. **Deploy to GitHub Pages.** Not in this branch's scope. User will
+   review this branch and merge to main separately.
+
+4. **Layer 3 heavy-phase parallelism.** Currently 4-wide serial for
+   `pruned_ns >= 7`. A smarter pre-grow strategy in
+   `forward_bfs_states_parallel` (observed-branching-based instead of
+   worst-case) would unlock 16-core utilization for Layer 3.
+
+**Run summary:**
+- Branch: `wip/pass3-and-ui-unified` at `ad3f9ac`
+- Total wall time from branch creation to cutover: ~36 hours
+- v11 enumerate itself: 27h57m (crashed in 4+3 Layer 3 but preserved 17/18 combos)
+- Phase 6 cutover: ~40 minutes
+
+Status: **COMPLETE**. User can now review and merge the branch.
