@@ -18,6 +18,7 @@ import { useUserData, STORAGE_KEY, mergeUserData, applyConflictResolutions } fro
 import { usePuzzleMetrics } from './hooks/usePuzzleMetrics';
 import { usePersistentState } from './hooks/usePersistentState';
 import { boardForVariant } from './logic/boardGeometry';
+import { findLibraryPuzzleByPosition } from './logic/collisionSignature';
 import { computeReachableCells } from './logic/reachabilityBounds';
 
 // Placeholder so useGameState never receives null.
@@ -363,6 +364,19 @@ export default function App() {
       buildSolve(variantBlocks, board);
     }
   }, [mode, buildState.pieces, buildState.phase, buildSolve, variantBlocks]);
+
+  // Auto-solve when the user's built position matches a library puzzle under
+  // any D4/Klein symmetry. Library guarantees solvability; running the live
+  // BFS here produces a solution in the user's coordinate frame without
+  // needing symmetry-inverse move rewriting. NON-library positions never
+  // trigger this path — the user still uses the Solve button to opt into BFS
+  // for arbitrary (potentially slow) configurations.
+  useEffect(() => {
+    if (mode !== 'build' || buildState.phase !== 'placing') return;
+    const isHex = board?.type === 'hex';
+    const match = findLibraryPuzzleByPosition(buildState.pieces, board?.N ?? 7, isHex, stableIdMap);
+    if (match) buildSolve(variantBlocks, board);
+  }, [mode, buildState.pieces, buildState.phase, board, stableIdMap, buildSolve, variantBlocks]);
 
   // When build mode produces a solved puzzle, load it for play
   const buildSolvedPuzzle = buildState.solvedPuzzle;

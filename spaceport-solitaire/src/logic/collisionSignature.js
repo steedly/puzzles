@@ -158,6 +158,45 @@ function canonicalPositionKey(robots, usedIds, boardN = 7, isHex = false) {
 }
 
 /**
+ * Look up a library puzzle whose positions exactly match the given pieces
+ * under any D4 (square) or Klein (hex) symmetry transform.
+ *
+ * Unlike findD4PositionMatches, this is a pre-solve lookup: it doesn't need
+ * a solution, only the built positions. It's O(k) in the number of symmetry
+ * transforms (6-8) thanks to stableIdMap's O(1) reverse lookup.
+ *
+ * Returns the matched library puzzle (with the user's piece count) or null.
+ */
+export function findLibraryPuzzleByPosition(pieces, boardN, isHex, stableIdMap) {
+  if (!pieces?.length || !stableIdMap) return null;
+  const exits = pieces.filter(p => p.isExit);
+  const helpers = pieces.filter(p => !p.isExit);
+  if (exits.length === 0 || helpers.length === 0) return null;
+  const numExits = exits.length;
+  const m = boardN - 1;
+  const symIndices = isHex ? HEX_SYM_INDICES : SQUARE_SYM_INDICES;
+
+  for (const t of symIndices) {
+    // Transform each piece then sort exits and helpers separately by cell
+    // index ascending — same ordering enumerate.cpp emits (sort_exits_and_remap
+    // + retrograde helper ordering), which is what computeStableId encodes.
+    const te = exits.map(p => spatialTransform(p.row, p.col, t, m))
+                    .sort((a, b) => (a[0] * boardN + a[1]) - (b[0] * boardN + b[1]));
+    const th = helpers.map(p => spatialTransform(p.row, p.col, t, m))
+                      .sort((a, b) => (a[0] * boardN + a[1]) - (b[0] * boardN + b[1]));
+    // Inline stableId computation (matches computeStableId in usePuzzleLibrary.js
+    // — duplicated here to avoid a cross-package import cycle).
+    let value = 0;
+    for (const [r, c] of te) value = value * 49 + (r * boardN + c);
+    for (const [r, c] of th) value = value * 49 + (r * boardN + c);
+    const stableId = `${numExits}-${value.toString(36)}`;
+    const hit = stableIdMap.get(stableId);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+/**
  * Find library puzzles whose robot positions match the custom puzzle's.
  */
 export function findD4PositionMatches(solution, robots, puzzles, boardN = 7, isHex = false) {
