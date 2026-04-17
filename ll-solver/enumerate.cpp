@@ -802,9 +802,9 @@ static void generate_augmented_predecessors(
                     // Cost-0: same exit was continuing → pred last_cell = wp
                     out_zero.push_back(canonical_aug(ps, wp, n, num_exits, shift));
 
-                    // Cost-1: exit was a new mover → pred last_cell = any other robot
+                    // Cost-1: exit was a new mover → pred last_cell = any other robot.
+                    // The un-exited exit is now at wp; skip it (already cost-0).
                     for (int j = 0; j < n; j++) {
-                        if (j == eidx) continue;
                         const int m = nr[j];
                         if (m == EXITED || m == wp) continue;
                         out_one.push_back(canonical_aug(ps, m, n, num_exits, shift));
@@ -856,9 +856,10 @@ static void generate_augmented_predecessors(
             // Cost-0: same robot was continuing → pred last_cell = wp
             out_zero.push_back(canonical_aug(ps, wp, n, num_exits, shift));
 
-            // Cost-1: this robot was a new mover → pred last_cell = any other robot
+            // Cost-1: this robot was a new mover → pred last_cell = any other robot.
+            // The reversed robot is now at position wp; skip it (already cost-0).
+            // After sorting, the index may have changed, so identify by position.
             for (int j = 0; j < n; j++) {
-                if (j == ridx) continue;
                 const int m = nr[j];
                 if (m == EXITED || m == wp) continue;
                 out_one.push_back(canonical_aug(ps, m, n, num_exits, shift));
@@ -977,12 +978,25 @@ static FlatMap retrograde_grouped(int num_exits, int num_helpers)
                 generate_augmented_predecessors(s, lc, n, num_exits, shift, z_buf, o_buf);
 
                 for (const uint64_t k : z_buf) {
-                    if (dist.insert_new(k, (uint8_t)cost))
+                    uint8_t existing;
+                    if (!dist.find_val(k, &existing)) {
+                        dist.insert_new(k, (uint8_t)cost);
                         next_zero.push_back(k);
+                    } else if ((int)existing > cost) {
+                        dist.upsert(k, (uint8_t)cost);
+                        next_zero.push_back(k);  // re-expand at lower cost
+                    }
                 }
                 for (const uint64_t k : o_buf) {
-                    if (cost + 1 <= 254 && dist.insert_new(k, (uint8_t)(cost + 1)))
+                    if (cost + 1 > 254) continue;
+                    uint8_t existing;
+                    if (!dist.find_val(k, &existing)) {
+                        dist.insert_new(k, (uint8_t)(cost + 1));
                         next_one.push_back(k);
+                    } else if ((int)existing > cost + 1) {
+                        dist.upsert(k, (uint8_t)(cost + 1));
+                        next_one.push_back(k);
+                    }
                 }
             }
 #endif
@@ -2945,9 +2959,46 @@ int main(int argc, char* argv[]) {
                 bool is_goal = true;
                 for (int e = 0; e < ne; e++) if (pos[e] != EXITED) { is_goal = false; break; }
                 if (is_goal) { skipped++; continue; }  // goal has cost 0 by definition
-                std::cerr << "  MISS: state " << s << " not found in augmented map\n";
+                int dp2[10]; decode(s, nt, dp2);
+                std::cerr << "  MISS: state " << s << " positions:";
+                for (int j=0;j<nt;j++) std::cerr << " (" << dp2[j]/N << "," << dp2[j]%N << ")" << (dp2[j]==EXITED?"X":"");
+                std::cerr << "\n";
+                // Run forward solve and trace the entire path in the aug map.
+                auto tr_miss = solve_min_grouped(s, nt, ne);
+                std::cerr << "    forward solve: " << tr_miss.grouped_moves << " grouped, " << tr_miss.moves.size() << " slides\n";
+                if (!tr_miss.moves.empty()) {
+                    const char* DN[] = {"U","D","L","R","NW","SE"};
+                    int cp[10]; std::memcpy(cp, dp2, nt*sizeof(int));
+                    int prev_l = EXITED;
+                    for (int mi=0; mi<(int)tr_miss.moves.size(); mi++) {
+                        auto& mv = tr_miss.moves[mi];
+                        int nc_,bi_; State ns_;
+                        if (!forward_move(cp,nt,ne,mv.mover,mv.dir,nc_,bi_,ns_,make_occ(cp,nt))) break;
+                        int land_ = (mv.mover<ne&&nc_==CTR)?EXITED:nc_;
+                        int ec_ = (cp[mv.mover]==prev_l)?0:1;
+                        uint64_t ak_ = canonical_aug(ns_,land_,nt,ne,shift);
+                        uint8_t v_; bool f_ = aug_dist.find_val(ak_,&v_);
+                        std::cerr << "    slide " << mi << ": r" << (int)mv.mover << " " << DN[(int)mv.dir]
+                                  << " land=" << land_ << " edge=" << ec_ << " aug_found=" << f_;
+                        if(f_) std::cerr << " aug=" << (int)v_;
+                        std::cerr << "\n";
+                        decode(ns_,nt,cp); prev_l = land_;
+                    }
+                }
+                // Show all possible first moves and whether successor is found.
+                for (int ridx=0;ridx<nt;ridx++) for (int d=0;d<NUM_DIRS;d++) {
+                    int nc,bi; State ns;
+                    if (!forward_move(pos,nt,ne,ridx,d,nc,bi,ns,occ)) continue;
+                    int landing=(ridx<ne&&nc==CTR)?EXITED:nc;
+                    uint64_t ak = canonical_aug(ns,landing,nt,ne,shift);
+                    uint8_t v; bool found = aug_dist.find_val(ak,&v);
+                    std::cerr << "    robot" << ridx << " dir" << d << " → landing=" << landing
+                              << " found=" << found;
+                    if(found) std::cerr << " cost=" << (int)v;
+                    std::cerr << "\n";
+                }
                 mismatches++;
-                if (mismatches >= 20) break;
+                if (mismatches >= 5) break;
                 continue;
             }
 
@@ -2961,10 +3012,50 @@ int main(int argc, char* argv[]) {
 
             if (min_aug != fwd_cost) {
                 mismatches++;
+                int dp[10]; decode(s, nt, dp);
                 std::cerr << "  MISMATCH: state " << s
-                          << " aug=" << min_aug << " fwd=" << fwd_cost << "\n";
-                if (mismatches >= 20) {
-                    std::cerr << "  ... stopping after 20 mismatches\n";
+                          << " aug=" << min_aug << " fwd=" << fwd_cost
+                          << "  positions:";
+                for (int j = 0; j < nt; j++) {
+                    if (dp[j] == EXITED) std::cerr << " X";
+                    else std::cerr << " (" << dp[j]/N << "," << dp[j]%N << ")";
+                }
+                std::cerr << "\n";
+                // Print the forward solution moves.
+                if (!tr.moves.empty()) {
+                    const char* DNAME[] = {"U","D","L","R","NW","SE"};
+                    std::cerr << "    fwd solution (" << tr.moves.size() << " slides, "
+                              << fwd_cost << " grouped):";
+                    for (const auto& mv : tr.moves)
+                        std::cerr << " [robot" << (int)mv.mover << " " << DNAME[(int)mv.dir]
+                                  << " blocked_by_" << (int)mv.blocker << "]";
+                    std::cerr << "\n";
+                    // Trace each move through the augmented map.
+                    int cur_pos[10];
+                    std::memcpy(cur_pos, dp, nt * sizeof(int));
+                    int prev_landing = EXITED;
+                    for (int mi = 0; mi < (int)tr.moves.size() && mi < 4; mi++) {
+                        const auto& mv = tr.moves[mi];
+                        int nc_m, bi_m; State ns_m;
+                        if (!forward_move(cur_pos, nt, ne, mv.mover, mv.dir, nc_m, bi_m, ns_m, make_occ(cur_pos, nt)))
+                            break;
+                        int landing_m = (mv.mover < ne && nc_m == CTR) ? EXITED : nc_m;
+                        int edge_cost_m = (cur_pos[mv.mover] == prev_landing) ? 0 : 1;
+                        uint64_t aug_key_m = canonical_aug(ns_m, landing_m, nt, ne, shift);
+                        uint8_t v_m;
+                        bool found_m = aug_dist.find_val(aug_key_m, &v_m);
+                        std::cerr << "    move " << mi << ": robot" << (int)mv.mover
+                                  << " lands=" << landing_m << " (cell " << landing_m/N << "," << landing_m%N << ")"
+                                  << " edge=" << edge_cost_m
+                                  << " aug_found=" << found_m;
+                        if (found_m) std::cerr << " aug_cost=" << (int)v_m;
+                        std::cerr << "\n";
+                        decode(ns_m, nt, cur_pos);
+                        prev_landing = landing_m;
+                    }
+                }
+                if (mismatches >= 5) {
+                    std::cerr << "  ... stopping after 5 mismatches\n";
                     break;
                 }
             }
@@ -2973,6 +3064,56 @@ int main(int argc, char* argv[]) {
                 std::cerr << "  checked " << checked << " / " << base_dist.size()
                           << " (mismatches=" << mismatches << ")\n";
         }
+
+        // Spot-check: is key 528610000 in the augmented map?
+        {
+            uint8_t v; bool f = aug_dist.find_val(528610000ULL, &v);
+            std::cerr << "  spot check key 528610000: found=" << f;
+            if(f) std::cerr << " cost=" << (int)v;
+            std::cerr << "\n";
+            // Also check the base state 8516304 with other last_cells.
+            for (int lc : {11,16,31,32,63}) {
+                uint64_t k = 8516304ULL | ((uint64_t)lc << 24);
+                bool f2 = aug_dist.find_val(k, &v);
+                std::cerr << "    base 8516304 last=" << lc << ": found=" << f2;
+                if(f2) std::cerr << " cost=" << (int)v;
+                std::cerr << "\n";
+            }
+        }
+
+        // Check: for each base state, does the aug map have at least one entry?
+        int base_covered = 0, base_missing = 0;
+        for (size_t slot = 0; slot < base_dist.cap(); slot++) {
+            if (base_dist.data_[slot] == FlatMap::EMPTY) continue;
+            const State bs = base_dist.data_[slot] & base_dist.km_;
+            int pp[10]; decode(bs, nt, pp);
+            bool is_goal = true;
+            for (int e = 0; e < ne; e++) if (pp[e] != EXITED) { is_goal = false; break; }
+            if (is_goal) continue;
+            bool found_any = false;
+            // Check each robot position as last_cell.
+            for (int j = 0; j < nt; j++) {
+                if (pp[j] == EXITED) continue;
+                uint64_t ak = canonical_aug(bs, pp[j], nt, ne, shift);
+                uint8_t v; if (aug_dist.find_val(ak, &v)) { found_any = true; break; }
+            }
+            if (found_any) base_covered++; else base_missing++;
+        }
+        std::cerr << "  base states with aug coverage: " << base_covered
+                  << "  missing: " << base_missing << "\n";
+
+        // Check: how many augmented states have a robot at center?
+        int center_count = 0;
+        for (size_t slot = 0; slot < aug_dist.cap(); slot++) {
+            if (aug_dist.data_[slot] == FlatMap::EMPTY) continue;
+            uint64_t key = aug_dist.data_[slot] & aug_dist.km_;
+            State bs = key & (((uint64_t)1 << shift) - 1);
+            int rr[10]; decode(bs, nt, rr);
+            for (int j = 0; j < nt; j++) {
+                if (rr[j] == CTR) { center_count++; break; }
+            }
+        }
+        std::cerr << "  augmented states with a robot at center: " << center_count << "\n";
 
         std::cerr << "\n=== VALIDATION RESULT ===\n"
                   << "  checked: " << checked << "\n"
