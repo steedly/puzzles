@@ -79,3 +79,15 @@ Discovered during validation that the augmented retrograde BFS doesn't naturally
 **Correct comparison:** for a fresh-start state S, `real_cost(S) = 1 + min over first moves { aug_cost(S', landing) }`. This is O(ND) per state — trivially fast — and was validated correct on 1+2.
 
 This means the final pipeline will need a thin wrapper: for each puzzle's starting state, try all first moves, look up the augmented cost of each result, and take `1 + min`. This replaces the full per-puzzle BFS with a single O(ND) lookup.
+
+### 2026-04-17T06:00Z — Canonicalization ruled out; core BFS bug confirmed
+
+Disabled symmetry canonicalization entirely (sort only, no D4/Klein transforms) to isolate the bug. **Same mismatches persist.** The bug is in the core BFS logic, not canonicalization.
+
+Mismatch pattern: augmented costs consistently 1 too high (aug=3 when fwd=2). Concentrated around states where the exit is near center. 3 states completely missing from the augmented map (down from 8 with canonicalization, so some MISS were canonicalization artifacts).
+
+Decoded example: exit at (3,4), helpers at (2,1), (2,5), (4,2). Forward solver finds 2 grouped moves. Augmented BFS says 3. The exit needs to reach center (3,3) — but can't slide there directly (no blocker in row 3 to the left). Requires a helper to move into position first, then exit slides.
+
+**Hypothesis:** the `generate_augmented_predecessors` function's un-exit logic doesn't generate all valid predecessor configurations for states where the exit reaches center via an indirect path. The un-exit code assumes the exit slid to center in a single move from some position along a cardinal/diagonal line through center. But if the exit took multiple moves to reach center (sliding in different directions), the LAST move to center is what matters — and that last move must have the exit sliding to center from an adjacent line. This part should be correct (it generates all positions along each direction from center with a valid blocker past center).
+
+**Next steps:** add detailed debug tracing for the specific mismatch state to see what the forward solver's optimal path is, and whether the augmented BFS's reverse exploration covers it. The issue may be in how multi-exit un-exit interacts with helper positions, or in the cost-0/cost-1 edge generation for the un-exit case.
