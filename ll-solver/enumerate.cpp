@@ -2881,6 +2881,7 @@ int main(int argc, char* argv[]) {
     // Optional flags
     int only_exits = -1, only_helpers = -1;
     bool validate_augmented = false;
+    bool bench_augmented = false;
     for (int i = 1; i < argc; i++) {
         const char* a = argv[i];
         if (std::strncmp(a, "--only=", 7) == 0) {
@@ -2891,6 +2892,8 @@ int main(int argc, char* argv[]) {
         }
         if (std::strcmp(a, "--validate-augmented") == 0)
             validate_augmented = true;
+        if (std::strcmp(a, "--bench-augmented") == 0)
+            bench_augmented = true;
     }
 
     // Per-variant block masks — computed once regardless of the active variant
@@ -2928,6 +2931,23 @@ int main(int argc, char* argv[]) {
                            << std::hex << BLOCKED << std::dec << ")\n";
     if (BOARD_TYPE == BOARD_HEX) std::cerr << "Variant: " << variant
         << " (N=" << N << ", " << NUM_DIRS << " dirs, " << NUM_SYMS << " syms)\n";
+
+    // ── Bench augmented retrograde BFS (timing + memory only) ──────────────
+    if (bench_augmented) {
+        const int ne = only_exits > 0 ? only_exits : 1;
+        const int nh = only_helpers > 0 ? only_helpers : 2;
+        const int nt = ne + nh;
+        std::cerr << "=== Benchmarking augmented retrograde BFS: " << ne << "+" << nh << " ===\n";
+        auto t0 = std::chrono::steady_clock::now();
+        auto aug_dist = retrograde_grouped(ne, nh);
+        auto t1 = std::chrono::steady_clock::now();
+        double secs = std::chrono::duration<double>(t1 - t0).count();
+        std::cerr << "  augmented BFS: " << aug_dist.size() << " states, "
+                  << secs << "s, "
+                  << "capacity=" << aug_dist.cap() << " ("
+                  << (aug_dist.cap() * 8 / 1048576) << " MB)\n";
+        return 0;
+    }
 
     // ── Validate augmented retrograde BFS ──────────────────────────────────
     if (validate_augmented) {

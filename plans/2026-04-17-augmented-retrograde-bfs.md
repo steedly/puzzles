@@ -242,3 +242,45 @@ The initial projections used `aug_states / 0.75 × 8 bytes` which underestimates
 - 3+4: 438,915,082 — more base states
 - 4+3: 356,117,053 — fewer base states (EXITED exits don't occupy cells, reducing combinations)
 - Both round up to the same 4B-slot FlatMap capacity for the augmented version
+
+### 2026-04-17T11:00Z — Measured timing and memory on Mac, FlatMap sizing analysis
+
+**Measured results (Mac, single-threaded, no OpenMP):**
+
+| Combo | Board | Aug states | Time (s) | FlatMap cap | RSS |
+|-------|-------|-----------|----------|-------------|-----|
+| 1+4 | standard | 400,755 | 0.11 | 2M (16 MB) | 21 MB |
+| 2+3 | standard | 93,369 | 0.02 | 2M (16 MB) | 19 MB |
+| 3+2 | standard | 3,509 | 0.002 | 2M (16 MB) | 18 MB |
+| 1+4 | beehive | 2,323,210 | 0.44 | 4M (32 MB) | 74 MB |
+| 2+3 | beehive | 1,240,308 | 0.20 | 2M (16 MB) | 31 MB |
+| **1+5** | **beehive** | **58,531,077** | **23.1** | **134M (1,024 MB)** | **2,441 MB** |
+| 1+6 | beehive | (running) | (running) | ~1,074M (8,192 MB) | ~13,000 MB est |
+
+**Throughput:** ~2.5M augmented states/sec single-threaded (from 1+5 beehive: 58.5M/23.1s).
+
+**Extrapolation to 4+3 beehive (2.3B aug states):**
+- Single-threaded: 2.3B / 2.5M/s ≈ **920 seconds (~15 min)**
+- 16-core parallel: estimated **2-4 minutes** (assuming 5-8× speedup from parallel two-phase BFS, not full 16× due to 0-1 BFS ordering constraints)
+
+**FlatMap power-of-2 sizing problem:**
+
+The FlatMap uses power-of-2 capacity with 75% max load. For 2.3B entries:
+- Required capacity: 2.3B / 0.75 = 3.07B
+- Next power of 2: 4,294,967,296 (4.3B)
+- Memory: 4.3B × 8 = **34.4 GB**
+- Even at 90% load: 2.3B / 0.90 = 2.56B → next pow2 = 4.3B → same 34.4 GB
+
+The problem: 2.3B entries is just past the 2B→4B boundary. **74% of the allocation is wasted padding.**
+
+**Options to fit on 32 GB:**
+
+1. **Non-power-of-2 capacity.** Use modulo instead of bitmask for slot indexing. Allocate exactly `2.3B / 0.80 = 2.88B` slots = **23 GB**. Fits on 32 GB with 9 GB for overhead. Requires changing `hash(k) & (cap-1)` to `hash(k) % cap` and removing the parallel `ensure_parallel_capacity` pre-grow (pre-allocate once instead).
+
+2. **Pre-size from base BFS count.** The base retrograde runs first and gives us the base count. Pre-allocate `base × 7 / 0.80` rounded to any size (not just pow2). Avoids all rehashes.
+
+3. **Two-level map.** Store base state → array of (last_cell, cost) pairs. Base map uses the existing efficient FlatMap (356M entries, ~4 GB). Per-state arrays average ~6.5 entries × 2 bytes = ~4.6 GB. Total ~9 GB. Most compact, but requires a different data structure.
+
+4. **Compact encoding.** The augmented key is 48 bits (42 for positions + 6 for last_cell). Pack key + value into 7 bytes instead of 8. Saves 12.5% → 30 GB instead of 34.4 GB. Still over 32 GB.
+
+**Recommendation:** Option 1 (non-pow2 FlatMap) is the simplest change with the biggest impact. One-time pre-allocation from the base BFS count, modulo indexing, no rehash. Saves 10+ GB for the critical combos.
