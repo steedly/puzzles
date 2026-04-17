@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Where Can a Robot End Up? — Visual Guide</title>
+<style>
+  :root {
+    --bg: #fafafa; --text: #222; --muted: #666; --accent: #2563eb;
+    --border: #ddd; --code-bg: #f0f0f0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Georgia','Times New Roman',serif; background: var(--bg);
+    color: var(--text); max-width: 760px; margin: 0 auto;
+    padding: 32px 24px 80px; line-height: 1.75; font-size: 18px;
+  }
+  h1 { font-size: 2em; margin-bottom: 8px; line-height: 1.2; }
+  h1+p.subtitle { color: var(--muted); font-style: italic; margin-bottom: 20px; font-size: 1em; }
+  h2 { font-size: 1.45em; margin-top: 56px; margin-bottom: 14px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+  h3 { font-size: 1.15em; margin-top: 28px; margin-bottom: 10px; }
+  p { margin-bottom: 16px; }
+  ol, ul { margin-bottom: 16px; padding-left: 28px; }
+  li { margin-bottom: 8px; }
+  strong { font-weight: 700; }
+  em { color: #333; }
+  blockquote { border-left: 3px solid var(--accent); padding: 10px 18px; margin: 22px 0; background: rgba(37,99,235,.06); font-style: italic; }
+  .figure { margin: 32px 0; text-align: center; }
+  .figure svg { display: inline-block; max-width: 100%; height: auto; }
+  .figure figcaption { font-size: .92em; color: var(--muted); margin-top: 10px; font-style: italic; max-width: 600px; margin-left: auto; margin-right: auto; }
+  .grid-label { font-size: 11px; fill: #999; font-family: 'Menlo','Consolas',monospace; text-anchor: middle; dominant-baseline: central; }
+  .robot { font-size: 14px; font-family: 'Menlo','Consolas',monospace; font-weight: bold; fill: white; text-anchor: middle; dominant-baseline: central; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 44px 0; }
+  .bound-num { display: inline-block; background: var(--accent); color: white; width: 28px; height: 28px; border-radius: 50%; text-align: center; line-height: 28px; font-size: 15px; font-weight: bold; margin-right: 8px; vertical-align: middle; font-family: sans-serif; }
+  .why-box { background: #f0f7ff; border: 1px solid #cfe2ff; border-radius: 8px; padding: 16px 20px; margin: 22px 0; }
+  .why-box .why-title { font-weight: 700; font-size: .95em; margin-bottom: 8px; color: var(--accent); }
+  .try-box { background: #fdf6e3; border: 1px solid #f6d98b; border-radius: 8px; padding: 14px 20px; margin: 20px 0; font-size: .96em; }
+  .try-box .try-title { font-weight: 700; font-size: .95em; margin-bottom: 6px; color: #a16207; }
+  .banner {
+    background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 6px;
+    padding: 10px 16px; font-size: .93em; margin-bottom: 28px;
+  }
+  .banner a { color: #4338ca; font-weight: 600; text-decoration: none; }
+  .banner a:hover { text-decoration: underline; }
+  table { border-collapse: collapse; margin: 22px 0; font-size: .95em; width: 100%; }
+  th, td { border: 1px solid var(--border); padding: 8px 14px; text-align: left; }
+  th { background: var(--code-bg); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="banner">
+  Want the formal version with proofs and equations?
+  <a href="reachability-bounds.html">Read the full write-up →</a>
+</div>
+
+<h1>Where Can a Robot End Up?</h1>
+<p class="subtitle">A visual guide to figuring out which squares a sliding robot can reach.</p>
+
+<!-- ───────────────────── SETUP ───────────────────── -->
+<h2>The game</h2>
+
+<p>Picture a grid with a few robots on it. When you pick a robot and push it, the robot doesn't stop after one square — it <strong>slides</strong> in the direction you pushed until it crashes into another robot. It stops in the square right next to whatever blocked it.</p>
+
+<p>Two rules:</p>
+
+<ol>
+  <li><strong>No stopping on purpose.</strong> Once a robot starts sliding, it can't stop until something blocks it.</li>
+  <li><strong>Another robot has to block it.</strong> If you push a robot toward an empty part of the board, and nothing is in the way, the robot would fly off the edge. That's not allowed. You can only make a move if there's a blocker to catch it.</li>
+</ol>
+
+<figure class="figure">
+  <svg width="340" height="270" viewBox="0 0 340 270">
+    <defs>
+      <marker id="arB" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6Z" fill="#2563eb"/></marker>
+      <marker id="arR" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6Z" fill="#dc2626"/></marker>
+      <marker id="arG" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0,0 L7,2.5 L0,5Z" fill="#222"/></marker>
+    </defs>
+    <g stroke="#ddd" stroke-width="1">
+      <line x1="50" y1="30" x2="50" y2="230"/><line x1="90" y1="30" x2="90" y2="230"/>
+      <line x1="130" y1="30" x2="130" y2="230"/><line x1="170" y1="30" x2="170" y2="230"/>
+      <line x1="210" y1="30" x2="210" y2="230"/><line x1="250" y1="30" x2="250" y2="230"/>
+      <line x1="50" y1="30" x2="250" y2="30"/><line x1="50" y1="70" x2="250" y2="70"/>
+      <line x1="50" y1="110" x2="250" y2="110"/><line x1="50" y1="150" x2="250" y2="150"/>
+      <line x1="50" y1="190" x2="250" y2="190"/><line x1="50" y1="230" x2="250" y2="230"/>
+    </g>
+    <circle cx="110" cy="90" r="16" fill="#2563eb"/><text class="robot" x="110" y="90">A</text>
+    <circle cx="230" cy="170" r="16" fill="#dc2626"/><text class="robot" x="230" y="170">B</text>
+    <circle cx="110" cy="210" r="16" fill="#16a34a"/><text class="robot" x="110" y="210">C</text>
+    <line x1="110" y1="110" x2="110" y2="166" stroke="#2563eb" stroke-width="2" stroke-dasharray="5,3" marker-end="url(#arB)"/>
+    <text x="122" y="143" font-size="11" fill="#2563eb" font-family="Georgia" font-style="italic">A slides down,</text>
+    <text x="122" y="157" font-size="11" fill="#2563eb" font-family="Georgia" font-style="italic">stopped by C</text>
+    <line x1="130" y1="90" x2="244" y2="90" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="3,4" opacity=".4"/>
+    <text x="264" y="86" font-size="11" fill="#dc2626" font-family="Georgia" font-style="italic">A can't go right</text>
+    <text x="264" y="100" font-size="11" fill="#dc2626" font-family="Georgia" font-style="italic">(no blocker)</text>
+  </svg>
+  <figcaption>Robot A can slide down — robot C catches it. But A can't slide right: nothing out there would stop it.</figcaption>
+</figure>
+
+<p><strong>Here's the question this page is about:</strong></p>
+
+<blockquote>If you play for a long time, making lots of different moves, <strong>which squares could a robot possibly visit?</strong> And which ones are just impossible to ever reach?</blockquote>
+
+<p>We'll start with loose guesses ("robots can't leave this big region") and tighten them, step by step, until we get the exact answer. We'll use <strong>square boards</strong> (robots slide up/down/left/right) for most of the story, and talk about hex boards — which have two extra diagonal directions — at the end.</p>
+
+<p>Throughout the page we'll keep coming back to the <strong>same four robots, arranged in a diamond</strong>, so you can watch the picture get tighter and tighter.</p>
+
+<hr>
+
+<!-- ───────────────────── IDEA 1 ───────────────────── -->
+<h2><span class="bound-num">1</span> The box</h2>
+
+<p>The simplest idea: <strong>draw a box around the robots</strong>. Use the leftmost robot's column as the left wall, the rightmost as the right wall, the topmost as the ceiling, and the bottommost as the floor. That gives you a rectangle.</p>
+
+<figure class="figure">
+  <svg width="340" height="340" viewBox="0 0 340 340">
+    <g stroke="#ddd" stroke-width="1">
+      <line x1="50" y1="30" x2="330" y2="30"/><line x1="50" y1="70" x2="330" y2="70"/>
+      <line x1="50" y1="110" x2="330" y2="110"/><line x1="50" y1="150" x2="330" y2="150"/>
+      <line x1="50" y1="190" x2="330" y2="190"/><line x1="50" y1="230" x2="330" y2="230"/>
+      <line x1="50" y1="270" x2="330" y2="270"/><line x1="50" y1="310" x2="330" y2="310"/>
+      <line x1="50" y1="30" x2="50" y2="310"/><line x1="90" y1="30" x2="90" y2="310"/>
+      <line x1="130" y1="30" x2="130" y2="310"/><line x1="170" y1="30" x2="170" y2="310"/>
+      <line x1="210" y1="30" x2="210" y2="310"/><line x1="250" y1="30" x2="250" y2="310"/>
+      <line x1="290" y1="30" x2="290" y2="310"/><line x1="330" y1="30" x2="330" y2="310"/>
+    </g>
+    <rect x="50" y="70" width="280" height="200" fill="rgba(234,179,8,.10)" stroke="#ca8a04" stroke-width="2" stroke-dasharray="6,3"/>
+    <circle cx="190" cy="90" r="13" fill="#2563eb"/><text class="robot" x="190" y="90">A</text>
+    <circle cx="70" cy="170" r="13" fill="#dc2626"/><text class="robot" x="70" y="170">B</text>
+    <circle cx="190" cy="250" r="13" fill="#16a34a"/><text class="robot" x="190" y="250">C</text>
+    <circle cx="310" cy="170" r="13" fill="#ca8a04"/><text class="robot" x="310" y="170">D</text>
+    <text x="190" y="300" text-anchor="middle" font-size="13" fill="#ca8a04" font-family="Georgia" font-style="italic">The box: 5 rows × 7 columns = 35 squares</text>
+  </svg>
+  <figcaption>Four robots A, B, C, D. The dashed yellow box is the smallest rectangle that contains all four.</figcaption>
+</figure>
+
+<p><strong>Claim:</strong> No robot can ever slide <em>outside</em> this box, no matter how many moves you make.</p>
+
+<div class="why-box">
+  <div class="why-title">Why this is true</div>
+  <p>Think about the right wall of the box. For a robot to land to the right of that wall, it would have to slide right and crash into a blocker that's even further right. But <em>nobody</em> is further right — every robot is on or inside that wall, so there's nothing out there to catch it. The move is illegal.</p>
+  <p>The same logic works for the left wall, the ceiling, and the floor. Once all the robots are inside the box, they have to <em>stay</em> inside the box, because there's no blocker outside it to stop a slide.</p>
+</div>
+
+<p>This is the loosest guess we'll make. The box includes lots of squares that the robots probably can't actually reach — we're just saying they definitely <em>can't</em> reach anything outside it.</p>
+
+<hr>
+
+<!-- ───────────────────── IDEA 2 ───────────────────── -->
+<h2><span class="bound-num">2</span> The rubber band</h2>
+
+<p>The box wastes space. Look at our diamond again: those four robots form a clear diamond shape, but the box treats them like they fill a big rectangle. The corners of the box are obviously wasted.</p>
+
+<p>Here's a tighter idea. Imagine the four robots are <strong>pegs stuck into a board</strong>. Now snap a <strong>rubber band</strong> around all of them. The rubber band pulls tight, making a shape. That shape is called the <strong>"rubber-band shape"</strong> (math people call it the <em>convex hull</em>, but the rubber band is the easier picture).</p>
+
+<figure class="figure">
+  <svg width="340" height="340" viewBox="0 0 340 340">
+    <!-- 7x7 grid, lightly drawn -->
+    <g stroke="#eee" stroke-width="1">
+      <line x1="50" y1="30" x2="330" y2="30"/><line x1="50" y1="70" x2="330" y2="70"/>
+      <line x1="50" y1="110" x2="330" y2="110"/><line x1="50" y1="150" x2="330" y2="150"/>
+      <line x1="50" y1="190" x2="330" y2="190"/><line x1="50" y1="230" x2="330" y2="230"/>
+      <line x1="50" y1="270" x2="330" y2="270"/><line x1="50" y1="310" x2="330" y2="310"/>
+      <line x1="50" y1="30" x2="50" y2="310"/><line x1="90" y1="30" x2="90" y2="310"/>
+      <line x1="130" y1="30" x2="130" y2="310"/><line x1="170" y1="30" x2="170" y2="310"/>
+      <line x1="210" y1="30" x2="210" y2="310"/><line x1="250" y1="30" x2="250" y2="310"/>
+      <line x1="290" y1="30" x2="290" y2="310"/><line x1="330" y1="30" x2="330" y2="310"/>
+    </g>
+    <!-- Faded box (for contrast) -->
+    <rect x="50" y="70" width="280" height="200" fill="none" stroke="#ca8a04" stroke-width="1.5" stroke-dasharray="5,4" opacity=".5"/>
+    <!-- Rubber band: diamond through robot centers, drawn as a thick colored band with slight wavy feel -->
+    <polygon points="190,90 310,170 190,250 70,170"
+      fill="rgba(234,88,12,.12)" stroke="#ea580c" stroke-width="3.5" stroke-linejoin="round"/>
+    <!-- Robots as "pegs" -->
+    <circle cx="190" cy="90" r="13" fill="#2563eb"/><text class="robot" x="190" y="90">A</text>
+    <circle cx="70" cy="170" r="13" fill="#dc2626"/><text class="robot" x="70" y="170">B</text>
+    <circle cx="190" cy="250" r="13" fill="#16a34a"/><text class="robot" x="190" y="250">C</text>
+    <circle cx="310" cy="170" r="13" fill="#ca8a04"/><text class="robot" x="310" y="170">D</text>
+    <text x="190" y="300" text-anchor="middle" font-size="13" fill="#ea580c" font-family="Georgia" font-style="italic">Rubber band: 13 squares</text>
+    <text x="270" y="40" text-anchor="middle" font-size="11" fill="#ca8a04" font-family="Georgia" font-style="italic">(box shown faintly)</text>
+  </svg>
+  <figcaption>Stretch a rubber band around the four robots. It snaps into a diamond, cutting off the corners of the box. The rubber-band shape is smaller than the box — and every robot still has to stay inside it.</figcaption>
+</figure>
+
+<div class="why-box">
+  <div class="why-title">Why robots can't escape the rubber band</div>
+  <p>The rubber band works the same way the box did, just in more directions. Pick any direction you like — not just up-down or left-right, but <em>any</em> angle. Look at the "edge" of the rubber band in that direction.</p>
+  <p>For a robot to slide past that edge, it would need a blocker even further past the edge. But every robot is on or inside the rubber band, so no blocker is out there. The slide fails.</p>
+  <p>Since this works for every direction at once, the rubber band traps everyone — in the same way the box did, but with the corners pulled in.</p>
+</div>
+
+<h3>Tighter and tighter</h3>
+
+<p>You don't have to jump straight from "box" to "rubber band." There are in-between versions, where you cut off the corners of the box one set at a time. Here's the same idea applied to a different group of robots, going from box → octagon → full rubber-band shape:</p>
+
+<figure class="figure">
+  <svg id="sq-progression" width="750" height="300" viewBox="0 0 750 300"></svg>
+  <figcaption>Left: the box (yellow). Middle: a tighter shape after cutting off two pairs of corners (blue octagon). Right: the exact rubber-band shape (green). Each step throws away squares that were definitely unreachable anyway.</figcaption>
+</figure>
+
+<p>For a handful of robots, the rubber-band shape is easy to draw by eye. It's just the polygon you'd get by wrapping string around the outermost robots.</p>
+
+<hr>
+
+<!-- ───────────────────── IDEA 3 ───────────────────── -->
+<h2><span class="bound-num">3</span> Fill the gaps</h2>
+
+<p>The rubber band is tighter than the box, but it still wastes a lot of space. Look at the diamond: the rubber band is a filled 13-square diamond — but the robots are only really at the <em>four tips</em>. The middle of the diamond isn't obviously reachable.</p>
+
+<p>Here's an idea that uses a different kind of reasoning. Instead of thinking about directions, think about <strong>rows and columns</strong>.</p>
+
+<p>Ask yourself: <em>when a robot slides, where does it end up?</em> The answer is always: <strong>on the same row</strong> as its blocker (if it slid left or right), or <strong>on the same column</strong> as its blocker (if it slid up or down). And the landing square is always <em>between</em> the robot's starting spot and the blocker.</p>
+
+<p>So here's a recipe for a tighter shape:</p>
+
+<ol>
+  <li>Start with just the four squares where the robots sit.</li>
+  <li><strong>Fill in gaps along each row.</strong> If two robots share a row, fill in every square between them on that row.</li>
+  <li><strong>Fill in gaps along each column.</strong> Same idea: if two robots share a column, fill in every square between them.</li>
+  <li>Now look at what you've got. Did any of the cells you just filled in connect more robots? Keep filling rows and columns until nothing changes.</li>
+</ol>
+
+<p>Apply this to our diamond and you get a <strong>plus-sign shape</strong> — the cross where the horizontal arm (connecting B and D) meets the vertical arm (connecting A and C):</p>
+
+<figure class="figure">
+  <svg width="560" height="330" viewBox="0 0 560 330">
+    <!-- Left panel: just robots -->
+    <text x="140" y="16" text-anchor="middle" font-size="13" font-weight="bold" fill="#222" font-family="Georgia">Start: just the robot squares</text>
+    <g stroke="#eee" stroke-width="1">
+      <line x1="20" y1="28" x2="260" y2="28"/><line x1="20" y1="68" x2="260" y2="68"/>
+      <line x1="20" y1="108" x2="260" y2="108"/><line x1="20" y1="148" x2="260" y2="148"/>
+      <line x1="20" y1="188" x2="260" y2="188"/><line x1="20" y1="228" x2="260" y2="228"/>
+      <line x1="20" y1="268" x2="260" y2="268"/>
+      <line x1="20" y1="28" x2="20" y2="268"/><line x1="60" y1="28" x2="60" y2="268"/>
+      <line x1="100" y1="28" x2="100" y2="268"/><line x1="140" y1="28" x2="140" y2="268"/>
+      <line x1="180" y1="28" x2="180" y2="268"/><line x1="220" y1="28" x2="220" y2="268"/>
+      <line x1="260" y1="28" x2="260" y2="268"/>
+    </g>
+    <!-- Just the 4 robot cells -->
+    <rect x="140" y="28" width="40" height="40" fill="rgba(139,92,246,.25)"/>
+    <rect x="20" y="108" width="40" height="40" fill="rgba(139,92,246,.25)"/>
+    <rect x="220" y="108" width="40" height="40" fill="rgba(139,92,246,.25)"/>
+    <rect x="140" y="188" width="40" height="40" fill="rgba(139,92,246,.25)"/>
+    <circle cx="160" cy="48" r="11" fill="#555"/>
+    <circle cx="40" cy="128" r="11" fill="#555"/>
+    <circle cx="240" cy="128" r="11" fill="#555"/>
+    <circle cx="160" cy="208" r="11" fill="#555"/>
+    <text x="140" y="294" text-anchor="middle" font-size="12" fill="#7c3aed" font-family="Georgia" font-style="italic">4 squares</text>
+
+    <!-- Arrow -->
+    <text x="278" y="130" font-size="22" fill="#666">→</text>
+
+    <!-- Right panel: plus-shape -->
+    <text x="420" y="16" text-anchor="middle" font-size="13" font-weight="bold" fill="#222" font-family="Georgia">After filling rows + columns</text>
+    <g stroke="#eee" stroke-width="1" transform="translate(300,0)">
+      <line x1="0" y1="28" x2="240" y2="28"/><line x1="0" y1="68" x2="240" y2="68"/>
+      <line x1="0" y1="108" x2="240" y2="108"/><line x1="0" y1="148" x2="240" y2="148"/>
+      <line x1="0" y1="188" x2="240" y2="188"/><line x1="0" y1="228" x2="240" y2="228"/>
+      <line x1="0" y1="268" x2="240" y2="268"/>
+      <line x1="0" y1="28" x2="0" y2="268"/><line x1="40" y1="28" x2="40" y2="268"/>
+      <line x1="80" y1="28" x2="80" y2="268"/><line x1="120" y1="28" x2="120" y2="268"/>
+      <line x1="160" y1="28" x2="160" y2="268"/><line x1="200" y1="28" x2="200" y2="268"/>
+      <line x1="240" y1="28" x2="240" y2="268"/>
+    </g>
+    <!-- Horizontal arm (row 3, cols 0-6 = x 300..540, y 108..148): robots at (3,0) and (3,4) in 0..4 -->
+    <!-- In this diagram cols 0..5 => x 300..540 (width 240), robots at col 0 and col 5 -->
+    <rect x="300" y="108" width="240" height="40" fill="rgba(139,92,246,.15)"/>
+    <!-- Vertical arm (col 3, rows 0-4): x 420..460, y 28..228 -->
+    <rect x="440" y="28" width="40" height="200" fill="rgba(139,92,246,.15)"/>
+    <!-- Outline -->
+    <path d="M440,28 L480,28 L480,108 L540,108 L540,148 L480,148 L480,228 L440,228 L440,148 L300,148 L300,108 L440,108 Z" fill="none" stroke="#7c3aed" stroke-width="2"/>
+    <circle cx="460" cy="48" r="11" fill="#555"/>
+    <circle cx="320" cy="128" r="11" fill="#555"/>
+    <circle cx="520" cy="128" r="11" fill="#555"/>
+    <circle cx="460" cy="208" r="11" fill="#555"/>
+    <text x="420" y="294" text-anchor="middle" font-size="12" fill="#7c3aed" font-family="Georgia" font-style="italic">9 squares (plus-shape)</text>
+  </svg>
+  <figcaption>Start with just the robot squares (left). Fill in each row (the horizontal arm) and each column (the vertical arm), and you get a plus-sign shape (right): 9 squares, much tighter than the rubber band's 13.</figcaption>
+</figure>
+
+<div class="why-box">
+  <div class="why-title">Why robots can't escape the plus-shape</div>
+  <p>Remember: when a robot slides, it lands <em>between itself and the blocker</em>, on the row or column they share. If the robot started inside the plus-shape, and the blocker is also inside the plus-shape, then every square between them — on the same row or column — is also inside the plus-shape. (That's exactly how we built it: we filled in all the gaps along rows and columns.)</p>
+  <p>So the landing square has to be inside the plus-shape too. Once everyone starts inside, nobody can leave.</p>
+</div>
+
+<p>This shape is called the <em>orthogonal convex hull</em> if you want the fancy name. We'll just call it the plus-shape. For other starting setups it might look like a staircase or a zigzag, but the rule is always the same: no gaps across any row, no gaps down any column.</p>
+
+<hr>
+
+<!-- ───────────────────── NOT EXACT ───────────────────── -->
+<h2>The plus-shape still isn't the real answer</h2>
+
+<p>The plus-shape is way better than the box or the rubber band, but it still says "yes, this square is reachable" for some squares that are actually impossible. Here's a simple example:</p>
+
+<figure class="figure">
+  <svg width="310" height="130" viewBox="0 0 310 130">
+    <g stroke="#ddd" stroke-width="1">
+      <line x1="20" y1="30" x2="260" y2="30"/><line x1="20" y1="70" x2="260" y2="70"/>
+      <line x1="20" y1="30" x2="20" y2="70"/><line x1="60" y1="30" x2="60" y2="70"/>
+      <line x1="100" y1="30" x2="100" y2="70"/><line x1="140" y1="30" x2="140" y2="70"/>
+      <line x1="180" y1="30" x2="180" y2="70"/><line x1="220" y1="30" x2="220" y2="70"/>
+      <line x1="260" y1="30" x2="260" y2="70"/>
+    </g>
+    <text class="grid-label" x="40" y="22">0</text><text class="grid-label" x="80" y="22">1</text>
+    <text class="grid-label" x="120" y="22">2</text><text class="grid-label" x="160" y="22">3</text>
+    <text class="grid-label" x="200" y="22">4</text><text class="grid-label" x="240" y="22">5</text>
+    <rect x="20" y="30" width="40" height="40" fill="rgba(22,163,74,.15)"/>
+    <rect x="60" y="30" width="40" height="40" fill="rgba(22,163,74,.15)"/>
+    <rect x="180" y="30" width="40" height="40" fill="rgba(22,163,74,.15)"/>
+    <rect x="220" y="30" width="40" height="40" fill="rgba(22,163,74,.15)"/>
+    <rect x="100" y="30" width="40" height="40" fill="rgba(220,38,38,.10)"/>
+    <rect x="140" y="30" width="40" height="40" fill="rgba(220,38,38,.10)"/>
+    <circle cx="40" cy="50" r="14" fill="#2563eb"/><text class="robot" x="40" y="50">A</text>
+    <circle cx="240" cy="50" r="14" fill="#dc2626"/><text class="robot" x="240" y="50">B</text>
+    <text x="120" y="96" text-anchor="middle" font-size="12" fill="#dc2626" font-family="Georgia" font-style="italic">nobody can reach these</text>
+    <text x="37" y="96" text-anchor="middle" font-size="11" fill="#16a34a" font-family="Georgia">✓</text>
+    <text x="77" y="96" text-anchor="middle" font-size="11" fill="#16a34a" font-family="Georgia">✓</text>
+    <text x="197" y="96" text-anchor="middle" font-size="11" fill="#16a34a" font-family="Georgia">✓</text>
+    <text x="237" y="96" text-anchor="middle" font-size="11" fill="#16a34a" font-family="Georgia">✓</text>
+  </svg>
+  <figcaption>Two robots on a line. The plus-shape says all 6 squares are possible, but only 4 actually are.</figcaption>
+</figure>
+
+<p>Two robots, at columns 0 and 5, sitting in the same row. The plus-shape is the whole row between them — 6 squares. But think about what moves are actually possible:</p>
+
+<ul>
+  <li><strong>A slides right.</strong> B stops it. A lands at column 4 (one square left of B).</li>
+  <li><strong>B slides left.</strong> A stops it. B lands at column 1 (one square right of A).</li>
+</ul>
+
+<p>Now A and B are sitting right next to each other — adjacent. Whichever one you try to slide, the other is right there, and you only move one square at best. <strong>You can never get into the middle.</strong></p>
+
+<p>The real reachable set is just 4 squares: {0, 1, 4, 5}. The plus-shape said 6. Our rule missed something: it only looked at <em>which squares line up</em>, not at whether the robots can physically get in each other's way.</p>
+
+<p>To find the <em>exact</em> answer, we need a different approach.</p>
+
+<hr>
+
+<!-- ───────────────────── IDEA 4 ───────────────────── -->
+<h2><span class="bound-num">4</span> Try every move</h2>
+
+<p>The only way to get the exact answer is to <strong>check every possible sequence of moves</strong>. That's what a computer can do for us:</p>
+
+<ol>
+  <li>Start with the robots in their original positions.</li>
+  <li>For every legal move, write down what the board looks like after that move.</li>
+  <li>For every new board, repeat step 2.</li>
+  <li>Keep going until no new boards show up.</li>
+  <li>Collect all the squares that a robot ever landed on across all those boards. That's your answer.</li>
+</ol>
+
+<p>This is called a <strong>breadth-first search</strong> (BFS). It explores outward from the starting position one move at a time, like ripples spreading on a pond.</p>
+
+<p>The catch: the number of boards to check can get huge. With just 4 or 5 robots on a 7×7 board, you might see thousands or tens of thousands of different arrangements before the search finishes. But for small puzzles it's very doable — and it gives you the <em>exact</em> reachable set, with no overestimate.</p>
+
+<h3>Watch it run</h3>
+
+<p>Press <strong>Play</strong> below to watch the BFS explore. Each square lights up the first time any robot lands on it. <strong style="color:#7c3aed;">Purple squares</strong> are ones the plus-shape said were reachable but aren't actually — the gap between Idea 3 and the truth.</p>
+
+<div id="bfs-app" style="margin:24px 0;font-family:sans-serif;font-size:13px;"></div>
+
+<script>
+// ── BFS Explorer with stableId input, OCH overlay, square + hex boards ──
+(function() {
+  const N = 7, CTR = 3;
+  const SQ_DIRS = [{dr:-1,dc:0},{dr:1,dc:0},{dr:0,dc:-1},{dr:0,dc:1}];
+  const HEX_DIRS = [{dr:-1,dc:0},{dr:1,dc:0},{dr:0,dc:-1},{dr:0,dc:1},{dr:-1,dc:1},{dr:1,dc:-1}];
+  const BLOCKS = {
+    solitaire: new Set([0,1,5,6].flatMap(r=>[0,1,5,6].map(c=>r+','+c))),
+    standard: new Set(),
+    ufo: new Set(Array.from({length:7},(_,r)=>Array.from({length:7},(_,c)=>({r,c}))).flat().filter(({r,c})=>r===0||r===6||c===0||c===6).map(({r,c})=>r+','+c)),
+    french: new Set([[0,0],[0,1],[1,0],[0,5],[0,6],[1,6],[5,0],[6,0],[6,1],[5,6],[6,5],[6,6]].map(([r,c])=>r+','+c)),
+    hex: new Set(Array.from({length:7},(_,r)=>Array.from({length:7},(_,c)=>({r,c}))).flat().filter(({r,c})=>r===0||r===6||c===0||c===6).map(({r,c})=>r+','+c)),
+    beehive: new Set(),
+  };
+  const SQUARE_VARIANTS = ['solitaire','standard','ufo','french'];
+  const HEX_VARIANTS = ['hex','beehive'];
+
+  // ── StableId decode ──
+  function decodeStableId(sid) {
+    const d = sid.indexOf('-');
+    if (d < 0) return null;
+    const ne = parseInt(sid.slice(0, d), 10);
+    if (isNaN(ne) || ne < 1) return null;
+    let v = parseInt(sid.slice(d + 1), 36);
+    if (isNaN(v) || v < 0) return null;
+    const cells = [];
+    while (v > 0) { cells.unshift(v % 49); v = Math.floor(v / 49); }
+    const robots = cells.map((c, i) => ({
+      id: i < ne ? (i === 0 ? 'target' : 'exit'+(i)) : 'r'+(i-ne+1),
+      row: Math.floor(c/7), col: c%7, isExit: i < ne,
+    }));
+    return { numExits: ne, robots };
+  }
+
+  // ── Slide ──
+  function slide(positions, robotId, dirIdx, dirs, blocked, exitIds) {
+    const start = positions[robotId];
+    if (!start) return null;
+    const {dr,dc} = dirs[dirIdx];
+    const occ = {};
+    for (const [id, p] of Object.entries(positions)) if (id !== robotId) occ[p.row+','+p.col] = id;
+    let r = start.row, c = start.col, bid = null;
+    while (true) {
+      const nr = r+dr, nc = c+dc;
+      if (nr<0||nr>=N||nc<0||nc>=N) break;
+      if (blocked.has(nr+','+nc)) break;
+      if (occ[nr+','+nc] !== undefined) { bid = occ[nr+','+nc]; break; }
+      r = nr; c = nc;
+    }
+    if (bid === null || (r === start.row && c === start.col)) return null;
+    const np = {...positions};
+    if (exitIds.has(robotId) && r === CTR && c === CTR) delete np[robotId];
+    else np[robotId] = {row:r, col:c};
+    return np;
+  }
+
+  // ── State key ──
+  function stateKey(positions, robots) {
+    const ep = [], hp = [];
+    for (const r of robots) { const p = positions[r.id]; if (r.isExit) ep.push(p?p.row+','+p.col:'X'); else if (p) hp.push(p.row+','+p.col); }
+    hp.sort();
+    return ep.join('|')+'|'+hp.join('|');
+  }
+
+  // ── BFS ──
+  function runBFS(robots, dirs, blocked) {
+    const exitIds = new Set(robots.filter(r=>r.isExit).map(r=>r.id));
+    const initPos = {}; for (const r of robots) initPos[r.id] = {row:r.row, col:r.col};
+    const visited = new Map();
+    const queue = [{positions:initPos, depth:0}];
+    visited.set(stateKey(initPos, robots), 0);
+    const cellFirst = {}, depthCells = {};
+    let maxD = 0, total = 0;
+    for (const p of Object.values(initPos)) { const k=p.row+','+p.col; if(!(k in cellFirst)){cellFirst[k]=0; depthCells[0]=depthCells[0]||[]; depthCells[0].push(k);} }
+    let qi = 0;
+    while (qi < queue.length) {
+      const {positions, depth} = queue[qi++]; total++;
+      for (const rid of Object.keys(positions)) {
+        for (let d=0; d<dirs.length; d++) {
+          const np = slide(positions, rid, d, dirs, blocked, exitIds);
+          if (!np) continue;
+          const nk = stateKey(np, robots);
+          if (visited.has(nk)) continue;
+          const nd = depth+1; visited.set(nk, nd); if(nd>maxD) maxD=nd;
+          queue.push({positions:np, depth:nd});
+          for (const p of Object.values(np)) { const ck=p.row+','+p.col; if(!(ck in cellFirst)){cellFirst[ck]=nd; if(!depthCells[nd])depthCells[nd]=[]; depthCells[nd].push(ck);} }
+          if (Object.keys(np).length < Object.keys(positions).length) { const ck=CTR+','+CTR; if(!(ck in cellFirst)){cellFirst[ck]=nd; if(!depthCells[nd])depthCells[nd]=[]; depthCells[nd].push(ck);} }
+        }
+      }
+    }
+    return {cellFirst, depthCells, maxD, total, nCells:Object.keys(cellFirst).length};
+  }
+
+  // ── OCH computation ──
+  function computeOCH(positions, isHex) {
+    const cells = new Set(positions.map(([r,c])=>r+','+c));
+    let changed = true;
+    while (changed) {
+      changed = false;
+      const rows = {}; for (const k of cells) { const [r,c]=k.split(',').map(Number); if(!rows[r])rows[r]={mn:c,mx:c}; else{rows[r].mn=Math.min(rows[r].mn,c);rows[r].mx=Math.max(rows[r].mx,c);} }
+      for (const [r,{mn,mx}] of Object.entries(rows)) for (let c=mn;c<=mx;c++) { const k=r+','+c; if(!cells.has(k)){cells.add(k);changed=true;} }
+      const cols = {}; for (const k of cells) { const [r,c]=k.split(',').map(Number); if(!cols[c])cols[c]={mn:r,mx:r}; else{cols[c].mn=Math.min(cols[c].mn,r);cols[c].mx=Math.max(cols[c].mx,r);} }
+      for (const [c,{mn,mx}] of Object.entries(cols)) for (let r=mn;r<=mx;r++) { const k=r+','+c; if(!cells.has(k)){cells.add(k);changed=true;} }
+      if (isHex) {
+        const diags = {}; for (const k of cells) { const [r,c]=k.split(',').map(Number); const d=r+c; if(!diags[d])diags[d]={mn:r,mx:r}; else{diags[d].mn=Math.min(diags[d].mn,r);diags[d].mx=Math.max(diags[d].mx,r);} }
+        for (const [d,{mn,mx}] of Object.entries(diags)) for (let r=mn;r<=mx;r++) { const c=d-r; if(c>=0&&c<N&&r>=0&&r<N){const k=r+','+c; if(!cells.has(k)){cells.add(k);changed=true;}}}
+      }
+    }
+    return cells;
+  }
+
+  function dColor(d, mx) { const t=mx>0?d/mx:0; return 'rgb('+Math.round(t<.5?t*2*255:255)+','+Math.round(t<.5?255:(1-t)*2*255)+',40)'; }
+
+  const S3 = Math.sqrt(3);
+  function hexPos(r,c,R) {
+    const mid=3, bx=1.5*R*c, by=S3*R*(r+c/2), cx=1.5*R*mid, cy=S3*R*(mid+mid/2);
+    const dx=bx-cx, dy=by-cy;
+    return {x:.5*dx+S3/2*dy, y:-S3/2*dx+.5*dy};
+  }
+  function hexPts(cx,cy,R) {
+    const hw=R*.95, hh=R*S3/2*.95;
+    return [(cx-hw/2)+','+(cy-hh),(cx+hw/2)+','+(cy-hh),(cx+hw)+','+cy,(cx+hw/2)+','+(cy+hh),(cx-hw/2)+','+(cy+hh),(cx-hw)+','+cy].join(' ');
+  }
+
+  function createPanel(containerId, isHex) {
+    const dirs = isHex ? HEX_DIRS : SQ_DIRS;
+    const blocked = new Set();
+    const examples = isHex
+      ? [{sid:'1-2xz2e',label:'gap=5'},{sid:'1-1yo60',label:'gap=4'},{sid:'1-xj0x',label:'gap=2'},{sid:'1-s9dhc',label:'gap=0, 476 states'}]
+      : [{sid:'1-2l13ul',label:'gap=4'},{sid:'1-321st0',label:'gap=3'},{sid:'1-3c56oa',label:'gap=2, 221 states'},{sid:'1-3qnd4n',label:'gap=0, 513 states'}];
+
+    const container = document.getElementById(containerId);
+    const CELL = isHex ? 0 : 44;
+    const PAD = 20;
+    const svgW = isHex ? 360 : N*CELL+PAD*2;
+    const svgH = isHex ? 340 : N*CELL+PAD*2;
+
+    let h = '<div style="margin-bottom:8px;"><strong style="font-size:14px;">'+(isHex?'Hex':'Square')+' board</strong> <span style="font-size:12px;color:#888;">(7&times;7'+(isHex?' with 6 directions':' with 4 directions')+')</span></div>';
+    h += '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:6px;">';
+    h += '<label>Puzzle ID: <input class="bfs-sid" type="text" value="'+examples[0].sid+'" style="width:130px;font-size:13px;font-family:monospace;padding:2px 4px;"></label>';
+    h += '<button class="bfs-load" style="font-size:12px;padding:3px 10px;cursor:pointer;">Load</button>';
+    h += '</div>';
+    h += '<div style="margin-bottom:8px;font-size:11px;color:#888;">Try: '+examples.map(e=>'<a href="#" class="bfs-ex" data-sid="'+e.sid+'" style="color:#2563eb;">'+e.sid+'</a> <span style="color:#aaa;">('+e.label+')</span>').join(' &middot; ')+'</div>';
+    h += '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">';
+    h += '<button class="bfs-play" style="padding:4px 12px;cursor:pointer;">&#9654; Play</button>';
+    h += '<button class="bfs-step" style="padding:4px 8px;cursor:pointer;">Step</button>';
+    h += '<button class="bfs-reset" style="padding:4px 8px;cursor:pointer;">Reset</button>';
+    h += '<label style="color:#888;">Speed: <input class="bfs-speed" type="range" min="1" max="100" value="30" style="width:80px;vertical-align:middle;"></label>';
+    h += '</div>';
+    h += '<svg class="bfs-svg" width="'+svgW+'" height="'+svgH+'" style="border:1px solid #eee;border-radius:4px;background:#fff;"></svg>';
+    h += '<div class="bfs-info" style="margin-top:6px;font-size:12px;color:#555;"></div>';
+    container.innerHTML = h;
+
+    const svgEl = container.querySelector('.bfs-svg');
+    const infoEl = container.querySelector('.bfs-info');
+    let bfsData=null, ochCells=null, revDepth=-1, playing=false, anim=null, lastT=0, curRobots=null;
+
+    function load() {
+      playing=false; if(anim)cancelAnimationFrame(anim);
+      const sid = container.querySelector('.bfs-sid').value.trim();
+      const decoded = decodeStableId(sid);
+      if (!decoded) { infoEl.innerHTML='<span style="color:red;">Invalid puzzle ID</span>'; svgEl.innerHTML=''; return; }
+      curRobots = decoded.robots;
+      bfsData = runBFS(curRobots, dirs, blocked);
+      const positions = curRobots.map(r=>[r.row,r.col]);
+      ochCells = computeOCH(positions, isHex);
+      revDepth = -1;
+      render(blocked);
+    }
+
+    function cellXY(r,c) { return {x:PAD+c*CELL, y:PAD+r*CELL}; }
+
+    function render(blocked) {
+      let html = '';
+      if (!isHex) {
+        for (let i=0;i<=N;i++) {
+          html+='<line x1="'+PAD+'" y1="'+(PAD+i*CELL)+'" x2="'+(PAD+N*CELL)+'" y2="'+(PAD+i*CELL)+'" stroke="#ddd" stroke-width="1"/>';
+          html+='<line x1="'+(PAD+i*CELL)+'" y1="'+PAD+'" x2="'+(PAD+i*CELL)+'" y2="'+(PAD+N*CELL)+'" stroke="#ddd" stroke-width="1"/>';
+        }
+        for (const k of blocked) { const [r,c]=k.split(',').map(Number); const p=cellXY(r,c); html+='<rect x="'+p.x+'" y="'+p.y+'" width="'+CELL+'" height="'+CELL+'" fill="#e8e8e8"/>'; }
+        for (const k of ochCells) {
+          if (bfsData.cellFirst[k] !== undefined) continue;
+          const [r,c]=k.split(',').map(Number);
+          const p=cellXY(r,c);
+          html+='<rect x="'+p.x+'" y="'+p.y+'" width="'+CELL+'" height="'+CELL+'" fill="rgba(139,92,246,.12)" rx="2"/>';
+        }
+        for (const [k,d] of Object.entries(bfsData.cellFirst)) {
+          const [r,c]=k.split(',').map(Number); const p=cellXY(r,c);
+          html+='<rect data-ck="'+k+'" x="'+p.x+'" y="'+p.y+'" width="'+CELL+'" height="'+CELL+'" fill="'+dColor(d,bfsData.maxD)+'" opacity="0" rx="2"/>';
+        }
+        const ctr=cellXY(CTR,CTR);
+        html+='<rect x="'+ctr.x+'" y="'+ctr.y+'" width="'+CELL+'" height="'+CELL+'" fill="none" stroke="#999" stroke-width="1" stroke-dasharray="3,2"/>';
+        for (const rb of curRobots) {
+          const p=cellXY(rb.row,rb.col);
+          html+='<circle class="rb" cx="'+(p.x+CELL/2)+'" cy="'+(p.y+CELL/2)+'" r="'+(CELL/2-5)+'" fill="'+(rb.isExit?'#dc2626':'#2563eb')+'" opacity=".9"/>';
+        }
+      } else {
+        const R = 22;
+        const allPos = []; for(let r=0;r<N;r++) for(let c=0;c<N;c++) allPos.push([r,c]);
+        let mnX=1e9,mxX=-1e9,mnY=1e9,mxY=-1e9;
+        for(const [r,c] of allPos){const p=hexPos(r,c,R); mnX=Math.min(mnX,p.x-R);mxX=Math.max(mxX,p.x+R);mnY=Math.min(mnY,p.y-R*S3/2);mxY=Math.max(mxY,p.y+R*S3/2);}
+        const ox=-mnX+10, oy=-mnY+10;
+        const w=mxX-mnX+20, ht=mxY-mnY+20;
+        svgEl.setAttribute('width',Math.ceil(w)); svgEl.setAttribute('height',Math.ceil(ht));
+        svgEl.setAttribute('viewBox','0 0 '+Math.ceil(w)+' '+Math.ceil(ht));
+        for(const [r,c] of allPos){
+          const p=hexPos(r,c,R); const px=p.x+ox, py=p.y+oy;
+          const bl = blocked.has(r+','+c);
+          html+='<polygon points="'+hexPts(px,py,R)+'" fill="'+(bl?'#e8e8e8':'none')+'" stroke="#ddd" stroke-width=".8"/>';
+        }
+        for (const k of ochCells) {
+          if (bfsData.cellFirst[k] !== undefined) continue;
+          const [r,c]=k.split(',').map(Number); const p=hexPos(r,c,R); const px=p.x+ox, py=p.y+oy;
+          html+='<polygon points="'+hexPts(px,py,R)+'" fill="rgba(139,92,246,.15)" stroke="rgba(139,92,246,.4)" stroke-width=".8"/>';
+        }
+        for (const [k,d] of Object.entries(bfsData.cellFirst)) {
+          const [r,c]=k.split(',').map(Number); const p=hexPos(r,c,R); const px=p.x+ox, py=p.y+oy;
+          html+='<polygon data-ck="'+k+'" points="'+hexPts(px,py,R)+'" fill="'+dColor(d,bfsData.maxD)+'" opacity="0"/>';
+        }
+        const cp=hexPos(CTR,CTR,R);
+        html+='<polygon points="'+hexPts(cp.x+ox,cp.y+oy,R)+'" fill="none" stroke="#999" stroke-width="1" stroke-dasharray="3,2"/>';
+        for (const rb of curRobots) {
+          const p=hexPos(rb.row,rb.col,R); const px=p.x+ox, py=p.y+oy;
+          html+='<circle class="rb" cx="'+px.toFixed(1)+'" cy="'+py.toFixed(1)+'" r="'+(R*.4)+'" fill="'+(rb.isExit?'#dc2626':'#2563eb')+'" opacity=".9"/>';
+        }
+      }
+      svgEl.innerHTML = html;
+      updateInfo();
+    }
+
+    function updateInfo() {
+      let revealed = 0;
+      for (let d=0;d<=revDepth;d++) revealed += (bfsData.depthCells[d]||[]).length;
+      const ochSize = ochCells ? ochCells.size : 0;
+      const gap = ochSize - bfsData.nCells;
+      infoEl.innerHTML =
+        '<strong>BFS depth:</strong> '+(revDepth<0?'&mdash;':revDepth)+' / '+bfsData.maxD+
+        ' &nbsp; <strong>Cells:</strong> '+revealed+' / '+bfsData.nCells+
+        ' &nbsp; <strong>States:</strong> '+bfsData.total.toLocaleString()+
+        '<br><strong>Plus-shape:</strong> '+ochSize+' cells'+
+        (gap > 0 ? ' &nbsp; <span style="color:#7c3aed;font-weight:bold;">Gap: '+gap+' cells unreachable inside it</span>' : ' &nbsp; <span style="color:#888;">(no gap — reachable = plus-shape)</span>');
+    }
+
+    function step() {
+      if (!bfsData || revDepth >= bfsData.maxD) return false;
+      revDepth++;
+      const cells = bfsData.depthCells[revDepth]||[];
+      for (const k of cells) { const el = svgEl.querySelector('[data-ck="'+k+'"]'); if(el) el.setAttribute('opacity','.7'); }
+      if (revDepth===1) svgEl.querySelectorAll('.rb').forEach(e=>e.setAttribute('opacity','.3'));
+      updateInfo();
+      return revDepth < bfsData.maxD;
+    }
+
+    function animate(ts) {
+      if (!playing) return;
+      const spd = container.querySelector('.bfs-speed').value;
+      if (ts-lastT >= 1000/(spd*.5+1)) { lastT=ts; if(!step()){playing=false;container.querySelector('.bfs-play').innerHTML='&#9654; Replay';updateInfo();return;} }
+      anim = requestAnimationFrame(animate);
+    }
+
+    container.querySelector('.bfs-load').onclick = load;
+    container.querySelector('.bfs-play').onclick = function() {
+      if(!bfsData) return;
+      if(revDepth>=bfsData.maxD){load();}
+      playing=!playing; this.innerHTML=playing?'&#9646;&#9646; Pause':'&#9654; Play';
+      if(playing){lastT=0;anim=requestAnimationFrame(animate);}
+    };
+    container.querySelector('.bfs-step').onclick = function() { playing=false; container.querySelector('.bfs-play').innerHTML='&#9654; Play'; step(); };
+    container.querySelector('.bfs-reset').onclick = function() { playing=false; container.querySelector('.bfs-play').innerHTML='&#9654; Play'; if(anim)cancelAnimationFrame(anim); load(); };
+    container.querySelectorAll('.bfs-ex').forEach(a => a.onclick = function(e) { e.preventDefault(); container.querySelector('.bfs-sid').value=this.dataset.sid; load(); });
+
+    load();
+  }
+
+  const app = document.getElementById('bfs-app');
+  app.innerHTML = '<div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;"><div id="bfs-square" style="flex:1;min-width:340px;"></div><div id="bfs-hex" style="flex:1;min-width:340px;"></div></div>';
+  createPanel('bfs-square', false);
+  createPanel('bfs-hex', true);
+})();
+</script>
+
+<div class="try-box">
+<div class="try-title">Try this</div>
+<p>Pick one of the example IDs and press <strong>Play</strong>. Watch how the search spreads outward — the first squares lit up are the ones the robots visit after 1 move, then 2 moves, and so on. Where there's a gap (purple squares never turn a BFS color), those are squares the plus-shape said were reachable but actually aren't.</p>
+</div>
+
+<hr>
+
+<!-- ───────────────────── COMPARISON ───────────────────── -->
+<h2>All four ideas, from loose to exact</h2>
+
+<p>Every idea is <strong>tighter</strong> than the one before. The box contains the rubber-band shape, which contains the plus-shape, which contains the true reachable set:</p>
+
+<figure class="figure">
+  <svg width="380" height="290" viewBox="0 0 380 290">
+    <rect x="10" y="10" width="360" height="270" rx="4" fill="rgba(234,179,8,.08)" stroke="#ca8a04" stroke-width="1.5" stroke-dasharray="6,3"/>
+    <text x="28" y="32" font-size="13" fill="#ca8a04" font-family="Georgia">The box</text>
+    <polygon points="190,48 320,140 190,236 60,140" fill="rgba(234,88,12,.07)" stroke="#ea580c" stroke-width="1.5"/>
+    <text x="220" y="76" text-anchor="start" font-size="13" fill="#ea580c" font-family="Georgia">Rubber band</text>
+    <path d="M172,82 L208,82 L208,122 L280,122 L280,162 L208,162 L208,202 L172,202 L172,162 L100,162 L100,122 L172,122 Z" fill="rgba(139,92,246,.12)" stroke="#7c3aed" stroke-width="1.5"/>
+    <text x="190" y="128" text-anchor="middle" font-size="12" fill="#7c3aed" font-family="Georgia">Plus-</text>
+    <text x="190" y="142" text-anchor="middle" font-size="12" fill="#7c3aed" font-family="Georgia">shape</text>
+    <ellipse cx="190" cy="172" rx="16" ry="28" fill="rgba(22,163,74,.15)" stroke="#16a34a" stroke-width="1.5"/>
+    <text x="190" y="176" text-anchor="middle" font-size="11" fill="#16a34a" font-family="Georgia">Exact</text>
+  </svg>
+  <figcaption>Each shape fits inside the one before it. The "exact" set in the middle is what BFS finds. The gap between the plus-shape and the exact set is where the puzzle's trickiness lives.</figcaption>
+</figure>
+
+<table>
+  <tr><th>Idea</th><th>Shape</th><th>How to compute it</th></tr>
+  <tr><td>1. Box</td><td>Rectangle</td><td>Use the outermost rows and columns — instant.</td></tr>
+  <tr><td>2. Rubber band</td><td>Any polygon</td><td>Wrap a line around the outer robots — instant.</td></tr>
+  <tr><td>3. Plus-shape</td><td>Cross / staircase</td><td>Fill every row and column until nothing changes — cheap.</td></tr>
+  <tr><td>4. Try every move</td><td>Exact</td><td>BFS through all possible boards — can be slow for big puzzles.</td></tr>
+</table>
+
+<hr>
+
+<!-- ───────────────────── HEX ───────────────────── -->
+<h2>What about hex boards?</h2>
+
+<p>So far we've only talked about square boards, where robots slide up, down, left, and right. The game also has <strong>hex boards</strong>, where robots can slide in <strong>two extra diagonal directions</strong>. That's 6 directions total:</p>
+
+<figure class="figure">
+  <svg width="420" height="170" viewBox="0 0 420 170">
+    <defs>
+      <marker id="arG2" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0,0 L7,2.5 L0,5Z" fill="#222"/></marker>
+      <marker id="arO2" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0,0 L7,2.5 L0,5Z" fill="#ea580c"/></marker>
+    </defs>
+    <text x="100" y="16" text-anchor="middle" font-size="13" font-weight="bold" fill="#222" font-family="Georgia">Square (4 directions)</text>
+    <circle cx="100" cy="85" r="4" fill="#666"/>
+    <line x1="100" y1="77" x2="100" y2="44" stroke="#222" stroke-width="1.5" marker-end="url(#arG2)"/>
+    <line x1="100" y1="93" x2="100" y2="126" stroke="#222" stroke-width="1.5" marker-end="url(#arG2)"/>
+    <line x1="92" y1="85" x2="56" y2="85" stroke="#222" stroke-width="1.5" marker-end="url(#arG2)"/>
+    <line x1="108" y1="85" x2="144" y2="85" stroke="#222" stroke-width="1.5" marker-end="url(#arG2)"/>
+    <text x="310" y="16" text-anchor="middle" font-size="13" font-weight="bold" fill="#222" font-family="Georgia">Hex (6 directions)</text>
+    <circle cx="310" cy="85" r="4" fill="#666"/>
+    <line x1="310" y1="77" x2="310" y2="44" stroke="#222" stroke-width="1.5" marker-end="url(#arG2)"/>
+    <line x1="310" y1="93" x2="310" y2="126" stroke="#222" stroke-width="1.5" marker-end="url(#arG2)"/>
+    <line x1="302" y1="85" x2="266" y2="85" stroke="#222" stroke-width="1.5" marker-end="url(#arG2)"/>
+    <line x1="318" y1="85" x2="354" y2="85" stroke="#222" stroke-width="1.5" marker-end="url(#arG2)"/>
+    <line x1="316" y1="78" x2="342" y2="50" stroke="#ea580c" stroke-width="2" marker-end="url(#arO2)"/>
+    <line x1="304" y1="92" x2="278" y2="120" stroke="#ea580c" stroke-width="2" marker-end="url(#arO2)"/>
+    <text x="310" y="160" text-anchor="middle" font-size="11" fill="#ea580c" font-style="italic" font-family="Georgia">(+2 diagonal directions in orange)</text>
+  </svg>
+  <figcaption>Square boards have 4 slide directions. Hex boards have the same 4, plus 2 diagonals.</figcaption>
+</figure>
+
+<p>Here's the good news: the <strong>box</strong> and the <strong>rubber band</strong> work <em>exactly the same way</em> on hex boards. The same "no blocker out there means no slide out there" argument works for any direction, diagonals included.</p>
+
+<p>But the <strong>plus-shape idea needs a small fix</strong>. Why? Remember how we built it: we filled in rows and columns, because a sliding robot always lands on the same row or column as its blocker. On a hex board that's still true for the 4 normal directions — but for the 2 diagonal ones, the robot and blocker line up along a <em>diagonal</em>, not a row or column. The plus-shape misses that.</p>
+
+<p><strong>The fix:</strong> also fill in gaps along <em>diagonals</em> (the diagonal that goes up-right and down-left). Now the shape has three "arms" instead of two — it looks like a <strong>three-armed star</strong>:</p>
+
+<figure class="figure">
+  <svg id="hex-och-star" width="600" height="300" viewBox="0 0 600 300"></svg>
+  <figcaption>Same four robots on a hex board. Left: the rubber-band shape (13 squares). Right: after filling rows, columns, <em>and</em> diagonals, we get a three-armed star (11 squares) — tighter, and no robot can escape it.</figcaption>
+</figure>
+
+<p>Everything else — including the BFS "try every move" approach — works the same. You can test hex puzzles in the widget above using the hex-board panel on the right.</p>
+
+<hr>
+
+<!-- ───────────────────── WHY IT MATTERS ───────────────────── -->
+<h2>Why this matters in the game</h2>
+
+<p>These aren't just math ideas — the game uses them. In the <strong>Settings</strong> panel, you can pick which shape to use for shading "unreachable" squares. Picking a tighter shape darkens more squares, making it easier to focus on the ones that actually matter.</p>
+
+<p>And here's a really useful trick: if the <strong>exit cell (the center)</strong> ever falls <em>outside</em> one of these shapes, the puzzle is <strong>unsolvable from that position</strong>. The exit-robot has to reach the center, and if the center isn't even inside the shape that contains the robot, it can't happen.</p>
+
+<p>So if you've moved your robots into a weird spot and the plus-shape suddenly doesn't include the center anymore, you know you've made a mistake. Undo and try again.</p>
+
+<hr>
+
+<h2>Want the math?</h2>
+
+<p>This page skipped over the formal proofs and equations to keep things simple. If you're curious about <em>why</em> these shapes really work — with proper proofs, linear algebra, and induction — the <a href="reachability-bounds.html">full write-up has all the details</a>.</p>
+
+<script>
+// ── Square progression diagram (bbox → octagon → rubber-band) ──
+(function() {
+  const el = document.getElementById('sq-progression');
+  if (!el) return;
+  const pts = [[0,2],[1,5],[3,0],[4,6],[6,3]];
+  const N = 7, CS = 32, PAD = 10, GAP = 30;
+  const panelW = N*CS + PAD*2, panelH = N*CS + PAD*2;
+  function cc(r,c,offX) { return { x: offX + PAD + c*CS + CS/2, y: PAD + r*CS + CS/2 }; }
+
+  let rMin=6,rMax=0,cMin=6,cMax=0,sMin=12,sMax=0,dMin=6,dMax=-6;
+  for(const[r,c]of pts){rMin=Math.min(rMin,r);rMax=Math.max(rMax,r);cMin=Math.min(cMin,c);cMax=Math.max(cMax,c);sMin=Math.min(sMin,r+c);sMax=Math.max(sMax,r+c);dMin=Math.min(dMin,r-c);dMax=Math.max(dMax,r-c);}
+
+  function cross(o,a,b){return(a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]);}
+  const sorted=[...pts].sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
+  const lower=[];for(const p of sorted){while(lower.length>=2&&cross(lower[lower.length-2],lower[lower.length-1],p)<=0)lower.pop();lower.push(p);}
+  const upper=[];for(let i=sorted.length-1;i>=0;i--){const p=sorted[i];while(upper.length>=2&&cross(upper[upper.length-2],upper[upper.length-1],p)<=0)upper.pop();upper.push(p);}
+  lower.pop();upper.pop();
+  const hull=lower.concat(upper);
+  function inHull(r,c){for(let i=0;i<hull.length;i++){const j=(i+1)%hull.length;if(cross(hull[i],hull[j],[r,c])<0)return false;}return true;}
+
+  let bboxN=0, octN=0, convN=0;
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){
+    const inBbox = r>=rMin&&r<=rMax&&c>=cMin&&c<=cMax;
+    const inOct = inBbox&&r+c>=sMin&&r+c<=sMax&&r-c>=dMin&&r-c<=dMax;
+    const inConv = inHull(r,c);
+    if(inBbox)bboxN++;if(inOct)octN++;if(inConv)convN++;
+  }
+
+  const totalW = panelW*3 + GAP*2;
+  el.setAttribute('width', totalW);
+  el.setAttribute('height', panelH + 20);
+  el.setAttribute('viewBox', '0 0 '+totalW+' '+(panelH+20));
+
+  let h = '';
+  const titles = ['Box','Octagon (corners cut)','Rubber band'];
+  const colors = [['#ca8a04','rgba(234,179,8,.12)'],['#2563eb','rgba(37,99,235,.10)'],['#16a34a','rgba(22,163,74,.10)']];
+  const counts = [bboxN, octN, convN];
+
+  for (let p = 0; p < 3; p++) {
+    const offX = p * (panelW + GAP);
+    h += '<text x="'+(offX+panelW/2)+'" y="12" text-anchor="middle" font-size="12" font-weight="bold" fill="#222" font-family="Georgia">'+titles[p]+'</text>';
+    for (let i = 0; i <= N; i++) {
+      h += '<line x1="'+(offX+PAD)+'" y1="'+(PAD+i*CS)+'" x2="'+(offX+PAD+N*CS)+'" y2="'+(PAD+i*CS)+'" stroke="#eee" stroke-width="1"/>';
+      h += '<line x1="'+(offX+PAD+i*CS)+'" y1="'+PAD+'" x2="'+(offX+PAD+i*CS)+'" y2="'+(PAD+N*CS)+'" stroke="#eee" stroke-width="1"/>';
+    }
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+      let inside = false;
+      if (p === 0) inside = r>=rMin&&r<=rMax&&c>=cMin&&c<=cMax;
+      else if (p === 1) inside = r>=rMin&&r<=rMax&&c>=cMin&&c<=cMax&&r+c>=sMin&&r+c<=sMax&&r-c>=dMin&&r-c<=dMax;
+      else inside = inHull(r,c);
+      if (inside) h += '<rect x="'+(offX+PAD+c*CS)+'" y="'+(PAD+r*CS)+'" width="'+CS+'" height="'+CS+'" fill="'+colors[p][1]+'" rx="2"/>';
+    }
+    for (const [r,c] of pts) {
+      const {x,y} = cc(r,c,offX);
+      h += '<circle cx="'+x+'" cy="'+y+'" r="'+(CS*.28)+'" fill="#555"/>';
+    }
+    h += '<text x="'+(offX+panelW/2)+'" y="'+(panelH+14)+'" text-anchor="middle" font-size="11" fill="'+colors[p][0]+'" font-family="Georgia" font-style="italic">'+counts[p]+' cells</text>';
+  }
+  el.innerHTML = h;
+})();
+
+// ── Hex three-armed-star diagram ──
+(function() {
+  const S3 = Math.sqrt(3);
+  function hexPos(r, c, N, R) {
+    const mid = (N-1)/2;
+    const bx = 1.5*R*c, by = S3*R*(r + c/2);
+    const cx = 1.5*R*mid, cy = S3*R*(mid + mid/2);
+    const dx = bx-cx, dy = by-cy;
+    return { x: 0.5*dx + S3/2*dy, y: -S3/2*dx + 0.5*dy };
+  }
+  function hexPts(cx, cy, R, shrink) {
+    const s = shrink || 0.97;
+    const hw = R * s, hh = R * S3/2 * s;
+    return [
+      (cx - hw/2).toFixed(1)+','+(cy - hh).toFixed(1),
+      (cx + hw/2).toFixed(1)+','+(cy - hh).toFixed(1),
+      (cx + hw   ).toFixed(1)+','+(cy     ).toFixed(1),
+      (cx + hw/2).toFixed(1)+','+(cy + hh).toFixed(1),
+      (cx - hw/2).toFixed(1)+','+(cy + hh).toFixed(1),
+      (cx - hw   ).toFixed(1)+','+(cy     ).toFixed(1),
+    ].join(' ');
+  }
+  function hexLayout(cells, N, R) {
+    const cellH = R * S3;
+    let minX=1e9, maxX=-1e9, minY=1e9, maxY=-1e9;
+    for (const [r,c] of cells) {
+      const p = hexPos(r,c,N,R);
+      minX = Math.min(minX, p.x-R); maxX = Math.max(maxX, p.x+R);
+      minY = Math.min(minY, p.y-cellH/2); maxY = Math.max(maxY, p.y+cellH/2);
+    }
+    return { ox: -minX, oy: -minY, w: maxX-minX, h: maxY-minY };
+  }
+  function buildHexPanel(N, R, allCells, layers, robots, annotations) {
+    const lay = hexLayout(allCells, N, R);
+    const padX = 8, padY = 8;
+    const ox = lay.ox + padX, oy = lay.oy + padY;
+    const w = lay.w + padX*2, h = lay.h + padY*2;
+    let html = '';
+    for (const [r,c] of allCells) {
+      const p = hexPos(r,c,N,R);
+      html += '<polygon points="'+hexPts(p.x+ox, p.y+oy, R)+'" fill="none" stroke="#ddd" stroke-width=".8"/>';
+    }
+    for (const layer of (layers||[])) {
+      for (const [r,c] of (layer.cells||[])) {
+        const p = hexPos(r,c,N,R);
+        html += '<polygon points="'+hexPts(p.x+ox, p.y+oy, R)+'" fill="'+(layer.fill||'none')+'" stroke="'+(layer.stroke||'none')+'" stroke-width="'+(layer.strokeWidth||1)+'"/>';
+      }
+      if (layer.hullRobots) {
+        const pts = layer.hullRobots.map(([r,c]) => {
+          const p = hexPos(r,c,N,R);
+          return (p.x+ox).toFixed(1)+','+(p.y+oy).toFixed(1);
+        }).join(' ');
+        html += '<polygon points="'+pts+'" fill="'+(layer.hullFill||'none')+'" stroke="'+(layer.hullStroke||'#2563eb')+'" stroke-width="'+(layer.hullStrokeWidth||2)+'"/>';
+      }
+    }
+    for (const rb of (robots||[])) {
+      const p = hexPos(rb.r, rb.c, N, R);
+      const px = p.x+ox, py = p.y+oy;
+      const rs = R*.4;
+      html += '<circle cx="'+px.toFixed(1)+'" cy="'+py.toFixed(1)+'" r="'+rs+'" fill="'+(rb.color||'#333')+'"/>';
+    }
+    return { html, w, h };
+  }
+  function renderDualHex(svgId, leftCfg, rightCfg, opts) {
+    const el = document.getElementById(svgId);
+    if (!el) return;
+    const L = buildHexPanel(leftCfg.N, leftCfg.R, leftCfg.allCells, leftCfg.layers, leftCfg.robots);
+    const Rt = buildHexPanel(rightCfg.N, rightCfg.R, rightCfg.allCells, rightCfg.layers, rightCfg.robots);
+    const gap = opts.gap || 30;
+    const titleH = opts.titles ? 22 : 0;
+    const totalW = L.w + gap + Rt.w;
+    const totalH = Math.max(L.h, Rt.h) + titleH + (opts.footerH||20);
+    el.setAttribute('width', Math.ceil(totalW));
+    el.setAttribute('height', Math.ceil(totalH));
+    el.setAttribute('viewBox', '0 0 '+Math.ceil(totalW)+' '+Math.ceil(totalH));
+    let html = '';
+    if (opts.titles) {
+      html += '<text x="'+(L.w/2)+'" y="14" text-anchor="middle" font-size="12" font-weight="bold" fill="#222" font-family="Georgia">'+opts.titles[0]+'</text>';
+      html += '<text x="'+(L.w+gap+Rt.w/2)+'" y="14" text-anchor="middle" font-size="12" font-weight="bold" fill="#222" font-family="Georgia">'+opts.titles[1]+'</text>';
+    }
+    html += '<g transform="translate(0,'+titleH+')">'+L.html+'</g>';
+    html += '<g transform="translate('+(L.w+gap)+','+titleH+')">'+Rt.html+'</g>';
+    html += '<text x="'+(L.w+gap/2)+'" y="'+(titleH+Math.max(L.h,Rt.h)/2)+'" text-anchor="middle" font-size="18" fill="#666" font-family="Georgia">&rarr;</text>';
+    el.innerHTML = html;
+  }
+
+  const grid5 = [];
+  for (let r=0;r<5;r++) for (let c=0;c<5;c++) grid5.push([r,c]);
+  const R5 = 22;
+  const robots5dia = [{r:0,c:2},{r:2,c:0},{r:4,c:2},{r:2,c:4}];
+  const hexOchCells5 = [[0,2],[1,1],[1,2],[2,0],[2,1],[2,2],[2,3],[2,4],[3,2],[3,3],[4,2]];
+  const convexHullCells5 = grid5.filter(([r,c]) => r+c>=2 && r+c<=6 && r-c>=-2 && r-c<=2);
+
+  renderDualHex('hex-och-star',
+    { N:5, R:R5, allCells:grid5,
+      layers: [{ cells: convexHullCells5, fill:'rgba(234,88,12,.10)', stroke:'rgba(234,88,12,.25)', strokeWidth:1,
+                 hullRobots:[[0,2],[2,4],[4,2],[2,0]], hullStroke:'#ea580c', hullStrokeWidth:2, hullFill:'none' }],
+      robots: robots5dia.map(r=>({...r, color:'#555'})) },
+    { N:5, R:R5, allCells:grid5,
+      layers: [{ cells: hexOchCells5, fill:'rgba(139,92,246,.15)', stroke:'rgba(139,92,246,.4)', strokeWidth:1 }],
+      robots: robots5dia.map(r=>({...r, color:'#555'})) },
+    { gap:36, titles:['Rubber band on hex: '+convexHullCells5.length+' cells','Three-armed star: '+hexOchCells5.length+' cells'], footerH:10 }
+  );
+})();
+</script>
+
+</body>
+</html>
