@@ -205,3 +205,40 @@ Memory formula: `aug_states / 0.75 load_factor × 8 bytes/slot`.
 - v11 4+3 Stage 4 was on pace for ≥1.16M CPU-seconds (320+ hours, OOM killed).
 - Augmented retrograde: estimated 10-20 minutes on 16 cores.
 - **Speedup: ~1,000-2,000×.**
+
+### 2026-04-17T10:00Z — Corrected memory analysis with power-of-2 FlatMap sizing
+
+The initial projections used `aug_states / 0.75 × 8 bytes` which underestimates actual memory. FlatMap uses power-of-2 capacity, and there's ~50% overhead for frontier vectors, recs, and other allocations. Also, follow-up pipeline stages (collect, dedup) can DOUBLE peak memory.
+
+**Corrected projections for beehive combos:**
+
+| Combo | Base states (v11) | Aug est | FlatMap cap (pow2) | FlatMap GB | ~Total GB |
+|-------|-------------------|---------|--------------------|-----------|----------|
+| 1+5 | 10,154,771 | ~55M | 134M | 1.1 | ~1.6 |
+| 1+6 | 103,789,544 | ~623M | 1,074M | 8.6 | ~13 |
+| 2+4 | 18,756,258 | ~103M | 268M | 2.1 | ~3.2 |
+| 2+5 | 284,451,000 | ~1.7B | **4,295M** | **34.4** | **~52** |
+| 3+3 | 14,279,100 | ~78M | 134M | 1.1 | ~1.6 |
+| 3+4 | 438,915,082 | ~2.8B | **4,295M** | **34.4** | **~52** |
+| **4+3** | **356,117,053** | **~2.3B** | **4,295M** | **34.4** | **~52** |
+
+**v11 measured memory validation:**
+- v11 3+4 base retrograde (438M states): measured 16.2 GB RSS. Formula: 438M/0.75 → 1,074M pow2 cap × 8 = 8.6 GB FlatMap + frontier vectors ≈ 16 GB. ✓ Formula matches measurement.
+
+**32 GB feasibility:**
+- **Fits:** 1+5, 1+6, 2+4, 3+3 (all ≤13 GB)
+- **Does NOT fit:** 2+5, 3+4, 4+3 — FlatMap alone is 34.4 GB (power-of-2 rounding from ~2.3B entries → 4B slots). Before even considering pipeline follow-up stages.
+
+**64 GB feasibility:**
+- 4+3 augmented FlatMap: 34.4 GB. Plus frontiers: ~40 GB peak during BFS.
+- Follow-up stages (collect + sort): need recs vector (~2.3B × 16 bytes = ~37 GB) simultaneously with FlatMap → **71 GB peak**. Does NOT fit on 64 GB either.
+- **Need either:** (a) free the aug FlatMap before collect, extracting only base-state min costs (~4 GB), or (b) 128 GB instance, or (c) stream results to disk.
+
+**Revised recommendation for 4+3:** Use the augmented BFS to compute grouped-move costs, extract `min_L(aug_cost(S, L))` for each base state into a compact map (~4 GB), free the augmented FlatMap, then run the remaining pipeline stages using the compact cost map. This keeps peak memory ~40 GB (augmented BFS phase) and drops back to ~20 GB for dedup/filter. Fits on 64 GB.
+
+**Running 1+5 beehive on this Mac** to measure actual memory and timing. Also testing 1+6 beehive (~13 GB projected) to validate the formula against real measurements.
+
+**4+3 vs 3+4 base state counts (from v11 measurement, not predicted):**
+- 3+4: 438,915,082 — more base states
+- 4+3: 356,117,053 — fewer base states (EXITED exits don't occupy cells, reducing combinations)
+- Both round up to the same 4B-slot FlatMap capacity for the augmented version
