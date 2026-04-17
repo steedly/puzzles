@@ -736,16 +736,26 @@ static FlatMap retrograde(int num_exits, int num_helpers)
 // Canonicalize an augmented state: apply symmetry transforms to both
 // positions AND last_mover_cell, pick the lexicographic minimum.
 static uint64_t canonical_aug(State base_state, int last_cell, int n, int num_exits, int shift) {
-    // For now: sort helpers only (no symmetry transforms) to match the
-    // encoding convention, but don't apply D4/Klein spatial transforms.
-    // This tests the core 0-1 BFS logic without canonicalization interference.
-    // TODO: re-enable symmetry once the core logic is validated.
     int r[10];
     decode(base_state, n, r);
-    std::sort(r,            r + num_exits);
-    std::sort(r + num_exits, r + n);
-    const State ts = encode(r, n);
-    return ts | ((uint64_t)(unsigned)last_cell << shift);
+    uint64_t best = ~(uint64_t)0;
+    for (int ti = 0; ti < NUM_SYMS; ti++) {
+        const int t = SYM_INDICES[ti];
+        int tr[10];
+        for (int e = 0; e < num_exits; e++)
+            tr[e] = (r[e] == EXITED) ? EXITED : sym(r[e], t);
+        for (int h = num_exits; h < n; h++)
+            tr[h] = sym(r[h], t);
+        std::sort(tr,            tr + num_exits);
+        std::sort(tr + num_exits, tr + n);
+        const State ts = encode(tr, n);
+        // Transform last_cell with the same spatial symmetry.
+        // EXITED stays EXITED (it's off-board, not a spatial position).
+        const int tl = (last_cell == EXITED) ? EXITED : sym(last_cell, t);
+        const uint64_t aug = ts | ((uint64_t)(unsigned)tl << shift);
+        if (aug < best) best = aug;
+    }
+    return best;
 }
 
 // Generate augmented predecessors for state (S, L) at retrograde cost c.

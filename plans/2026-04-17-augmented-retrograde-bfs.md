@@ -141,3 +141,11 @@ Commit: `223820e`
 The augmented retrograde 0-1 BFS is **correct** for all tested combinations on both square and hex boards.
 
 **Next:** re-enable symmetry canonicalization and validate. Then test larger combos (1+5, 2+4) for performance/memory measurements. Finally, integrate into the main pipeline.
+
+### 2026-04-17T08:30Z — Symmetry canonicalization re-enabled, 12/12 PASS
+
+Re-enabled D4 (standard, 8 transforms) and Klein (beehive, 4 transforms) symmetry canonicalization for augmented states. Both positions AND last_mover_cell are transformed by each symmetry before taking the lex-min. EXITED values are preserved through transforms (not a spatial position).
+
+**12/12 combos PASS with symmetry enabled.** Phase 2 (implementation) and Phase 3 (validation for correctness) are COMPLETE for small/medium combos.
+
+**Next:** performance and memory measurements on larger combos (1+5, 2+4, 3+3) to validate the design doc's projections. Then Phase 4: integrate into the main pipeline.
