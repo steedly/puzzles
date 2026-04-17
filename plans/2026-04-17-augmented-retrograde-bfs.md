@@ -148,4 +148,60 @@ Re-enabled D4 (standard, 8 transforms) and Klein (beehive, 4 transforms) symmetr
 
 **12/12 combos PASS with symmetry enabled.** Phase 2 (implementation) and Phase 3 (validation for correctness) are COMPLETE for small/medium combos.
 
-**Next:** performance and memory measurements on larger combos (1+5, 2+4, 3+3) to validate the design doc's projections. Then Phase 4: integrate into the main pipeline.
+**Next:** performance and memory measurements on larger combos to validate the design doc's projections. Then Phase 4: integrate into the main pipeline.
+
+### 2026-04-17T09:30Z — Compute and memory analysis for all combos
+
+Measured base retrograde state counts vs augmented state counts, computed multipliers, and projected to the 4+3 hex target.
+
+**Standard (square, D4 symmetry, 8 transforms):**
+
+| Combo | Base states | Aug states | Multiplier | N |
+|-------|------------|-----------|-----------|---|
+| 1+1 | 12 | 15 | 1.25× | 2 |
+| 1+2 | 260 | 447 | 1.72× | 3 |
+| 1+3 | 5,136 | 13,513 | 2.63× | 4 |
+| 1+4 | 101,169 | 400,755 | 3.96× | 5 |
+| 2+1 | 15 | 27 | 1.80× | 3 |
+| 2+2 | 464 | 1,335 | 2.88× | 4 |
+| 2+3 | 20,622 | 93,369 | 4.53× | 5 |
+| 3+1 | 16 | 34 | 2.13× | 4 |
+| 3+2 | 869 | 3,509 | 4.04× | 5 |
+
+**Beehive (hex, Klein symmetry, 4 transforms):**
+
+| Combo | Base states | Aug states | Multiplier | N |
+|-------|------------|-----------|-----------|---|
+| 1+1 | 21 | 27 | 1.29× | 2 |
+| 1+2 | 610 | 1,206 | 1.98× | 3 |
+| 1+3 | 16,769 | 53,234 | 3.17× | 4 |
+| 1+4 | 507,023 | 2,323,210 | 4.58× | 5 |
+| 2+1 | 27 | 51 | 1.89× | 3 |
+| 2+2 | 1,833 | 6,367 | 3.47× | 4 |
+| 2+3 | 251,908 | 1,240,308 | 4.92× | 5 |
+
+**Key observation:** the multiplier grows with N (total robots) but is consistently **less than N**. The theoretical upper bound was N× (each base state × N possible last_mover values). Actual multipliers are ~2.5-5× for N=4-5 robots. Symmetry canonicalization collapses many augmented states that differ only in last_mover but are symmetric.
+
+**Projections for the v11 target combos (beehive):**
+
+| Combo | Base states (v11) | Projected aug states | Projected aug memory |
+|-------|-------------------|---------------------|---------------------|
+| 1+5 | 10,154,771 | ~55M (5.4×) | ~590 MB |
+| 1+6 | 103,789,544 | ~620M (6.0×) | ~6.6 GB |
+| 2+4 | 18,756,258 | ~103M (5.5×) | ~1.1 GB |
+| 2+5 | 284,451,000 | ~1.7B (6.0×) | ~18 GB |
+| 3+3 | 14,279,100 | ~78M (5.5×) | ~840 MB |
+| 3+4 | 438,915,082 | ~2.8B (6.4×) | ~30 GB |
+| **4+3** | **356,117,053** | **~2.3B (6.5×)** | **~25 GB** |
+
+Memory formula: `aug_states / 0.75 load_factor × 8 bytes/slot`.
+
+**Feasibility assessment:**
+- **32 GB box:** Combos up to 2+4 and 3+3 fit comfortably. 2+5, 3+4, and 4+3 are TIGHT — the FlatMap with power-of-2 sizing could exceed 32 GB. Needs a larger box or reduced load factor.
+- **64 GB box:** All combos fit with margin. 4+3 at ~25 GB augmented map leaves 39 GB for other pipeline stages.
+- **Compute:** The augmented BFS is single-threaded (serial deque 0-1 BFS). On this Mac (single-threaded), 1+4 beehive (2.3M aug states) completes in ~5 seconds. Extrapolating to 2.3B states for 4+3: ~5,000 seconds (~83 min) single-threaded. With the parallel two-phase approach on 16 cores: estimated 10-20 minutes.
+
+**Comparison to Stage 4 (per-puzzle solve_min_grouped):**
+- v11 4+3 Stage 4 was on pace for ≥1.16M CPU-seconds (320+ hours, OOM killed).
+- Augmented retrograde: estimated 10-20 minutes on 16 cores.
+- **Speedup: ~1,000-2,000×.**
