@@ -214,13 +214,15 @@
 <p>So here's a recipe for a tighter shape:</p>
 
 <ol>
-  <li>Start with just the four squares where the robots sit.</li>
-  <li><strong>Fill in gaps along each row.</strong> If two robots share a row, fill in every square between them on that row.</li>
-  <li><strong>Fill in gaps along each column.</strong> Same idea: if two robots share a column, fill in every square between them.</li>
-  <li>Now look at what you've got. Did any of the cells you just filled in connect more robots? Keep filling rows and columns until nothing changes.</li>
+  <li>Start with just the squares where the robots sit — those are your starting "filled" squares.</li>
+  <li><strong>Row pass.</strong> Look at each row. If it has two or more filled squares, fill every square between the leftmost one and the rightmost one.</li>
+  <li><strong>Column pass.</strong> Do the same for every column — find the topmost and bottommost filled squares, and fill everything in between.</li>
+  <li><strong>Did anything change?</strong> If the row or column pass added any new squares, go back to step 2 and do it again. If nothing changed, you're done.</li>
 </ol>
 
-<p>Apply this to our diamond and you get a <strong>plus-sign shape</strong> — the cross where the horizontal arm (connecting B and D) meets the vertical arm (connecting A and C):</p>
+<p>The "do it again" part is important. Sometimes filling rows creates new alignments for columns, and filling columns creates new alignments for rows. We'll see an example shortly.</p>
+
+<p>For now, let's apply the recipe to our diamond. Since each pair of robots that share a row or column is already at the tips of the diamond, one round of row-filling plus column-filling does the whole job, giving a <strong>plus-sign shape</strong>:</p>
 
 <figure class="figure">
   <svg width="560" height="330" viewBox="0 0 560 330">
@@ -284,7 +286,36 @@
   <p>So the landing square has to be inside the plus-shape too. Once everyone starts inside, nobody can leave.</p>
 </div>
 
-<p>This shape is called the <em>orthogonal convex hull</em> if you want the fancy name. We'll just call it the plus-shape. For other starting setups it might look like a staircase or a zigzag, but the rule is always the same: no gaps across any row, no gaps down any column.</p>
+<h3>When one pass isn't enough</h3>
+
+<p>The diamond was a tidy case: one round of row-filling plus column-filling gave the answer, and a second round added nothing. But sometimes the algorithm has to <strong>loop several times</strong> before it stabilizes. Here's an example.</p>
+
+<p>Five robots on a 5×5 grid: at the top-left corner, the top-right corner, the bottom-left corner, and two "staircase" robots in the middle. Watch what happens as we run the algorithm, one pass at a time. <strong style="color:#16a34a;">Green squares</strong> are the new squares added in <em>that</em> pass:</p>
+
+<figure class="figure">
+  <svg id="iter-progression" width="686" height="196" viewBox="0 0 686 196"></svg>
+  <figcaption>Five frames, one per pass. The shape grows until a pass adds nothing new — then we stop.</figcaption>
+</figure>
+
+<p>Walking through it:</p>
+
+<ul>
+  <li><strong>Start.</strong> Just the 5 robot squares.</li>
+  <li><strong>Pass 1 — fill rows.</strong> The only row with two robots is row 0 (robots at columns 0 and 4). Fill the 3 squares between them.</li>
+  <li><strong>Pass 1 — fill columns.</strong> Now scan columns. Col 0 has robots at the top and bottom — fill the 3 squares between. Col 2 has a robot at row 2 and a <em>newly-filled square</em> from the row pass at (0, 2) — fill (1, 2) between them. Col 3 has a robot at row 3 and a new square at (0, 3) — fill (1, 3) and (2, 3). Six new squares total.</li>
+  <li><strong>Pass 2 — fill rows.</strong> Did anything change in pass 1? Yes — we added 9 squares. So we run the row pass again. Row 1 now has squares at columns 0, 2, and 3 (all added in pass 1) — fill the gap at column 1. Row 2 same: fill (2, 1). Row 3 has squares at columns 0 and 3 — fill the two in between. Four new squares.</li>
+  <li><strong>Pass 2 — fill columns.</strong> Scan every column. Columns 1, 2, and 3 now have no gaps (they run contiguously from row 0 to row 3). Nothing to add. <strong>The shape didn't change on this pass — stop!</strong></li>
+</ul>
+
+<p>Notice the <strong>cascading effect</strong>: the row pass adds squares that create new column alignments, which add squares that create new row alignments, and so on. Each pass sets up the next. The process stops as soon as one pass adds zero new squares.</p>
+
+<div class="why-box">
+  <div class="why-title">Why the algorithm always stops</div>
+  <p>Each pass either adds at least one new square, or adds nothing and stops. The shape only grows — we never remove a square. And the board has only so many squares (25 on 5×5, 49 on 7×7). So we can't keep growing forever. Eventually a pass has to add zero squares, and we stop.</p>
+  <p>In practice it's really fast: even for big puzzles with lots of robots, the algorithm almost always stabilizes within 2 or 3 full rounds.</p>
+</div>
+
+<p>This shape is called the <em>orthogonal convex hull</em> if you want the fancy name. We'll just call it the plus-shape — even when, like the 5-robot example above, it's actually a more complicated staircase. The rule is always the same: no gaps across any row, no gaps down any column.</p>
 
 <hr>
 
@@ -797,6 +828,84 @@
     }
     h += '<text x="'+(offX+panelW/2)+'" y="'+(panelH+14)+'" text-anchor="middle" font-size="11" fill="'+colors[p][0]+'" font-family="Georgia" font-style="italic">'+counts[p]+' cells</text>';
   }
+  el.innerHTML = h;
+})();
+
+// ── Iterative fill progression (5 robots on 5×5, multi-pass) ──
+(function() {
+  const el = document.getElementById('iter-progression');
+  if (!el) return;
+
+  const robots = [[0,0],[0,4],[4,0],[2,2],[3,3]];
+  const robotKeys = new Set(robots.map(([r,c]) => r+','+c));
+
+  // Each frame lists the non-robot cells that are filled, and which of those are NEW in this pass.
+  const frames = [
+    { title:'Start', filled:[], newCells:[], desc:'5 squares' },
+    { title:'Pass 1: fill rows',
+      filled:[[0,1],[0,2],[0,3]],
+      newCells:[[0,1],[0,2],[0,3]],
+      desc:'+3 new (row 0)' },
+    { title:'Pass 1: fill columns',
+      filled:[[0,1],[0,2],[0,3],[1,0],[2,0],[3,0],[1,2],[1,3],[2,3]],
+      newCells:[[1,0],[2,0],[3,0],[1,2],[1,3],[2,3]],
+      desc:'+6 new (cols 0, 2, 3)' },
+    { title:'Pass 2: fill rows',
+      filled:[[0,1],[0,2],[0,3],[1,0],[2,0],[3,0],[1,2],[1,3],[2,3],[1,1],[2,1],[3,1],[3,2]],
+      newCells:[[1,1],[2,1],[3,1],[3,2]],
+      desc:'+4 new (rows 1, 2, 3)' },
+    { title:'Pass 2: fill columns',
+      filled:[[0,1],[0,2],[0,3],[1,0],[2,0],[3,0],[1,2],[1,3],[2,3],[1,1],[2,1],[3,1],[3,2]],
+      newCells:[],
+      desc:'no change → stop' },
+  ];
+
+  const N = 5, CS = 22, PAD = 8, GAP = 14, TITLE_H = 20, FOOTER_H = 28;
+  const panelW = N*CS + PAD*2;
+  const panelH = N*CS + PAD*2;
+  const totalW = frames.length * panelW + (frames.length-1) * GAP;
+  const totalH = TITLE_H + panelH + FOOTER_H;
+
+  el.setAttribute('width', totalW);
+  el.setAttribute('height', totalH);
+  el.setAttribute('viewBox', '0 0 '+totalW+' '+totalH);
+
+  let h = '';
+  for (let i = 0; i < frames.length; i++) {
+    const f = frames[i];
+    const offX = i * (panelW + GAP);
+    const newKeys = new Set(f.newCells.map(([r,c]) => r+','+c));
+
+    // Title
+    h += '<text x="'+(offX + panelW/2)+'" y="13" text-anchor="middle" font-size="11" font-weight="bold" fill="#333" font-family="Georgia">'+f.title+'</text>';
+
+    // Grid lines
+    for (let k = 0; k <= N; k++) {
+      h += '<line x1="'+(offX+PAD)+'" y1="'+(TITLE_H+PAD+k*CS)+'" x2="'+(offX+PAD+N*CS)+'" y2="'+(TITLE_H+PAD+k*CS)+'" stroke="#ddd" stroke-width="1"/>';
+      h += '<line x1="'+(offX+PAD+k*CS)+'" y1="'+(TITLE_H+PAD)+'" x2="'+(offX+PAD+k*CS)+'" y2="'+(TITLE_H+PAD+N*CS)+'" stroke="#ddd" stroke-width="1"/>';
+    }
+
+    // Draw all filled cells (robots + accumulated fills) — green if new in this pass, purple otherwise.
+    const allCells = [...robots, ...f.filled];
+    for (const [r,c] of allCells) {
+      const key = r+','+c;
+      const isNew = newKeys.has(key);
+      const fill = isNew ? 'rgba(22,163,74,.55)' : 'rgba(139,92,246,.22)';
+      h += '<rect x="'+(offX+PAD+c*CS+1)+'" y="'+(TITLE_H+PAD+r*CS+1)+'" width="'+(CS-2)+'" height="'+(CS-2)+'" fill="'+fill+'" rx="2"/>';
+    }
+
+    // Robot circles on top
+    for (const [r,c] of robots) {
+      h += '<circle cx="'+(offX+PAD+c*CS+CS/2)+'" cy="'+(TITLE_H+PAD+r*CS+CS/2)+'" r="'+(CS*.28)+'" fill="#555"/>';
+    }
+
+    // Cell count + change description
+    const total = robots.length + f.filled.length;
+    h += '<text x="'+(offX + panelW/2)+'" y="'+(TITLE_H+panelH+14)+'" text-anchor="middle" font-size="11" font-weight="bold" fill="#333" font-family="Georgia">'+total+' squares</text>';
+    const descColor = f.newCells.length > 0 ? '#16a34a' : (i === 0 ? '#666' : '#7c3aed');
+    h += '<text x="'+(offX + panelW/2)+'" y="'+(TITLE_H+panelH+26)+'" text-anchor="middle" font-size="10" fill="'+descColor+'" font-family="Georgia" font-style="italic">'+f.desc+'</text>';
+  }
+
   el.innerHTML = h;
 })();
 
