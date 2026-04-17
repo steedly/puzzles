@@ -284,3 +284,38 @@ The problem: 2.3B entries is just past the 2B→4B boundary. **74% of the alloca
 4. **Compact encoding.** The augmented key is 48 bits (42 for positions + 6 for last_cell). Pack key + value into 7 bytes instead of 8. Saves 12.5% → 30 GB instead of 34.4 GB. Still over 32 GB.
 
 **Recommendation:** Option 1 (non-pow2 FlatMap) is the simplest change with the biggest impact. One-time pre-allocation from the base BFS count, modulo indexing, no rehash. Saves 10+ GB for the critical combos.
+
+### 2026-04-17T12:00Z — 1+6 beehive measured; throughput scaling; memory approach analysis
+
+**1+6 beehive measured on Mac (16 GB, single-threaded):**
+- 705M augmented states (6.80× multiplier over 103.8M base)
+- 1,788 seconds (~30 min)
+- 9.5 GB RSS, 8.2 GB FlatMap
+- Throughput: 394K states/sec — **6.4× slower than 1+5** due to map exceeding L3 cache
+
+**Throughput scaling (measured, single-threaded):**
+
+| Combo | Aug states | Time | Throughput | ns/state |
+|-------|-----------|------|-----------|---------|
+| 1+4 bee | 2.3M | 0.4s | 5.2M/s | 191 ns |
+| 1+5 bee | 58.5M | 23s | 2.5M/s | 395 ns |
+| 1+6 bee | 705M | 1,788s | 394K/s | 2,536 ns |
+
+Throughput degrades significantly with map size (cache misses). **Revised 4+3 estimate: ~103 min single-threaded, ~21 min with 16-core parallelism.** Still 1,000× better than Stage 4's 320+ hours.
+
+**Revised 4+3 projection:** 356M base × 6.8× = **2.42B augmented states.**
+
+**Memory approach analysis for 32 GB box:**
+
+| Approach | Final map | Peak (incl. rehash) | Fits 32GB? | Compute cost |
+|----------|-----------|---------------------|------------|-------------|
+| Current (pow2 75%) | 34.4 GB | 53 GB | ✗ | baseline |
+| Robin Hood + non-pow2 90%, pre-sized | 20.4 GB | 22 GB | ✓ | ~5% slower probes |
+| Count-per-level + non-pow2 | 20.4 GB | 44 GB | ✗ (rehash peak) | +count overhead |
+| Sorted array (binary search) | 18.4 GB | 39 GB | ✗ (realloc peak) | ~15× slower lookup |
+| Two-pass MPH | 3.0 GB | 5 GB | ✓ | 2× BFS time |
+| 64 GB box (no change) | 34.4 GB | 53 GB | n/a | 0% |
+
+**Only two approaches fit on 32 GB:** Robin Hood pre-sized (if multiplier estimate is accurate enough to avoid rehash) and two-pass MPH (doubles BFS time but uses 3 GB).
+
+The pre-sized approach works if we use a conservative multiplier (7×) based on the measured 6.8× at 1+6. Risk: if 4+3's multiplier exceeds 7×, the pre-sized map is too small and rehash blows 32 GB. Safety margin is thin.
