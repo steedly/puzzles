@@ -134,8 +134,11 @@ def validate_puzzle(p):
     # current_cell[i] = current cell of robot with initial index i
     current_cell = list(positions)
 
+    # Per-puzzle format detection: hex moves are 4 chars (ANeB), square 3 (AUB).
+    puzzle_is_hex = bool(moves) and len(moves[0]) == 4
+
     for step_num, move_str in enumerate(moves):
-        if IS_HEX:
+        if puzzle_is_hex:
             if len(move_str) != 4:
                 return False, f"step {step_num+1}: invalid move format '{move_str}'"
             mover_ch, dir_str, blocker_ch = move_str[0], move_str[1:3], move_str[3]
@@ -176,7 +179,7 @@ def validate_puzzle(p):
 
         cur = current_cell[mover_idx]
         pr, pc = cur // N, cur % N
-        direction = HEX_DIR_MAP[dir_str] if IS_HEX else SQUARE_DIR_MAP[dir_str]
+        direction = HEX_DIR_MAP[dir_str] if puzzle_is_hex else SQUARE_DIR_MAP[dir_str]
 
         # Build occupancy set (all robots except mover)
         occ = {}  # cell -> initial_index
@@ -267,12 +270,15 @@ def collision_signature(p):
     moves = solution_str.strip().split()
     n_robots = len(positions)
 
+    # Per-puzzle format detection: hex moves are 4 chars, square 3.
+    puzzle_is_hex = bool(moves) and len(moves[0]) == 4
+
     # Replay to get (mover_idx, dir, blocker_idx) triples
     current_cell = list(positions)
     triples = []
 
     for move_str in moves:
-        if IS_HEX:
+        if puzzle_is_hex:
             mover_ch, dir_str, blocker_ch = move_str[0], move_str[1:3], move_str[3]
         else:
             mover_ch, dir_str, blocker_ch = move_str[0], move_str[1], move_str[2]
@@ -284,7 +290,7 @@ def collision_signature(p):
 
         mover_idx = resolve(mover_ch)
         blocker_idx = resolve(blocker_ch)
-        direction = HEX_DIR_MAP[dir_str] if IS_HEX else SQUARE_DIR_MAP[dir_str]
+        direction = HEX_DIR_MAP[dir_str] if puzzle_is_hex else SQUARE_DIR_MAP[dir_str]
 
         triples.append((mover_idx, direction, blocker_idx))
 
