@@ -719,6 +719,303 @@ static FlatMap retrograde(int num_exits, int num_helpers)
     return dist;
 }
 
+// ── Augmented retrograde 0-1 BFS (grouped-move-optimal) ───────────────────────
+//
+// Computes the minimum GROUPED MOVES to goal for every reachable augmented
+// state (positions, last_mover_cell).  This is a 0-1 BFS working backward
+// from goal states, using the same augmentation as solve_min_grouped() but
+// applied to ALL states simultaneously.
+//
+// Two-phase level-synchronous parallel BFS:
+//   Phase A: saturate cost-0 edges (same robot continuing) at each cost level
+//   Phase B: advance cost-1 edges to the next level
+//
+// Returns a FlatMap with key_bits = 6*(n+1): 6n bits for positions + 6 bits
+// for last_mover_cell.  Value is the grouped-move cost (uint8_t).
+
+// Canonicalize an augmented state: apply symmetry transforms to both
+// positions AND last_mover_cell, pick the lexicographic minimum.
+static uint64_t canonical_aug(State base_state, int last_cell, int n, int num_exits, int shift) {
+    int r[10];
+    decode(base_state, n, r);
+    uint64_t best = ~(uint64_t)0;
+    for (int ti = 0; ti < NUM_SYMS; ti++) {
+        const int t = SYM_INDICES[ti];
+        int tr[10];
+        for (int e = 0; e < num_exits; e++)
+            tr[e] = (r[e] == EXITED) ? EXITED : sym(r[e], t);
+        for (int h = num_exits; h < n; h++)
+            tr[h] = sym(r[h], t);
+        std::sort(tr,            tr + num_exits);
+        std::sort(tr + num_exits, tr + n);
+        const State ts = encode(tr, n);
+        // Transform last_cell: EXITED stays EXITED, CENTER stays CENTER
+        // (CENTER is a fixed point of all D4/Klein transforms).
+        const int tl = (last_cell == EXITED) ? EXITED : sym(last_cell, t);
+        const uint64_t aug = ts | ((uint64_t)(unsigned)tl << shift);
+        if (aug < best) best = aug;
+    }
+    return best;
+}
+
+// Generate augmented predecessors for state (S, L) at retrograde cost c.
+// Only reverses the robot at L (the last mover in forward time).
+// For each reverse-slide direction, emits:
+//   (P, p_prev) at cost c+0 (same robot continuing) → appended to out_zero
+//   (P, M) for each M ≠ p_prev at cost c+1 → appended to out_one
+static void generate_augmented_predecessors(
+    State s, int last_cell, int n, int num_exits, int shift,
+    std::vector<uint64_t>& out_zero,
+    std::vector<uint64_t>& out_one)
+{
+    int pos[10];
+    decode(s, n, pos);
+
+    uint64_t full_occ = 0;
+    for (int j = 0; j < n; j++)
+        if (pos[j] != EXITED) full_occ |= (uint64_t)1 << pos[j];
+
+    // Find which robot is at last_cell.  If last_cell == EXITED, it's an
+    // exited exit — we need to un-exit it.
+    if (last_cell == EXITED) {
+        // Un-exit: for each exit that's EXITED, try un-exiting it.
+        // Center must be unoccupied.
+        if (full_occ & ((uint64_t)1 << CTR)) return;
+
+        for (int eidx = 0; eidx < num_exits; eidx++) {
+            if (pos[eidx] != EXITED) continue;
+            const int ctr_r = CTR / N, ctr_c = CTR % N;
+            for (int d = 0; d < NUM_DIRS; d++) {
+                // Exit slid in direction d to reach center.
+                // Blocker must exist one step past center in direction d.
+                const int blr = ctr_r + DR[d], blc = ctr_c + DC[d];
+                if (blr < 0 || blr >= N || blc < 0 || blc >= N) continue;
+                const int bp = blr * N + blc;
+                if (BLOCKED & ((uint64_t)1 << bp)) continue;
+                if (!(full_occ & ((uint64_t)1 << bp))) continue;
+
+                // Walk away from center to find valid predecessor positions.
+                for (int k = 1; ; k++) {
+                    const int wr = ctr_r - k * DR[d], wc = ctr_c - k * DC[d];
+                    if (wr < 0 || wr >= N || wc < 0 || wc >= N) break;
+                    const int wp = wr * N + wc;
+                    if (BLOCKED & ((uint64_t)1 << wp)) break;
+                    if (full_occ & ((uint64_t)1 << wp)) break;
+
+                    // Build predecessor positions with exit at wp.
+                    int nr[10];
+                    std::memcpy(nr, pos, n * sizeof(int));
+                    nr[eidx] = wp;
+                    std::sort(nr + num_exits, nr + n);
+                    const State ps = encode(nr, n);
+
+                    // Cost-0: same exit was continuing → pred last_cell = wp
+                    out_zero.push_back(canonical_aug(ps, wp, n, num_exits, shift));
+
+                    // Cost-1: exit was a new mover → pred last_cell = any other robot
+                    for (int j = 0; j < n; j++) {
+                        if (j == eidx) continue;
+                        const int m = nr[j];
+                        if (m == EXITED || m == wp) continue;
+                        out_one.push_back(canonical_aug(ps, m, n, num_exits, shift));
+                    }
+                }
+            }
+        }
+        return;
+    }
+
+    // Normal case: last_cell is a valid board cell.  Find the robot there.
+    int ridx = -1;
+    for (int j = 0; j < n; j++) {
+        if (pos[j] == last_cell) { ridx = j; break; }
+    }
+    if (ridx < 0) return;  // shouldn't happen in a valid augmented state
+
+    const int pr = last_cell / N, pc = last_cell % N;
+    const uint64_t occ_without_r = full_occ ^ ((uint64_t)1 << last_cell);
+
+    for (int d = 0; d < NUM_DIRS; d++) {
+        // Robot ridx slid in direction d to reach last_cell.
+        // Blocker must exist one step past last_cell in direction d.
+        const int blr = pr + DR[d], blc = pc + DC[d];
+        if (blr < 0 || blr >= N || blc < 0 || blc >= N) continue;
+        const int bp = blr * N + blc;
+        if (BLOCKED & ((uint64_t)1 << bp)) continue;
+        if (!(occ_without_r & ((uint64_t)1 << bp))) continue;
+
+        // Walk backward (opposite direction) to find valid starting positions.
+        int wr = pr, wc = pc;
+        for (;;) {
+            wr -= DR[d]; wc -= DC[d];
+            if (wr < 0 || wr >= N || wc < 0 || wc >= N) break;
+            const int wp = wr * N + wc;
+            if (BLOCKED & ((uint64_t)1 << wp)) break;
+            if (occ_without_r & ((uint64_t)1 << wp)) break;
+
+            // Exit at center: skip (exit landing on center = exit event, not a
+            // valid predecessor position for an exit), but continue walking.
+            if (wp == CTR && ridx < num_exits) continue;
+
+            int nr[10];
+            std::memcpy(nr, pos, n * sizeof(int));
+            nr[ridx] = wp;
+            std::sort(nr + num_exits, nr + n);
+            const State ps = encode(nr, n);
+
+            // Cost-0: same robot was continuing → pred last_cell = wp
+            out_zero.push_back(canonical_aug(ps, wp, n, num_exits, shift));
+
+            // Cost-1: this robot was a new mover → pred last_cell = any other robot
+            for (int j = 0; j < n; j++) {
+                if (j == ridx) continue;
+                const int m = nr[j];
+                if (m == EXITED || m == wp) continue;
+                out_one.push_back(canonical_aug(ps, m, n, num_exits, shift));
+            }
+        }
+    }
+}
+
+static FlatMap retrograde_grouped(int num_exits, int num_helpers)
+{
+    const int n = num_exits + num_helpers;
+    const int shift = 6 * n;
+
+    // Augmented key: 6n bits for positions + 6 bits for last_mover_cell.
+    FlatMap dist(shift + 6);
+
+    // Pool of valid non-center cells for helpers.
+    std::vector<int> pool;
+    pool.reserve(NC - 1);
+    for (int i = 0; i < NC; i++)
+        if (i != CTR && !(BLOCKED & ((uint64_t)1 << i))) pool.push_back(i);
+    const int P = (int)pool.size();
+
+    // Seed: insert all goal augmented states at cost 0.
+    // Goal states have all exits EXITED.  The last move to reach a goal is
+    // always an exit reaching center → last_mover_cell = EXITED (matching
+    // solve_min_grouped's convention: landing = EXITED when exit reaches CTR).
+    std::vector<uint64_t> cur_zero;  // cost-0 frontier for current level
+    std::vector<uint64_t> cur_one;   // cost-1 frontier (deferred to next level)
+
+    {
+        int chosen[9] = {};
+        size_t seed_count = 0;
+        std::function<void(int,int)> seed = [&](int start, int rem) {
+            if (rem == 0) {
+                int pos[10];
+                for (int e = 0; e < num_exits; e++) pos[e] = EXITED;
+                for (int h = 0; h < num_helpers; h++) pos[num_exits + h] = chosen[h];
+                const State s = encode(pos, n);
+                const uint64_t aug_key = canonical_aug(s, EXITED, n, num_exits, shift);
+                if (dist.insert_new(aug_key, (uint8_t)0)) {
+                    cur_zero.push_back(aug_key);
+                    seed_count++;
+                }
+                return;
+            }
+            for (int i = start; i <= P - rem; i++) {
+                chosen[num_helpers - rem] = pool[i];
+                seed(i+1, rem-1);
+            }
+        };
+
+        // Reserve generously before seeding.
+        size_t seed_est = 1;
+        for (int i = 0; i < num_helpers; i++) {
+            seed_est = seed_est * (size_t)(P - i) / (size_t)(i + 1);
+            if (seed_est > (size_t)1 << 28) { seed_est = (size_t)1 << 28; break; }
+        }
+        dist.reserve(std::max(seed_est * 4, (size_t)1 << 20));
+        seed(0, num_helpers);
+        std::cerr << "  seeded " << seed_count << " augmented goal states at cost 0\n";
+    }
+
+    std::cerr << "  augmented seed: " << cur_zero.size() << " goal states at cost 0\n";
+
+    // Two-phase level-synchronous 0-1 BFS.
+    for (int cost = 0; cost <= 254; cost++) {
+        // Phase A: saturate cost-0 edges at this level.
+        // cur_zero holds states discovered at this cost level.
+        // Expanding cost-0 edges may discover more states at the SAME cost.
+        while (!cur_zero.empty()) {
+            std::vector<uint64_t> next_zero, next_one;
+
+#ifdef _OPENMP
+            dist.ensure_parallel_capacity(dist.size() + cur_zero.size() * (size_t)NUM_DIRS * (size_t)n);
+            const int nthreads = omp_get_max_threads();
+            std::vector<std::vector<uint64_t>> tl_zero(nthreads), tl_one(nthreads);
+            for (auto& v : tl_zero) v.clear();
+            for (auto& v : tl_one) v.clear();
+
+            #pragma omp parallel if(cur_zero.size() >= 4096)
+            {
+                const int tid = omp_get_thread_num();
+                std::vector<uint64_t> my_z, my_o;
+                my_z.reserve(128); my_o.reserve(512);
+
+                #pragma omp for schedule(dynamic, 64)
+                for (int i = 0; i < (int)cur_zero.size(); i++) {
+                    const uint64_t key = cur_zero[i];
+                    const State s = key & (((uint64_t)1 << shift) - 1);
+                    const int lc = (int)(key >> shift) & 63;
+
+                    my_z.clear(); my_o.clear();
+                    generate_augmented_predecessors(s, lc, n, num_exits, shift, my_z, my_o);
+
+                    for (const uint64_t k : my_z) {
+                        if (dist.atomic_emplace(k, (uint8_t)cost))
+                            tl_zero[tid].push_back(k);
+                    }
+                    for (const uint64_t k : my_o) {
+                        if (cost + 1 <= 254 && dist.atomic_emplace(k, (uint8_t)(cost + 1)))
+                            tl_one[tid].push_back(k);
+                    }
+                }
+            }
+            for (auto& v : tl_zero) next_zero.insert(next_zero.end(), v.begin(), v.end());
+            for (auto& v : tl_one) next_one.insert(next_one.end(), v.begin(), v.end());
+#else
+            std::vector<uint64_t> z_buf, o_buf;
+            z_buf.reserve(128); o_buf.reserve(512);
+            for (const uint64_t key : cur_zero) {
+                const State s = key & (((uint64_t)1 << shift) - 1);
+                const int lc = (int)(key >> shift) & 63;
+
+                z_buf.clear(); o_buf.clear();
+                generate_augmented_predecessors(s, lc, n, num_exits, shift, z_buf, o_buf);
+
+                for (const uint64_t k : z_buf) {
+                    if (dist.insert_new(k, (uint8_t)cost))
+                        next_zero.push_back(k);
+                }
+                for (const uint64_t k : o_buf) {
+                    if (cost + 1 <= 254 && dist.insert_new(k, (uint8_t)(cost + 1)))
+                        next_one.push_back(k);
+                }
+            }
+#endif
+            cur_zero.swap(next_zero);
+            // Accumulate cost-1 discoveries for the next level.
+            cur_one.insert(cur_one.end(), next_one.begin(), next_one.end());
+        }
+
+        if (cost % 5 == 0 || cur_one.empty())
+            std::cerr << "  grouped cost " << cost
+                      << ": total=" << dist.size() << "\n";
+
+        if (cur_one.empty()) break;
+
+        // Phase B: advance to next cost level.
+        cur_zero.swap(cur_one);
+        cur_one.clear();
+    }
+
+    std::cerr << "  augmented retrograde done: " << dist.size() << " augmented states\n";
+    return dist;
+}
+
 // ── Forward-move simulation ───────────────────────────────────────────────────
 // Slides robot ridx in direction dir from persistent positions pos[].
 // Exit robots: position becomes EXITED if they land on center.
@@ -2551,9 +2848,9 @@ int main(int argc, char* argv[]) {
     // with farthest-point diversity sampling before the expensive DP solve.
     const int max_per_bucket = argc > 6 ? std::atoi(argv[6]) : 0;
 
-    // Optional flags: --only=E,H restricts the outer loop to a single combo
-    // (useful for targeted benchmarking without rerunning the full pipeline).
+    // Optional flags
     int only_exits = -1, only_helpers = -1;
+    bool validate_augmented = false;
     for (int i = 1; i < argc; i++) {
         const char* a = argv[i];
         if (std::strncmp(a, "--only=", 7) == 0) {
@@ -2562,6 +2859,8 @@ int main(int argc, char* argv[]) {
                 return 1;
             }
         }
+        if (std::strcmp(a, "--validate-augmented") == 0)
+            validate_augmented = true;
     }
 
     // Per-variant block masks — computed once regardless of the active variant
@@ -2599,6 +2898,99 @@ int main(int argc, char* argv[]) {
                            << std::hex << BLOCKED << std::dec << ")\n";
     if (BOARD_TYPE == BOARD_HEX) std::cerr << "Variant: " << variant
         << " (N=" << N << ", " << NUM_DIRS << " dirs, " << NUM_SYMS << " syms)\n";
+
+    // ── Validate augmented retrograde BFS ──────────────────────────────────
+    if (validate_augmented) {
+        const int ne = only_exits > 0 ? only_exits : 1;
+        const int nh = only_helpers > 0 ? only_helpers : 2;
+        const int nt = ne + nh;
+        std::cerr << "=== Validating augmented retrograde BFS: " << ne << "+" << nh << " ===\n";
+
+        // Run base retrograde to get all reachable states.
+        auto base_dist = retrograde(ne, nh);
+        std::cerr << "  base retrograde: " << base_dist.size() << " states\n";
+
+        // Run augmented retrograde.
+        auto aug_dist = retrograde_grouped(ne, nh);
+        std::cerr << "  augmented retrograde: " << aug_dist.size() << " augmented states\n";
+
+        // For each base state, extract min grouped cost from augmented map,
+        // compare with solve_min_grouped.
+        const int shift = 6 * nt;
+        int checked = 0, mismatches = 0, skipped = 0;
+
+        // Iterate all base states from the base_dist map.
+        for (size_t slot = 0; slot < base_dist.cap(); slot++) {
+            if (base_dist.data_[slot] == FlatMap::EMPTY) continue;
+            const State s = base_dist.data_[slot] & base_dist.km_;
+
+            // The forward solver starts with last_cell = EXITED (no previous mover),
+            // so the first move always costs 1 grouped move.  From the augmented map,
+            // we compute: real_cost(S) = 1 + min over first moves { aug_cost(S', landing) }.
+            // Try each possible first move and look up the result in the augmented map.
+            int pos[10];
+            decode(s, nt, pos);
+            const uint64_t occ = make_occ(pos, nt);
+            int min_aug = 999;
+            for (int ridx = 0; ridx < nt; ridx++) {
+                for (int d = 0; d < NUM_DIRS; d++) {
+                    int nc, bi;
+                    State ns;
+                    if (!forward_move(pos, nt, ne, ridx, d, nc, bi, ns, occ))
+                        continue;
+                    const int landing = (ridx < ne && nc == CTR) ? EXITED : nc;
+                    // Canonicalize the successor augmented state.
+                    const uint64_t aug_key = canonical_aug(ns, landing, nt, ne, shift);
+                    uint8_t val;
+                    if (aug_dist.find_val(aug_key, &val)) {
+                        const int total = 1 + (int)val;  // first move costs 1
+                        min_aug = std::min(min_aug, total);
+                    }
+                }
+            }
+
+            if (min_aug == 999) {
+                // Augmented BFS didn't reach this state — could be a goal state.
+                // Check if it's a goal.
+                bool is_goal = true;
+                for (int e = 0; e < ne; e++) if (pos[e] != EXITED) { is_goal = false; break; }
+                if (is_goal) { skipped++; continue; }  // goal has cost 0 by definition
+                std::cerr << "  MISS: state " << s << " not found in augmented map\n";
+                mismatches++;
+                if (mismatches >= 20) break;
+                continue;
+            }
+
+            // Compare with forward solve.
+            auto tr = solve_min_grouped(s, nt, ne);
+            const int fwd_cost = tr.moves.empty() ? 0 : tr.grouped_moves;
+            // For states already at goal, solve_min_grouped returns 0.
+            bool is_goal = true;
+            for (int e = 0; e < ne; e++) if (pos[e] != EXITED) { is_goal = false; break; }
+            if (is_goal) { skipped++; continue; }
+
+            if (min_aug != fwd_cost) {
+                mismatches++;
+                std::cerr << "  MISMATCH: state " << s
+                          << " aug=" << min_aug << " fwd=" << fwd_cost << "\n";
+                if (mismatches >= 20) {
+                    std::cerr << "  ... stopping after 20 mismatches\n";
+                    break;
+                }
+            }
+            checked++;
+            if (checked % 100 == 0)
+                std::cerr << "  checked " << checked << " / " << base_dist.size()
+                          << " (mismatches=" << mismatches << ")\n";
+        }
+
+        std::cerr << "\n=== VALIDATION RESULT ===\n"
+                  << "  checked: " << checked << "\n"
+                  << "  skipped (goals): " << skipped << "\n"
+                  << "  mismatches: " << mismatches << "\n"
+                  << "  " << (mismatches == 0 ? "PASS" : "FAIL") << "\n";
+        return mismatches == 0 ? 0 : 1;
+    }
 
     const int cr = CTR / N, cc = CTR % N;
     std::cout <<
