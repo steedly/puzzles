@@ -18,6 +18,7 @@ import { useUserData, STORAGE_KEY, mergeUserData, applyConflictResolutions } fro
 import { usePuzzleMetrics } from './hooks/usePuzzleMetrics';
 import { usePersistentState } from './hooks/usePersistentState';
 import { boardForVariant } from './logic/boardGeometry';
+import { computeReachableCells } from './logic/reachabilityBounds';
 
 // Placeholder so useGameState never receives null.
 const DUMMY_PUZZLE = {
@@ -70,6 +71,7 @@ export default function App() {
 
   const [scoreMode, setScoreMode] = usePersistentState('scoreMode', 'grouped'); // 'grouped' | 'slides'
   const [hideOptimal, setHideOptimal] = usePersistentState('hideOptimal', true);
+  const [cellShading, setCellShading] = usePersistentState('cellShading', 'bbox'); // 'none' | 'bbox' | 'convex' | 'och'
 
   // Filter state (lifted from PuzzleNav for permalink sync)
   const [filterState, setFilterState] = useState(null); // null = use defaults
@@ -84,6 +86,13 @@ export default function App() {
   const board = boardForVariant(variant);
 
   const { state, dispatch } = useGameState(currentPuzzle ?? DUMMY_PUZZLE, variantBlocks);
+
+  // Detect unwinnable: center outside selected bound
+  const centerUnwinnable = useMemo(() => {
+    if (cellShading === 'none' || !state.positions) return false;
+    const reachable = computeReachableCells(state.positions, cellShading, board.type === 'hex', board.N);
+    return reachable !== null && !reachable.has(`${board.centerRow},${board.centerCol}`);
+  }, [state.positions, cellShading, board]);
 
   // Persistent per-browser user state: solved/starred/comments by stableId
   const userData = useUserData();
@@ -147,10 +156,22 @@ export default function App() {
 
   // Mark puzzle as solved on win edge — but NOT when stepping through a
   // build-mode solution playback (the user didn't actually solve it).
+  // A ref tracks if the win was reached via stepping, so that switching
+  // back to library mode doesn't falsely trigger markSolved.
   const wonRef = useRef(false);
+  const steppedToWinRef = useRef(false);
   const isStepModeForWin = mode === 'build' && buildState.phase === 'solved' && !buildPreview;
   useEffect(() => {
-    if (state.isWon && !wonRef.current && currentPuzzle?.stableId && !isStepModeForWin) {
+    if (state.isWon && isStepModeForWin) {
+      steppedToWinRef.current = true;
+    }
+    if (!state.isWon) {
+      steppedToWinRef.current = false;
+    }
+  }, [state.isWon, isStepModeForWin]);
+  useEffect(() => {
+    if (state.isWon && !wonRef.current && currentPuzzle?.stableId
+        && !isStepModeForWin && !steppedToWinRef.current) {
       wonRef.current = true;
       userData.markSolved(currentPuzzle.stableId, {
         moves:    state.moveCount,
@@ -490,6 +511,7 @@ export default function App() {
                   variantBlocks={variantBlocks}
                   board={board}
                   nextMove={nextMove}
+                  cellShading={cellShading}
                 />
                 <HUD
                   state={state}
@@ -497,6 +519,7 @@ export default function App() {
                   currentPuzzle={currentPuzzle}
                   scoreMode={scoreMode}
                   hideOptimal={hideOptimal}
+                  centerUnwinnable={centerUnwinnable}
                   onEditInBuild={mode === 'library' && currentPuzzle?.robots ? handleEditInBuild : undefined}
                   stepMode={isStepMode}
                   board={board}
@@ -545,7 +568,7 @@ export default function App() {
         </div>
       </main>
 
-      {state.isWon && !isStepMode && (
+      {state.isWon && !isStepMode && !steppedToWinRef.current && (
         <WinModal
           moveCount={state.moveCount}
           slideCount={state.slideCount}
@@ -570,6 +593,8 @@ export default function App() {
           onScoreModeChange={setScoreMode}
           hideOptimal={hideOptimal}
           onHideOptimalChange={setHideOptimal}
+          cellShading={cellShading}
+          onCellShadingChange={setCellShading}
           onExport={handleExportProgress}
           onImport={handleImportProgress}
           onClose={() => setOpenPanel(null)}

@@ -22,7 +22,7 @@ function trapClass(trapCount) {
 }
 
 export default function HUD({
-  state, dispatch, currentPuzzle, scoreMode, hideOptimal, onEditInBuild,
+  state, dispatch, currentPuzzle, scoreMode, hideOptimal, centerUnwinnable, onEditInBuild,
   // Build-mode solution stepping (only set when in build-solved view)
   stepMode, board, variantBlocks, puzzleMetrics,
 }) {
@@ -71,6 +71,10 @@ export default function HUD({
               <span className="hud__exits"> · {exitedCount}/{totalExits} exits</span>
             )}
           </span>
+        )}
+
+        {centerUnwinnable && !state.isWon && (
+          <span className="hud__unwinnable">Unwinnable — undo to recover</span>
         )}
 
         <div className="hud__game-btns">

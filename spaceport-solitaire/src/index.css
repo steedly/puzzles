@@ -378,6 +378,10 @@ button { cursor: pointer; font-family: inherit; }
   background: var(--cell-hover);
 }
 
+.board--hex {
+  background: var(--board-bg);
+}
+
 /* ── Cell: hex shape override ──────────────────────────────────────────────── */
 /* Hex cells are absolutely positioned by Board.jsx; clip-path gives hex shape.
    The ::before pseudo-element creates a visible "border" via inset. */
@@ -391,7 +395,7 @@ button { cursor: pointer; font-family: inherit; }
 .cell--hex::before {
   content: '';
   position: absolute;
-  inset: 1.5px;
+  inset: 2.5px;
   clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
   background: var(--cell-bg);
   z-index: 0;
@@ -429,6 +433,22 @@ button { cursor: pointer; font-family: inherit; }
   pointer-events: none;
   user-select: none;
   z-index: 1;
+}
+
+.cell--center-unwinnable {
+  background: #4a1e1e !important;
+  box-shadow: inset 0 0 18px rgba(255, 60, 60, 0.35) !important;
+  border-color: #aa4444 !important;
+}
+.cell--hex.cell--center-unwinnable {
+  background: #aa4444 !important;
+}
+.cell--hex.cell--center-unwinnable::before {
+  background: #4a1e1e !important;
+}
+.cell--center-unwinnable::after {
+  content: '✕' !important;
+  color: rgba(255, 100, 100, 0.6) !important;
 }
 
 .cell--landing {
@@ -471,6 +491,13 @@ button { cursor: pointer; font-family: inherit; }
   background: var(--bg) !important;
   border-color: var(--bg) !important;
   cursor: default !important;
+}
+.cell--hex.cell--blocked {
+  background: var(--cell-border) !important;
+  opacity: 0.3;
+}
+.cell--hex.cell--blocked::before {
+  background: var(--bg) !important;
 }
 
 .cell--unreachable {
@@ -1285,6 +1312,14 @@ button { cursor: pointer; font-family: inherit; }
   background: rgba(244, 67, 54, 0.08);
   border-radius: 6px;
   border: 1px solid rgba(244, 67, 54, 0.2);
+}
+
+.hud__unwinnable {
+  display: block;
+  font-size: 0.8rem;
+  color: #f44336;
+  margin-top: 2px;
+  font-weight: 600;
 }
 
 .pnav__blocked-info {

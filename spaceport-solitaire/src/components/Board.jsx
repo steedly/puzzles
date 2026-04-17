@@ -1,9 +1,10 @@
 // Copyright (c) 2025-2026 Drew Steedly. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { slideRobot } from '../logic/gameEngine';
 import { SQUARE_7x7 } from '../logic/boardGeometry';
+import { computeReachableCells } from '../logic/reachabilityBounds';
 import Cell from './Cell';
 
 // ── Hex geometry helpers ──────────────────────────────────────────────────────
@@ -28,25 +29,51 @@ function hexCellPosition(r, c, N, hexR) {
   };
 }
 
+/** Convex hull (Andrew's monotone chain) for 2D points. */
+function convexHull(points) {
+  const pts = [...points].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  if (pts.length <= 1) return pts;
+  const cross = (o, a, b) => (a[0]-o[0])*(b[1]-o[1]) - (a[1]-o[1])*(b[0]-o[0]);
+  const lower = [];
+  for (const p of pts) { while (lower.length >= 2 && cross(lower[lower.length-2], lower[lower.length-1], p) <= 0) lower.pop(); lower.push(p); }
+  const upper = [];
+  for (let i = pts.length - 1; i >= 0; i--) { const p = pts[i]; while (upper.length >= 2 && cross(upper[upper.length-2], upper[upper.length-1], p) <= 0) upper.pop(); upper.push(p); }
+  lower.pop(); upper.pop();
+  return lower.concat(upper);
+}
+
 function hexBoardDimensions(N, hexR) {
-  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  const cellW = hexR * 2;
+  const cellH = hexR * Math.sqrt(3);
+
+  // Collect all 6 vertex positions for every cell
+  const allVerts = [];
   for (let r = 0; r < N; r++) {
     for (let c = 0; c < N; c++) {
       const { x, y } = hexCellPosition(r, c, N, hexR);
-      if (x < minX) minX = x;
-      if (x > maxX) maxX = x;
-      if (y < minY) minY = y;
-      if (y > maxY) maxY = y;
+      // Hex vertices matching the CSS clip-path (flat-top hex)
+      const hw = cellW / 2, hh = cellH / 2;
+      allVerts.push([x - hw/2, y - hh], [x + hw/2, y - hh], [x + hw, y],
+                     [x + hw/2, y + hh], [x - hw/2, y + hh], [x - hw, y]);
     }
   }
-  const padX = hexR * 1.1;
-  const padY = hexR * 1.0;
-  return {
-    width:   maxX - minX + padX * 2,
-    height:  maxY - minY + padY * 2,
-    offsetX: -minX + padX,
-    offsetY: -minY + padY,
-  };
+  const hull = convexHull(allVerts);
+
+  // Bounding box of hull
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const [x, y] of hull) { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y); }
+
+  // Add uniform padding matching the square board (10px)
+  const pad = 10;
+  const offsetX = -minX + pad;
+  const offsetY = -minY + pad;
+  const width = maxX - minX + pad * 2;
+  const height = maxY - minY + pad * 2;
+
+  // Convert hull to pixel coords within the padded container
+  const outline = hull.map(([x, y]) => [x + offsetX, y + offsetY]);
+
+  return { width, height, offsetX, offsetY, outline };
 }
 
 // ── Responsive scaling wrapper ────────────────────────────────────────────────
@@ -99,7 +126,7 @@ function ScaledBoard({ naturalWidth, naturalHeight, children }) {
 
 // ── Board component ───────────────────────────────────────────────────────────
 
-export default function Board({ state, dispatch, puzzle, variantBlocks, buildMode, buildPieces, onBuildClick, board = SQUARE_7x7, nextMove }) {
+export default function Board({ state, dispatch, puzzle, variantBlocks, buildMode, buildPieces, onBuildClick, board = SQUARE_7x7, nextMove, cellShading = 'bbox' }) {
   const N = board.N;
   const isHex = board.type === 'hex';
   // Adjacent hex cells are R√3 apart; match square spacing (cell-size 62 + gap 5 = 67).
@@ -124,26 +151,30 @@ export default function Board({ state, dispatch, puzzle, variantBlocks, buildMod
     }
   }
 
-  // ── Shared: bounding box of current positions (cells outside are unreachable) ──
-  let minR = N, maxR = -1, minC = N, maxC = -1;
-  if (!buildMode && state.positions) {
-    for (const pos of Object.values(state.positions)) {
-      if (pos.row < minR) minR = pos.row;
-      if (pos.row > maxR) maxR = pos.row;
-      if (pos.col < minC) minC = pos.col;
-      if (pos.col > maxC) maxC = pos.col;
-    }
-  }
+  // ── Shared: reachable cells (cells outside are dimmed) ──
+  const positions = state?.positions;
+  const reachable = useMemo(() => {
+    if (buildMode || !positions || cellShading === 'none') return null;
+    return computeReachableCells(positions, cellShading, board.type === 'hex', board.N);
+  }, [positions, cellShading, buildMode, board]);
+
+  // Center unreachable under current bound → puzzle is unwinnable from this state
+  const centerUnwinnable = reachable !== null && !reachable.has(`${board.centerRow},${board.centerCol}`);
 
   // ── Shared: landing cells ──
+  // Highlight the clicked robot if there is one; otherwise fall back to the
+  // hovered robot for desktop preview (Option A: hover-when-idle only).
+  const highlightedRobotId = buildMode
+    ? null
+    : (state.selectedRobotId || state.hoveredRobotId);
   const landingCells = new Set();
-  if (!buildMode && state.selectedRobotId && state.positions[state.selectedRobotId]) {
+  if (highlightedRobotId && state.positions[highlightedRobotId]) {
     for (const dir of board.dirs) {
       const newPositions = slideRobot(
-        state.positions, state.selectedRobotId, dir.name, state.exitIds ?? null, variantBlocks ?? null, board
+        state.positions, highlightedRobotId, dir.name, state.exitIds ?? null, variantBlocks ?? null, board
       );
       if (!newPositions) continue;
-      const newPos = newPositions[state.selectedRobotId];
+      const newPos = newPositions[highlightedRobotId];
       if (newPos) {
         landingCells.add(`${newPos.row},${newPos.col}`);
       } else {
@@ -172,7 +203,11 @@ export default function Board({ state, dispatch, puzzle, variantBlocks, buildMod
       return;
     }
     if (robotId) {
-      dispatch({ type: 'SELECT_ROBOT', robotId });
+      if (robotId === state.selectedRobotId) {
+        dispatch({ type: 'DESELECT' });
+      } else {
+        dispatch({ type: 'SELECT_ROBOT', robotId });
+      }
       return;
     }
     if (!state.selectedRobotId || !state.positions[state.selectedRobotId]) {
@@ -194,6 +229,17 @@ export default function Board({ state, dispatch, puzzle, variantBlocks, buildMod
     }
     dispatch({ type: 'DESELECT' });
   }
+
+  // ── Hover handlers (desktop preview; suppressed in build mode and once a
+  // robot has been clicked, per Option A). The reducer also guards against
+  // hover-while-selected, but we skip the dispatch entirely to avoid noise. ──
+  const hoverEnabled = !buildMode && !state.selectedRobotId;
+  const handleHoverEnter = hoverEnabled
+    ? (robotId) => { if (robotId) dispatch({ type: 'HOVER_ROBOT', robotId }); }
+    : undefined;
+  const handleHoverLeave = hoverEnabled
+    ? (robotId) => { if (robotId) dispatch({ type: 'UNHOVER' }); }
+    : undefined;
 
   // ── Shared: generate cell elements ──
   const hexDims = isHex ? hexBoardDimensions(N, hexR) : null;
@@ -227,15 +273,18 @@ export default function Board({ state, dispatch, puzzle, variantBlocks, buildMod
           hex={isHex}
           style={style}
           isCenter={r === board.centerRow && c === board.centerCol}
+          isCenterUnwinnable={r === board.centerRow && c === board.centerCol && centerUnwinnable}
           robotId={robotId}
           robotMeta={robotId ? robotMeta[robotId] : null}
-          selectedRobotId={buildMode ? null : state.selectedRobotId}
+          highlightedRobotId={highlightedRobotId}
           isLandingCell={landingCells.has(key)}
           isNextTarget={key === nextTargetKey}
           isVariantBlocked={variantBlocks && variantBlocks.has(key)}
-          isUnreachable={!buildMode && maxR >= 0 && (r < minR || r > maxR || c < minC || c > maxC)}
+          isUnreachable={reachable !== null && !reachable.has(`${r},${c}`)}
           isBuildMode={buildMode}
           onClick={handleCellClick}
+          onHoverEnter={handleHoverEnter}
+          onHoverLeave={handleHoverLeave}
         />
       );
     }
@@ -243,10 +292,18 @@ export default function Board({ state, dispatch, puzzle, variantBlocks, buildMod
 
   // ── Render: board container ──
   if (isHex) {
+    const { width: bw, height: bh, outline } = hexDims;
+    const clipPath = 'polygon(' + outline.map(([x, y]) => `${x}px ${y}px`).join(', ') + ')';
+    const svgPoints = outline.map(([x, y]) => `${x},${y}`).join(' ');
     return (
       <div className="board-container">
-        <ScaledBoard naturalWidth={hexDims.width} naturalHeight={hexDims.height}>
-          {cells}
+        <ScaledBoard naturalWidth={bw} naturalHeight={bh}>
+          <div className="board board--hex" style={{ width: bw, height: bh, position: 'relative', clipPath }}>
+            {cells}
+            <svg style={{ position: 'absolute', left: 0, top: 0, width: bw, height: bh, pointerEvents: 'none' }}>
+              <polygon points={svgPoints} fill="none" stroke="var(--cell-border)" strokeWidth="1" />
+            </svg>
+          </div>
         </ScaledBoard>
       </div>
     );

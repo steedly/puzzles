@@ -5,14 +5,26 @@ import { useMemo, useState } from 'react';
 import { collisionSignature, findMatchingPuzzles, findD4PositionMatches } from '../logic/collisionSignature';
 import { decodeStableId } from '../hooks/usePuzzleLibrary';
 
-const VARIANTS = [
-  { key: 'standard',  label: 'Square' },
-  { key: 'beehive',   label: 'Hex' },
-  { key: 'french',    label: 'French Solitaire' },
-  { key: 'solitaire', label: 'Solitaire' },
-  { key: 'ufo',       label: 'UFO' },
-  { key: 'hex',       label: 'Beehive' },
+const MOVE_TYPES = [
+  { key: 'square', label: 'Square' },
+  { key: 'hex',    label: 'Hex' },
 ];
+const BOARD_SHAPES = {
+  square: [
+    { key: 'standard',  label: 'Standard' },
+    { key: 'french',    label: 'French' },
+    { key: 'solitaire', label: 'Solitaire' },
+    { key: 'ufo',       label: 'UFO' },
+  ],
+  hex: [
+    { key: 'beehive', label: 'Standard' },
+    { key: 'hex',     label: '5x5' },
+  ],
+};
+function moveTypeOf(variant) {
+  return (variant === 'hex' || variant === 'beehive') ? 'hex' : 'square';
+}
+const DEFAULT_SHAPE = { square: 'standard', hex: 'beehive' };
 
 export default function BuildPanel({
   variant, onVariantChange, buildState, buildDispatch, onSolve, onBackToLibrary,
@@ -75,15 +87,22 @@ export default function BuildPanel({
         <span className="pnav__title">Build Puzzle</span>
       </div>
 
-      {/* Variant selector */}
+      {/* Variant selector: movement type + board shape */}
       <div className="pnav__filter-row">
         <span className="pnav__label">Board</span>
+        <select
+          className="pnav__sort-select"
+          value={moveTypeOf(variant)}
+          onChange={e => onVariantChange(DEFAULT_SHAPE[e.target.value])}
+        >
+          {MOVE_TYPES.map(v => <option key={v.key} value={v.key}>{v.label}</option>)}
+        </select>
         <select
           className="pnav__sort-select"
           value={variant}
           onChange={e => onVariantChange(e.target.value)}
         >
-          {VARIANTS.map(v => <option key={v.key} value={v.key}>{v.label}</option>)}
+          {BOARD_SHAPES[moveTypeOf(variant)].map(v => <option key={v.key} value={v.key}>{v.label}</option>)}
         </select>
       </div>
 

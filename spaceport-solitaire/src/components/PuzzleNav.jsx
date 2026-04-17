@@ -20,14 +20,28 @@ const SORT_OPTIONS = [
   { key: 'fits',      label: 'Fits',      fn: p => (p.fitsSolitaire?1:0) + (p.fitsUfo?1:0) + (p.fitsFrench?1:0) },
 ];
 
-const VARIANTS = [
-  { key: 'standard',  label: 'Square' },
-  { key: 'beehive',   label: 'Hex' },
-  { key: 'french',    label: 'French Solitaire' },
-  { key: 'solitaire', label: 'Solitaire' },
-  { key: 'ufo',       label: 'UFO' },
-  { key: 'hex',       label: 'Beehive' },
+const MOVE_TYPES = [
+  { key: 'square', label: 'Square' },
+  { key: 'hex',    label: 'Hex' },
 ];
+const BOARD_SHAPES = {
+  square: [
+    { key: 'standard',  label: 'Standard' },
+    { key: 'french',    label: 'French' },
+    { key: 'solitaire', label: 'Solitaire' },
+    { key: 'ufo',       label: 'UFO' },
+  ],
+  hex: [
+    { key: 'beehive', label: 'Standard' },
+    { key: 'hex',     label: '5x5' },
+  ],
+};
+// Map variant key → movement type
+function moveTypeOf(variant) {
+  return (variant === 'hex' || variant === 'beehive') ? 'hex' : 'square';
+}
+// Default board shape when switching movement type
+const DEFAULT_SHAPE = { square: 'standard', hex: 'beehive' };
 
 // Click = select only this value; Shift+click = toggle add/remove
 function chipClick(prev, value, shiftKey) {
@@ -268,16 +282,26 @@ export default function PuzzleNav({ allPuzzles, currentPuzzle, onSelect, onFilte
 
       {!collapsed && (
         <>
-          {/* ── Board variant ── */}
+          {/* ── Movement type + board shape ── */}
           <div className="pnav__filter-row">
             <span className="pnav__label">Board:</span>
             <select
               className="pnav__sort-select"
-              title="Board shape — variants block corner cells, reducing the playing area"
+              title="Movement directions — Square (4-dir) or Hex (6-dir)"
+              value={moveTypeOf(variant)}
+              onChange={e => onVariantChange(DEFAULT_SHAPE[e.target.value])}
+            >
+              {MOVE_TYPES.map(v => (
+                <option key={v.key} value={v.key}>{v.label}</option>
+              ))}
+            </select>
+            <select
+              className="pnav__sort-select"
+              title="Board shape — which cells are playable"
               value={variant}
               onChange={e => onVariantChange(e.target.value)}
             >
-              {VARIANTS.map(v => (
+              {BOARD_SHAPES[moveTypeOf(variant)].map(v => (
                 <option key={v.key} value={v.key}>{v.label}</option>
               ))}
             </select>
