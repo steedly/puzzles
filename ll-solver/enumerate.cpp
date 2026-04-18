@@ -2970,11 +2970,11 @@ static void emit(FlatMapWide& compact_dist, int n, int num_exits,
         if (compact_dist.data_[slot].key == FlatMapWide::EMPTY_KEY) continue;
         const State s = compact_dist.data_[slot].key;
         int r[10]; decode(s, n, r);
-        // Skip goal states (all exits EXITED).
-        bool is_goal = true;
+        // Skip states where ANY exit is EXITED (not valid puzzle starts).
+        bool has_exited = false;
         for (int e = 0; e < num_exits; e++)
-            if (r[e] != EXITED) { is_goal = false; break; }
-        if (is_goal) continue;
+            if (r[e] == EXITED) { has_exited = true; break; }
+        if (has_exited) continue;
         int d = lookup_grouped_cost(compact_dist, s, n, num_exits);
         if (d <= 0 || d < min_moves || d > max_moves) continue;
         recs.push_back({s, (uint8_t)d});
