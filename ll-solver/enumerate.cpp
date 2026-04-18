@@ -1296,18 +1296,34 @@ static void generate_compact_predecessors(
                     int nr[10];
                     std::memcpy(nr, pos, n * sizeof(int));
                     nr[eidx] = wp;
-                    // Canonicalize with permutation tracking.
-                    int perm[10];
-                    const State ps = canonical_with_perm(encode(nr, n), n, num_exits, perm);
+                    const State ps = canonical(encode(nr, n), n, num_exits);
 
-                    // Cost-0: same exit was continuing.
-                    // perm[eidx] = canonical index of the un-exited exit.
-                    out_zero.push_back({ps, perm[eidx]});
+                    // Find ALL canonical indices for the un-exited exit.
+                    int cp[10]; decode(ps, n, cp);
+                    bool wp_idx_seen[10] = {};
+                    for (int ti = 0; ti < NUM_SYMS; ti++) {
+                        const int t = SYM_INDICES[ti];
+                        int tr[10];
+                        for (int e = 0; e < num_exits; e++)
+                            tr[e] = (nr[e] == EXITED) ? EXITED : sym(nr[e], t);
+                        for (int h = num_exits; h < n; h++)
+                            tr[h] = sym(nr[h], t);
+                        std::sort(tr, tr + num_exits);
+                        std::sort(tr + num_exits, tr + n);
+                        if (encode(tr, n) != ps) continue;
+                        int wp_canon = sym(wp, t);
+                        for (int j = 0; j < n; j++) {
+                            if (cp[j] == wp_canon && !wp_idx_seen[j]) {
+                                wp_idx_seen[j] = true;
+                                out_zero.push_back({ps, j});
+                            }
+                        }
+                    }
 
                     // Cost-1: other robots as last_mover.
                     for (int j = 0; j < n; j++) {
-                        if (nr[j] == EXITED || nr[j] == wp) continue;
-                        out_one.push_back({ps, perm[j]});
+                        if (cp[j] == EXITED || wp_idx_seen[j]) continue;
+                        out_one.push_back({ps, j});
                     }
                     // Multi-exit: if predecessor still has EXITED exits
                     for (int e = 0; e < num_exits; e++) {
@@ -1351,18 +1367,42 @@ static void generate_compact_predecessors(
             int nr[10];
             std::memcpy(nr, pos, n * sizeof(int));
             nr[ridx] = wp;
-            // Canonicalize with permutation tracking.
-            int perm[10];
-            const State ps = canonical_with_perm(encode(nr, n), n, num_exits, perm);
+            // Canonicalize (no perm needed — we'll find indices by position).
+            const State ps = canonical(encode(nr, n), n, num_exits);
 
-            // Cost-0: same robot was continuing.
-            // perm[ridx] = canonical index of the reversed robot.
-            out_zero.push_back({ps, perm[ridx]});
+            // Decode canonical state to find robot indices by position.
+            int cp[10]; decode(ps, n, cp);
+
+            // Find ALL canonical indices the reversed robot could map to.
+            // If the predecessor has automorphisms, multiple transforms produce
+            // the same canonical state, and wp maps to different positions under
+            // each. We need to emit cost-0 predecessors for ALL of them.
+            bool wp_idx_seen[10] = {};
+            for (int ti = 0; ti < NUM_SYMS; ti++) {
+                const int t = SYM_INDICES[ti];
+                int tr[10];
+                for (int e = 0; e < num_exits; e++)
+                    tr[e] = (nr[e] == EXITED) ? EXITED : sym(nr[e], t);
+                for (int h = num_exits; h < n; h++)
+                    tr[h] = sym(nr[h], t);
+                std::sort(tr, tr + num_exits);
+                std::sort(tr + num_exits, tr + n);
+                if (encode(tr, n) != ps) continue;
+                // This transform produces ps. Map wp through it.
+                int wp_canon = sym(wp, t);
+                for (int j = 0; j < n; j++) {
+                    if (cp[j] == wp_canon && !wp_idx_seen[j]) {
+                        wp_idx_seen[j] = true;
+                        // Cost-0: same robot was continuing.
+                        out_zero.push_back({ps, j});
+                    }
+                }
+            }
 
             // Cost-1: different robot was the last mover.
             for (int j = 0; j < n; j++) {
-                if (nr[j] == EXITED || nr[j] == wp) continue;
-                out_one.push_back({ps, perm[j]});
+                if (cp[j] == EXITED || wp_idx_seen[j]) continue;
+                out_one.push_back({ps, j});
             }
             // Multi-exit: if predecessor has EXITED exits
             for (int e = 0; e < num_exits; e++) {
@@ -3403,20 +3443,35 @@ int main(int argc, char* argv[]) {
                     int nc, bi; State ns;
                     if (!forward_move(pos, nt, ne, ridx, d, nc, bi, ns, occ))
                         continue;
-                    // Canonicalize successor with permutation tracking.
-                    int succ_perm[10];
-                    State ns_canon = canonical_with_perm(ns, nt, ne, succ_perm);
+                    // Canonicalize successor.
+                    State ns_canon = canonical(ns, nt, ne);
 
-                    // Map the mover's landing to canonical index.
+                    // Find canonical index of the mover by position.
                     int landing = (ridx < ne && nc == CTR) ? EXITED : nc;
                     int landing_idx = -1;
                     if (landing == EXITED) {
                         landing_idx = nt;  // EXITED slot
                     } else {
-                        // ridx is the robot that moved. perm[ridx] is its
-                        // canonical index. The mover landed at 'landing',
-                        // and in the canonical state it's at perm[ridx].
-                        landing_idx = succ_perm[ridx];
+                        // Find which transform produced ns_canon, then map
+                        // the landing cell through that transform.
+                        int spos[10]; decode(ns, nt, spos);
+                        int cpos[10]; decode(ns_canon, nt, cpos);
+                        for (int ti = 0; ti < NUM_SYMS && landing_idx < 0; ti++) {
+                            const int t = SYM_INDICES[ti];
+                            int tr[10];
+                            for (int e = 0; e < ne; e++)
+                                tr[e] = (spos[e] == EXITED) ? EXITED : sym(spos[e], t);
+                            for (int h = ne; h < nt; h++)
+                                tr[h] = sym(spos[h], t);
+                            std::sort(tr, tr + ne);
+                            std::sort(tr + ne, tr + nt);
+                            if (encode(tr, nt) == ns_canon) {
+                                int landing_canon = sym(landing, t);
+                                for (int j = 0; j < nt; j++)
+                                    if (cpos[j] == landing_canon) { landing_idx = j; break; }
+                                break;
+                            }
+                        }
                     }
                     if (landing_idx < 0) continue;
 
