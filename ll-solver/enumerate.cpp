@@ -266,6 +266,51 @@ static State canonical(State s, int n, int num_exits) {
     return best;
 }
 
+// Canonical with permutation tracking: returns the canonical state AND
+// perm[i] = the index in the canonical state that corresponds to
+// original robot i.  So if original robot 3 ends up at canonical index 1,
+// then perm[3] = 1.
+static State canonical_with_perm(State s, int n, int num_exits, int* perm) {
+    int r[10];
+    decode(s, n, r);
+    State best = ~(State)0;
+
+    for (int ti = 0; ti < NUM_SYMS; ti++) {
+        const int t = SYM_INDICES[ti];
+
+        // Transform positions, tracking which original index maps where.
+        struct IndexedPos { int pos; int orig_idx; };
+        IndexedPos exits[4], helpers[6];
+        for (int e = 0; e < num_exits; e++)
+            exits[e] = { (r[e] == EXITED) ? EXITED : sym(r[e], t), e };
+        for (int h = 0; h < n - num_exits; h++)
+            helpers[h] = { sym(r[num_exits + h], t), num_exits + h };
+
+        // Sort exits by position (maintaining original-index association).
+        std::sort(exits, exits + num_exits,
+                  [](const IndexedPos& a, const IndexedPos& b) { return a.pos < b.pos; });
+        // Sort helpers by position.
+        std::sort(helpers, helpers + (n - num_exits),
+                  [](const IndexedPos& a, const IndexedPos& b) { return a.pos < b.pos; });
+
+        // Encode.
+        int tr[10];
+        for (int e = 0; e < num_exits; e++) tr[e] = exits[e].pos;
+        for (int h = 0; h < n - num_exits; h++) tr[num_exits + h] = helpers[h].pos;
+        const State e = encode(tr, n);
+
+        if (e < best) {
+            best = e;
+            // Record the permutation: perm[original_idx] = canonical_idx.
+            for (int ei = 0; ei < num_exits; ei++)
+                perm[exits[ei].orig_idx] = ei;
+            for (int hi = 0; hi < n - num_exits; hi++)
+                perm[helpers[hi].orig_idx] = num_exits + hi;
+        }
+    }
+    return best;
+}
+
 // ── Fast flat hash map: State → uint8_t ──────────────────────────────────────
 // Open addressing with linear probing, load factor ≤ 75%.
 //
@@ -1223,29 +1268,23 @@ static void generate_compact_predecessors(
                     int nr[10];
                     std::memcpy(nr, pos, n * sizeof(int));
                     nr[eidx] = wp;
-                    std::sort(nr + num_exits, nr + n);
-                    // Sort helpers only (exits keep fixed indices, matching
-                    // forward_move convention). No symmetry transforms.
-                    const State ps = encode(nr, n);
+                    // Canonicalize with permutation tracking.
+                    int perm[10];
+                    const State ps = canonical_with_perm(encode(nr, n), n, num_exits, perm);
 
-                    // Find where the un-exited exit ended up after sort.
-                    int eidx_in_pred = eidx;
-                    for (int e = 0; e < num_exits; e++)
-                        if (nr[e] == wp) { eidx_in_pred = e; break; }
+                    // Cost-0: same exit was continuing.
+                    // perm[eidx] = canonical index of the un-exited exit.
+                    out_zero.push_back({ps, perm[eidx]});
 
-                    // Cost-0: same exit was continuing
-                    out_zero.push_back({ps, eidx_in_pred});
-
-                    // Cost-1: exit was a new mover — other robots as last_mover
+                    // Cost-1: other robots as last_mover.
                     for (int j = 0; j < n; j++) {
-                        const int m = nr[j];
-                        if (m == EXITED || m == wp) continue;
-                        out_one.push_back({ps, j});
+                        if (nr[j] == EXITED || nr[j] == wp) continue;
+                        out_one.push_back({ps, perm[j]});
                     }
                     // Multi-exit: if predecessor still has EXITED exits
                     for (int e = 0; e < num_exits; e++) {
                         if (nr[e] == EXITED) {
-                            out_one.push_back({ps, n});  // index n = EXITED slot
+                            out_one.push_back({ps, n});  // EXITED slot
                             break;
                         }
                     }
@@ -1284,24 +1323,18 @@ static void generate_compact_predecessors(
             int nr[10];
             std::memcpy(nr, pos, n * sizeof(int));
             nr[ridx] = wp;
-            // Sort-only encoding (no symmetry) so robot indices correspond
-            // directly to cost array indices.
-            std::sort(nr + num_exits, nr + n);
-            const State ps = encode(nr, n);
+            // Canonicalize with permutation tracking.
+            int perm[10];
+            const State ps = canonical_with_perm(encode(nr, n), n, num_exits, perm);
 
-            // Identify reversed robot by position wp in the sorted predecessor.
-            int wp_idx = -1;
-            for (int j = 0; j < n; j++)
-                if (nr[j] == wp) { wp_idx = j; break; }
-
-            if (wp_idx >= 0)
-                out_zero.push_back({ps, wp_idx});
+            // Cost-0: same robot was continuing.
+            // perm[ridx] = canonical index of the reversed robot.
+            out_zero.push_back({ps, perm[ridx]});
 
             // Cost-1: different robot was the last mover.
             for (int j = 0; j < n; j++) {
-                const int m = nr[j];
-                if (m == EXITED || m == wp) continue;
-                out_one.push_back({ps, j});
+                if (nr[j] == EXITED || nr[j] == wp) continue;
+                out_one.push_back({ps, perm[j]});
             }
             // Multi-exit: if predecessor has EXITED exits
             for (int e = 0; e < num_exits; e++) {
@@ -1347,9 +1380,11 @@ static FlatMapWide retrograde_grouped_compact(int num_exits, int num_helpers)
                 for (int e = 0; e < num_exits; e++) pos[e] = EXITED;
                 for (int h = 0; h < num_helpers; h++) pos[num_exits + h] = chosen[h];
                 std::sort(pos + num_exits, pos + n);
-                // Don't sort exits — keep fixed indices matching forward_move.
-                // Helpers are already sorted by the seed enumeration.
-                const State s = encode(pos, n);
+                // Canonicalize the goal state (with permutation — though
+                // for goals where all exits are EXITED, the perm doesn't
+                // affect the EXITED cost slot).
+                int perm_unused[10];
+                const State s = canonical_with_perm(encode(pos, n), n, num_exits, perm_unused);
                 size_t slot = dist.find_or_insert(s, true);
                 if (dist.data_[slot].costs[n] == FlatMapWide::NO_COST) {
                     dist.data_[slot].costs[n] = 0;  // EXITED slot at cost 0
@@ -3336,23 +3371,24 @@ int main(int argc, char* argv[]) {
                     int nc, bi; State ns;
                     if (!forward_move(pos, nt, ne, ridx, d, nc, bi, ns, occ))
                         continue;
-                    // Decode successor — exits at fixed indices, helpers sorted
-                    // by forward_move. No exit re-sort needed (compact BFS
-                    // doesn't sort exits either).
-                    int spos[10]; decode(ns, nt, spos);
+                    // Canonicalize successor with permutation tracking.
+                    int succ_perm[10];
+                    State ns_canon = canonical_with_perm(ns, nt, ne, succ_perm);
 
-                    // Find which robot index the mover landed at.
+                    // Map the mover's landing to canonical index.
                     int landing = (ridx < ne && nc == CTR) ? EXITED : nc;
                     int landing_idx = -1;
                     if (landing == EXITED) {
                         landing_idx = nt;  // EXITED slot
                     } else {
-                        for (int j = 0; j < nt; j++)
-                            if (spos[j] == landing) { landing_idx = j; break; }
+                        // ridx is the robot that moved. perm[ridx] is its
+                        // canonical index. The mover landed at 'landing',
+                        // and in the canonical state it's at perm[ridx].
+                        landing_idx = succ_perm[ridx];
                     }
                     if (landing_idx < 0) continue;
 
-                    size_t succ_slot = dist.find_or_insert(ns, false);
+                    size_t succ_slot = dist.find_or_insert(ns_canon, false);
                     if (succ_slot >= dist.cap()) continue;
                     int succ_cost = (int)dist.data_[succ_slot].costs[landing_idx];
                     if (succ_cost < 255) {
