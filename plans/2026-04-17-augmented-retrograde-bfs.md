@@ -425,3 +425,30 @@ Cross-reference confirmed: compact cost arrays match the expanded BFS for most r
 2. **Use the identity transform only for states with automorphisms.** Detect self-symmetric states and skip symmetry for them. Complex but targeted.
 3. **Store costs indexed by CELL not by robot index.** Avoids the permutation problem entirely but needs 49 bytes per state (sparse) or a variable-length encoding.
 4. **Accept the expanded approach and use a 64 GB machine.** Pre-size the FlatMap from the base BFS count.
+
+### 2026-04-18T11:00Z — Compact BFS with symmetry FIXED AND VALIDATED: 12/12 PASS
+
+**The automorphism fix:** when a state has non-trivial automorphisms (multiple D4/Klein transforms produce the same canonical encoding), the reversed robot maps to DIFFERENT canonical indices under different transforms. The previous code picked ONE transform; the fix emits cost-0 predecessors for ALL valid canonical indices.
+
+Also fixed the validation's canonical index lookup using the same all-transforms approach.
+
+**12/12 combos PASS with full D4/Klein symmetry canonicalization.**
+
+**Final measured results (1+5 beehive, Mac, single-threaded):**
+
+| Version | States | Time | FlatMap | RSS |
+|---------|--------|------|---------|-----|
+| Compact with symmetry | 10.1M base | 9.2s | 256 MB | 1.62 GB |
+| Compact without symmetry | 10.1M base | 7.2s | 256 MB | 1.63 GB |
+| Expanded with symmetry | 58.5M aug | 23.1s | 1,024 MB | 2.45 GB |
+
+Compact is **2.5× faster** and uses **4× less FlatMap memory** than expanded.
+
+**4+3 beehive projection (compact with symmetry):**
+- 356M base states × 16 bytes / 0.75 load → 512M pow2 cap × 16 = **8.2 GB FlatMapWide**
+- RSS including frontiers: **~10 GB**
+- **Fits on 32 GB with 22 GB margin**
+- Time: 356M/10.1M × 9.2s × (cache penalty ~3×) ≈ **970s (~16 min) single-threaded**
+- 16-core parallel: **~3-5 min** estimated
+
+**The compact approach is production-ready for 4+3 beehive on a 32 GB machine.**
