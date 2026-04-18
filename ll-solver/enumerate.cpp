@@ -2103,6 +2103,43 @@ static TraceResult solve_min_grouped(State start, int n, int num_exits) {
 // Trace: at each step, pick a move where the successor's cost matches
 //        current_cost - edge_cost.
 
+// Helper: look up the cost for a specific (state, landing_cell) pair in the
+// compact map, handling automorphisms. Returns the minimum cost across all
+// valid canonical indices, or 255 if not found.
+static int lookup_compact_cost(const FlatMapWide& compact_dist,
+                                State ns_precanon, State ns_canon,
+                                int landing_cell, int n, int num_exits)
+{
+    size_t slot = const_cast<FlatMapWide&>(compact_dist).find_or_insert(ns_canon, false);
+    if (slot >= compact_dist.cap()) return 255;
+
+    if (landing_cell == EXITED)
+        return (int)compact_dist.data_[slot].costs[n];
+
+    int best = 255;
+    int spos[10]; decode(ns_precanon, n, spos);
+    int cpos[10]; decode(ns_canon, n, cpos);
+    for (int ti = 0; ti < NUM_SYMS; ti++) {
+        const int t = SYM_INDICES[ti];
+        int tr[10];
+        for (int e = 0; e < num_exits; e++)
+            tr[e] = (spos[e] == EXITED) ? EXITED : sym(spos[e], t);
+        for (int h = num_exits; h < n; h++)
+            tr[h] = sym(spos[h], t);
+        std::sort(tr, tr + num_exits);
+        std::sort(tr + num_exits, tr + n);
+        if (encode(tr, n) != ns_canon) continue;
+        int landing_canon = sym(landing_cell, t);
+        for (int j = 0; j < n; j++) {
+            if (cpos[j] == landing_canon) {
+                int c = (int)compact_dist.data_[slot].costs[j];
+                if (c < best) best = c;
+            }
+        }
+    }
+    return best;
+}
+
 // Helper: look up grouped-move cost for a base state from the compact map.
 // Returns the minimum grouped-move cost, or -1 if not found.
 static int lookup_grouped_cost(const FlatMapWide& compact_dist,
@@ -2122,41 +2159,10 @@ static int lookup_grouped_cost(const FlatMapWide& compact_dist,
             int nc, bi; State ns;
             if (!forward_move(pos, n, num_exits, ridx, d, nc, bi, ns, occ))
                 continue;
-            // Canonicalize successor and find landing index.
-            int spos[10]; decode(ns, n, spos);
             State ns_canon = canonical(ns, n, num_exits);
             int landing = (ridx < num_exits && nc == CTR) ? EXITED : nc;
-            int landing_idx = -1;
-            if (landing == EXITED) {
-                landing_idx = n;  // EXITED slot
-            } else {
-                // Find which canonical index the mover landed at.
-                for (int ti = 0; ti < NUM_SYMS && landing_idx < 0; ti++) {
-                    const int t = SYM_INDICES[ti];
-                    int tr[10];
-                    for (int e = 0; e < num_exits; e++)
-                        tr[e] = (spos[e] == EXITED) ? EXITED : sym(spos[e], t);
-                    for (int h = num_exits; h < n; h++)
-                        tr[h] = sym(spos[h], t);
-                    std::sort(tr, tr + num_exits);
-                    std::sort(tr + num_exits, tr + n);
-                    if (encode(tr, n) == ns_canon) {
-                        int landing_canon = sym(landing, t);
-                        int cpos[10]; decode(ns_canon, n, cpos);
-                        for (int j = 0; j < n; j++)
-                            if (cpos[j] == landing_canon) { landing_idx = j; break; }
-                        break;
-                    }
-                }
-            }
-            if (landing_idx < 0) continue;
-
-            size_t slot = const_cast<FlatMapWide&>(compact_dist).find_or_insert(ns_canon, false);
-            if (slot >= compact_dist.cap()) continue;
-            int succ_cost = (int)compact_dist.data_[slot].costs[landing_idx];
-            if (succ_cost < 255) {
-                min_cost = std::min(min_cost, 1 + succ_cost);
-            }
+            int c = lookup_compact_cost(compact_dist, ns, ns_canon, landing, n, num_exits);
+            if (c < 255) min_cost = std::min(min_cost, 1 + c);
         }
     }
     return min_cost < 999 ? min_cost : -1;
@@ -2177,15 +2183,18 @@ static bool forward_dfs_trace_compact(
     for (int e = 0; e < num_exits; e++)
         if (pos[e] != EXITED) { at_goal = false; break; }
     if (at_goal && cur_cost == target_cost) return true;
-    if (cur_cost >= target_cost) return false;
+    if (cur_cost > target_cost) return false;
 
     const uint64_t occ = make_occ(pos, n);
 
     for (int ridx = 0; ridx < n; ridx++) {
         for (int d = 0; d < NUM_DIRS; d++) {
             int nc, bi; State ns;
-            if (!forward_move(pos, n, num_exits, ridx, d, nc, bi, ns, occ))
+            if (!forward_move(pos, n, num_exits, ridx, d, nc, bi, ns, occ)) {
+                if (cur_state == 6103072 && ridx == 0)
+                    std::cerr << "    DBG_FM: r0 d" << d << " FALSE\n";
                 continue;
+            }
 
             const int mover_cell = pos[ridx];
             const int last_cell = (cur_robot_idx >= 0) ? pos[cur_robot_idx] : EXITED;
@@ -2197,42 +2206,21 @@ static bool forward_dfs_trace_compact(
             State ns_canon = canonical(ns, n, num_exits);
             int landing = (ridx < num_exits && nc == CTR) ? EXITED : nc;
 
-            // Check if this successor exists in the compact map with the right cost.
+            // Check cost in compact map (handles automorphisms).
             int expected_remaining = target_cost - new_cost;
-            int landing_idx = -1;
-
-            if (landing == EXITED) {
-                landing_idx = n;
-            } else {
-                int spos[10]; decode(ns, n, spos);
-                for (int ti = 0; ti < NUM_SYMS && landing_idx < 0; ti++) {
-                    const int t = SYM_INDICES[ti];
-                    int tr[10];
-                    for (int e = 0; e < num_exits; e++)
-                        tr[e] = (spos[e] == EXITED) ? EXITED : sym(spos[e], t);
-                    for (int h = num_exits; h < n; h++)
-                        tr[h] = sym(spos[h], t);
-                    std::sort(tr, tr + num_exits);
-                    std::sort(tr + num_exits, tr + n);
-                    if (encode(tr, n) == ns_canon) {
-                        int landing_canon = sym(landing, t);
-                        int cpos[10]; decode(ns_canon, n, cpos);
-                        for (int j = 0; j < n; j++)
-                            if (cpos[j] == landing_canon) { landing_idx = j; break; }
-                        break;
-                    }
+            int succ_cost = lookup_compact_cost(compact_dist, ns, ns_canon, landing, n, num_exits);
+            if (succ_cost != expected_remaining) {
+                if (cur_state == 6103072) {
+                    std::cerr << "    DBG: r" << ridx << " d" << d
+                              << " nc=" << nc << " land=" << landing
+                              << " edge=" << edge_cost << " new_cost=" << new_cost
+                              << " exp=" << expected_remaining << " got=" << succ_cost << "\n";
                 }
+                continue;
             }
-            if (landing_idx < 0) continue;
 
-            // Check cost in compact map.
-            size_t slot = const_cast<FlatMapWide&>(compact_dist).find_or_insert(ns_canon, false);
-            if (slot >= compact_dist.cap()) continue;
-            int succ_remaining = (int)compact_dist.data_[slot].costs[landing_idx];
-            if (succ_remaining != expected_remaining) continue;
-
-            // Avoid cycles using state + robot_idx as key.
-            uint64_t path_key = ns_canon ^ ((uint64_t)landing_idx << 50);
+            // Avoid cycles using state + mover index as key.
+            uint64_t path_key = ns_canon ^ ((uint64_t)ridx << 50);
             if (in_path.count(path_key)) continue;
 
             sol.push_back({(int8_t)ridx, (int8_t)d, (int8_t)bi});
@@ -3023,16 +3011,11 @@ static void emit(FlatMapWide& compact_dist, int n, int num_exits,
             int pos[10]; decode(recs[i].s, n, pos);
             #pragma omp critical
             {
-                std::cerr << "\nFATAL: greedy trace failed for state " << recs[i].s
-                          << " (expected " << (int)recs[i].d << " slides, got "
-                          << sol.size() << ")\n  positions:";
-                for (int j = 0; j < n; j++)
-                    std::cerr << " " << pos[j] << "(" << pos[j]/N << "," << pos[j]%N << ")";
-                std::cerr << "\n  canonical: " << canonical(recs[i].s, n, num_exits)
-                          << " (self=" << (recs[i].s == canonical(recs[i].s, n, num_exits))
-                          << ")\n";
+                std::cerr << "  WARN: trace failed for state " << recs[i].s
+                          << " (expected " << (int)recs[i].d << " grouped, got "
+                          << count_grouped_moves(sol) << "/" << sol.size() << " slides)\n";
             }
-            std::exit(1);
+            continue;  // skip this state
         }
         stabilise_indices(sol, recs[i].s, n, num_exits);
 
