@@ -2206,18 +2206,39 @@ static bool forward_dfs_trace_compact(
             State ns_canon = canonical(ns, n, num_exits);
             int landing = (ridx < num_exits && nc == CTR) ? EXITED : nc;
 
-            // Check cost in compact map (handles automorphisms).
+            // Check if any valid canonical index has the exact expected cost.
+            // lookup_compact_cost returns the MINIMUM, but automorphisms can
+            // map the landing to indices with different costs. We need exact match.
             int expected_remaining = target_cost - new_cost;
-            int succ_cost = lookup_compact_cost(compact_dist, ns, ns_canon, landing, n, num_exits);
-            if (succ_cost != expected_remaining) {
-                if (cur_state == 6103072) {
-                    std::cerr << "    DBG: r" << ridx << " d" << d
-                              << " nc=" << nc << " land=" << landing
-                              << " edge=" << edge_cost << " new_cost=" << new_cost
-                              << " exp=" << expected_remaining << " got=" << succ_cost << "\n";
+
+            size_t succ_slot = const_cast<FlatMapWide&>(compact_dist).find_or_insert(ns_canon, false);
+            bool exact_match = false;
+            if (succ_slot < compact_dist.cap()) {
+                if (landing == EXITED) {
+                    exact_match = ((int)compact_dist.data_[succ_slot].costs[n] == expected_remaining);
+                } else {
+                    int spos2[10]; decode(ns, n, spos2);
+                    int cpos2[10]; decode(ns_canon, n, cpos2);
+                    for (int ti = 0; ti < NUM_SYMS && !exact_match; ti++) {
+                        const int t = SYM_INDICES[ti];
+                        int tr2[10];
+                        for (int e = 0; e < num_exits; e++)
+                            tr2[e] = (spos2[e] == EXITED) ? EXITED : sym(spos2[e], t);
+                        for (int h = num_exits; h < n; h++)
+                            tr2[h] = sym(spos2[h], t);
+                        std::sort(tr2, tr2 + num_exits);
+                        std::sort(tr2 + num_exits, tr2 + n);
+                        if (encode(tr2, n) != ns_canon) continue;
+                        int lc = sym(landing, t);
+                        for (int j = 0; j < n; j++) {
+                            if (cpos2[j] == lc && (int)compact_dist.data_[succ_slot].costs[j] == expected_remaining) {
+                                exact_match = true; break;
+                            }
+                        }
+                    }
                 }
-                continue;
             }
+            if (!exact_match) continue;
 
             // Avoid cycles using state + mover index as key.
             uint64_t path_key = ns_canon ^ ((uint64_t)ridx << 50);
@@ -3682,13 +3703,38 @@ int main(int argc, char* argv[]) {
         const int nt = ne + nh;
         std::cerr << "=== Validating compact augmented BFS: " << ne << "+" << nh << " ===\n";
 
-        // Run BOTH compact and expanded BFS for cross-reference.
+        // Run base retrograde, expanded augmented, and compact BFS.
+        auto base_dist = retrograde(ne, nh);
+        std::cerr << "  base retrograde: " << base_dist.size() << " states\n";
+
         auto aug_expanded = retrograde_grouped(ne, nh);
         std::cerr << "  expanded: " << aug_expanded.size() << " augmented states\n";
 
-        // Run compact augmented BFS.
         auto dist = retrograde_grouped_compact(ne, nh);
         std::cerr << "  compact: " << dist.size() << " base states\n";
+
+        // Completeness check: every non-goal base state should be in compact.
+        int missing = 0;
+        for (size_t slot = 0; slot < base_dist.cap(); slot++) {
+            if (base_dist.data_[slot] == FlatMap::EMPTY) continue;
+            State bs = base_dist.data_[slot] & base_dist.km_;
+            int bp[10]; decode(bs, nt, bp);
+            bool is_goal = true;
+            for (int e = 0; e < ne; e++) if (bp[e] != EXITED) { is_goal = false; break; }
+            if (is_goal) continue;
+            size_t cs = dist.find_or_insert(bs, false);
+            if (cs >= dist.cap()) {
+                missing++;
+                if (missing <= 5) {
+                    std::cerr << "  MISSING from compact: " << bs << " pos:";
+                    for (int j = 0; j < nt; j++) std::cerr << " " << bp[j] << "(" << bp[j]/N << "," << bp[j]%N << ")";
+                    uint8_t rd; base_dist.find_val(bs, &rd);
+                    std::cerr << " raw_dist=" << (int)rd << "\n";
+                }
+            }
+        }
+        std::cerr << "  completeness: " << (base_dist.size() - missing) << "/" << base_dist.size()
+                  << " base states in compact (" << missing << " missing)\n";
 
         // For each base state in the compact map, compute grouped-move cost
         // using the cost array: try all first moves, take 1 + min(cost[robot_idx]).
