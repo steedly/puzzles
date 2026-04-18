@@ -378,3 +378,20 @@ Commit: `f64b9d4`
 **Conclusion:** the compact per-state cost array approach REQUIRES symmetry canonicalization. Need to implement `canonical_with_perm()` that returns the canonical state AND the index permutation, so the cost array can be permuted to match.
 
 **Next:** implement canonical-with-permutation tracking.
+
+### 2026-04-18T08:00Z — canonical_with_perm implemented, 8/12 pass, perm tracking has a bug
+
+Implemented `canonical_with_perm()` that returns both the canonical state and the robot index permutation. Updated `generate_compact_predecessors` and validation to use it. Result: 8/12 pass.
+
+New failure pattern: costs are BOTH too high (3→2) AND too low (2→3). The too-low case means the BFS is finding shorter paths that don't exist — a permutation mapping error where a cost gets written to the wrong robot's slot.
+
+The `canonical_with_perm()` function itself produces correct canonical states (verified independently). The issue is likely in how the BFS expansion uses `perm[]` — specifically, the frontier entry `(state, robot_idx)` stores a canonical index, and when the state is later expanded, `pos[robot_idx]` gives the correct cell. But when generating predecessors, the `ridx` in the current state needs to be mapped through the PREDECESSOR's canonicalization, not the current state's.
+
+**Assessment:** The compact approach with symmetry is algorithmically sound but has a tricky implementation detail: mapping robot indices through two different canonicalizations (current state → predecessor positions → predecessor canonical state). The expanded version avoids this entirely by using cell-based last_mover identification.
+
+**Options:**
+1. Continue debugging the perm tracking (likely 1-2 more iterations)
+2. Use the expanded version (12/12 pass, validated) with Robin Hood pre-sizing (~24 GB, fits 32 GB with Approach 2)
+3. Use the compact version without symmetry on a 64 GB box (works, 12/12 pass, but more states)
+
+Commit: `44d44d2`
