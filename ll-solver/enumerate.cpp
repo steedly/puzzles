@@ -1224,11 +1224,13 @@ static void generate_compact_predecessors(
                     std::memcpy(nr, pos, n * sizeof(int));
                     nr[eidx] = wp;
                     std::sort(nr + num_exits, nr + n);
-                    const State ps = canonical(encode(nr, n), n, num_exits);
+                    // Sort-only encoding (no symmetry transforms) so that
+                    // robot indices in nr[] directly correspond to cost array indices.
+                    std::sort(nr, nr + num_exits);
+                    const State ps = encode(nr, n);
 
-                    // Find where eidx ended up after sort (identify by position wp).
-                    int eidx_in_pred = eidx;  // exits don't sort with helpers
-                    // But exits DO sort among themselves.
+                    // Find where the un-exited exit ended up after sort.
+                    int eidx_in_pred = eidx;
                     for (int e = 0; e < num_exits; e++)
                         if (nr[e] == wp) { eidx_in_pred = e; break; }
 
@@ -1283,42 +1285,11 @@ static void generate_compact_predecessors(
             int nr[10];
             std::memcpy(nr, pos, n * sizeof(int));
             nr[ridx] = wp;
+            // Sort-only encoding (no symmetry) so robot indices correspond
+            // directly to cost array indices.
             std::sort(nr + num_exits, nr + n);
-            const State ps = canonical(encode(nr, n), n, num_exits);
+            const State ps = encode(nr, n);
 
-            // Find the robot index for wp in the canonical predecessor.
-            // After sort + canonical transform, the robot that was at ridx
-            // is now at position wp (or its canonical transform).
-            // We need to find which index in the canonical state maps to
-            // the "reversed robot" — identify by position.
-            int pred_pos[10];
-            decode(ps, n, pred_pos);
-            int ridx_in_pred = -1;
-            // The reversed robot is at wp in the pre-canonical state.
-            // In the canonical state, it's at sym(wp, best_transform).
-            // But canonical() doesn't expose which transform was used.
-            // Simpler: find any robot at any position and map by wp.
-            // Actually — we need to track through canonicalization.
-            // For now, find the position that wp maps to under each
-            // symmetry transform and check which index has that position.
-            //
-            // SIMPLIFICATION: just try all N robot indices. The one at wp
-            // in the pre-canonical encoding is the reversed robot.
-            // After canonical(), the position may differ but the INDEX
-            // relationship is lost.
-            //
-            // PROBLEM: canonical() changes both positions AND indices.
-            // We can't reliably map ridx through canonical().
-            //
-            // ALTERNATIVE: Don't use canonical(). Use the same sort-only
-            // encoding as the non-symmetry version.  This costs ~4-8×
-            // more states (no symmetry reduction) but avoids the index
-            // mapping problem.
-            //
-            // For now: skip canonicalization (sort only, no symmetry).
-            // This matches the working validate-augmented approach.
-
-            // Cost-0: same robot was continuing.
             // Identify reversed robot by position wp in the sorted predecessor.
             int wp_idx = -1;
             for (int j = 0; j < n; j++)
@@ -1377,7 +1348,8 @@ static FlatMapWide retrograde_grouped_compact(int num_exits, int num_helpers)
                 for (int e = 0; e < num_exits; e++) pos[e] = EXITED;
                 for (int h = 0; h < num_helpers; h++) pos[num_exits + h] = chosen[h];
                 std::sort(pos + num_exits, pos + n);
-                const State s = canonical(encode(pos, n), n, num_exits);
+                std::sort(pos, pos + num_exits);
+                const State s = encode(pos, n);
                 size_t slot = dist.find_or_insert(s, true);
                 if (dist.data_[slot].costs[n] == FlatMapWide::NO_COST) {
                     dist.data_[slot].costs[n] = 0;  // EXITED slot at cost 0
@@ -3277,6 +3249,7 @@ int main(int argc, char* argv[]) {
     bool validate_augmented = false;
     bool bench_augmented = false;
     bool bench_compact = false;
+    bool validate_compact = false;
     for (int i = 1; i < argc; i++) {
         const char* a = argv[i];
         if (std::strncmp(a, "--only=", 7) == 0) {
@@ -3291,6 +3264,8 @@ int main(int argc, char* argv[]) {
             bench_augmented = true;
         if (std::strcmp(a, "--bench-compact") == 0)
             bench_compact = true;
+        if (std::strcmp(a, "--validate-compact") == 0)
+            validate_compact = true;
     }
 
     // Per-variant block masks — computed once regardless of the active variant
@@ -3328,6 +3303,92 @@ int main(int argc, char* argv[]) {
                            << std::hex << BLOCKED << std::dec << ")\n";
     if (BOARD_TYPE == BOARD_HEX) std::cerr << "Variant: " << variant
         << " (N=" << N << ", " << NUM_DIRS << " dirs, " << NUM_SYMS << " syms)\n";
+
+    // ── Validate compact augmented BFS ─────────────────────────────────────
+    if (validate_compact) {
+        const int ne = only_exits > 0 ? only_exits : 1;
+        const int nh = only_helpers > 0 ? only_helpers : 2;
+        const int nt = ne + nh;
+        std::cerr << "=== Validating compact augmented BFS: " << ne << "+" << nh << " ===\n";
+
+        // Run compact augmented BFS.
+        auto dist = retrograde_grouped_compact(ne, nh);
+        std::cerr << "  compact: " << dist.size() << " base states\n";
+
+        // For each base state in the compact map, compute grouped-move cost
+        // using the cost array: try all first moves, take 1 + min(cost[robot_idx]).
+        int checked = 0, mismatches = 0, skipped = 0;
+        for (size_t slot = 0; slot < dist.cap(); slot++) {
+            if (dist.data_[slot].key == FlatMapWide::EMPTY_KEY) continue;
+            const State s = dist.data_[slot].key;
+            int pos[10]; decode(s, nt, pos);
+
+            // Skip goal states.
+            bool is_goal = true;
+            for (int e = 0; e < ne; e++) if (pos[e] != EXITED) { is_goal = false; break; }
+            if (is_goal) { skipped++; continue; }
+
+            // Compute grouped-move cost from compact map: try all first moves.
+            const uint64_t occ = make_occ(pos, nt);
+            int min_compact = 999;
+            for (int ridx = 0; ridx < nt; ridx++) {
+                for (int d = 0; d < NUM_DIRS; d++) {
+                    int nc, bi; State ns;
+                    if (!forward_move(pos, nt, ne, ridx, d, nc, bi, ns, occ))
+                        continue;
+                    // Re-sort exits in successor (compact BFS sorts exits).
+                    int spos[10]; decode(ns, nt, spos);
+                    std::sort(spos, spos + ne);  // sort exits
+                    // helpers already sorted by forward_move
+                    ns = encode(spos, nt);
+
+                    // Find which robot index the mover landed at.
+                    int landing = (ridx < ne && nc == CTR) ? EXITED : nc;
+                    int landing_idx = -1;
+                    if (landing == EXITED) {
+                        landing_idx = nt;  // EXITED slot
+                    } else {
+                        for (int j = 0; j < nt; j++)
+                            if (spos[j] == landing) { landing_idx = j; break; }
+                    }
+                    if (landing_idx < 0) continue;
+
+                    size_t succ_slot = dist.find_or_insert(ns, false);
+                    if (succ_slot >= dist.cap()) continue;
+                    int succ_cost = (int)dist.data_[succ_slot].costs[landing_idx];
+                    if (succ_cost < 255) {
+                        int total = 1 + succ_cost;
+                        min_compact = std::min(min_compact, total);
+                    }
+                }
+            }
+
+            // Compare with forward solve.
+            auto tr = solve_min_grouped(s, nt, ne);
+            const int fwd_cost = tr.moves.empty() ? 0 : tr.grouped_moves;
+
+            if (min_compact != fwd_cost && min_compact != 999) {
+                mismatches++;
+                std::cerr << "  MISMATCH: state " << s
+                          << " compact=" << min_compact << " fwd=" << fwd_cost << "\n";
+                if (mismatches >= 20) { std::cerr << "  ... stopping\n"; break; }
+            } else if (min_compact == 999) {
+                mismatches++;
+                std::cerr << "  MISS: state " << s << " (no successor found)\n";
+                if (mismatches >= 20) { std::cerr << "  ... stopping\n"; break; }
+            }
+            checked++;
+            if (checked % 100 == 0)
+                std::cerr << "  checked " << checked << " / " << dist.size()
+                          << " (mismatches=" << mismatches << ")\n";
+        }
+        std::cerr << "\n=== VALIDATION RESULT ===\n"
+                  << "  checked: " << checked << "\n"
+                  << "  skipped (goals): " << skipped << "\n"
+                  << "  mismatches: " << mismatches << "\n"
+                  << "  " << (mismatches == 0 ? "PASS" : "FAIL") << "\n";
+        return mismatches == 0 ? 0 : 1;
+    }
 
     // ── Bench augmented retrograde BFS (timing + memory only) ──────────────
     if (bench_augmented) {
