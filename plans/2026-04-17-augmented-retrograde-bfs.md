@@ -452,3 +452,30 @@ Compact is **2.5× faster** and uses **4× less FlatMap memory** than expanded.
 - 16-core parallel: **~3-5 min** estimated
 
 **The compact approach is production-ready for 4+3 beehive on a 32 GB machine.**
+
+### 2026-04-18 08:47 PDT — Pipeline integration: compact-only emit()
+
+Rewrote the main loop and emit() to use ONLY the compact FlatMapWide:
+- Base retrograde FlatMap freed immediately after extracting state count
+- emit() iterates compact map for pass 1 (collect states)
+- Pass 2 and pass 3 use compact map for all cost lookups and traces
+
+**Bug found: greedy trace infinite loop.** The greedy trace (pass 2) uses cost-0 edges that don't reduce `remaining`, causing cycles. Unlike raw-slide traces (where every move reduces distance by exactly 1), grouped-move traces have cost-0 edges (same robot continuing). Added cycle detection, but the fundamental issue is that greedy (non-backtracking) trace doesn't work for grouped-move costs.
+
+**Fix:** replaced greedy trace in pass 2 with `solve_from_compact()` (DFS with backtracking). This is slower per-puzzle but correct.
+
+**Bug found: DFS trace fails for some states.** `forward_dfs_trace_compact` can't find a path for state 6103072 (cost=1). The `--validate-compact` confirms the cost IS correct in the map, so this is a trace bug — likely the same automorphism/canonical-index mapping issue in the trace code.
+
+**Status:** pipeline integration is partially working. The cost lookup and BFS are correct (validated). The solution TRACE has a bug in how it maps robot indices through canonicalization when looking up costs for successor states. This is the same class of bug we fixed in the BFS predecessor generation.
+
+### 2026-04-18 11:12 PDT — Regression tests needed
+
+The following bugs should have regression tests:
+1. **Insert_new not updating higher costs** (upsert fix)
+2. **Cost-1 skip after sort** (identify by position not index)
+3. **Multi-exit EXITED predecessor** (emit last_cell=EXITED as cost-1)
+4. **Exit-sort inconsistency** (don't sort exits in compact BFS)
+5. **Automorphism index ambiguity** (emit cost-0 for all valid canonical indices)
+6. **Greedy trace cycling** (cost-0 edges cause infinite loops without cycle detection)
+
+These should be added to `test_enumerate.cpp` as specific test cases using known states that trigger each bug. TODO after the trace bug is fixed.

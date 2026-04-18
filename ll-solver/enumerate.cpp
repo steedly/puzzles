@@ -2304,6 +2304,97 @@ static std::vector<Move> trace_solution_greedy(State start, int n, int num_exits
     return sol;
 }
 
+// ── Greedy trace using the compact FlatMapWide ──────────────────────────────
+// Finds the canonical index for a robot that just landed at `landing_cell`
+// in state `ns` (pre-canonical). Returns -1 if not found.
+static int find_landing_idx_in_canonical(State ns_canon, State ns_precanon,
+                                          int landing_cell, int n, int num_exits)
+{
+    if (landing_cell == EXITED) return n;  // EXITED slot
+    int spos[10]; decode(ns_precanon, n, spos);
+    int cpos[10]; decode(ns_canon, n, cpos);
+    for (int ti = 0; ti < NUM_SYMS; ti++) {
+        const int t = SYM_INDICES[ti];
+        int tr[10];
+        for (int e = 0; e < num_exits; e++)
+            tr[e] = (spos[e] == EXITED) ? EXITED : sym(spos[e], t);
+        for (int h = num_exits; h < n; h++)
+            tr[h] = sym(spos[h], t);
+        std::sort(tr, tr + num_exits);
+        std::sort(tr + num_exits, tr + n);
+        if (encode(tr, n) == ns_canon) {
+            int landing_canon = sym(landing_cell, t);
+            for (int j = 0; j < n; j++)
+                if (cpos[j] == landing_canon) return j;
+            break;
+        }
+    }
+    return -1;
+}
+
+static std::vector<Move> trace_solution_greedy_compact(
+    State start, int n, int num_exits, const FlatMapWide& compact_dist)
+{
+    int grouped_cost = lookup_grouped_cost(compact_dist, start, n, num_exits);
+    if (grouped_cost <= 0) return {};
+
+    std::vector<Move> sol;
+    sol.reserve(grouped_cost * 2);
+    State cur = start;
+    int remaining = grouped_cost;
+    int last_mover = -1;
+    std::unordered_set<uint64_t> visited;
+    visited.insert(canonical(start, n, num_exits));
+
+    int max_steps = grouped_cost * n * 2 + 10;  // safety limit
+    while (remaining > 0 && max_steps-- > 0) {
+        int pos[10]; decode(cur, n, pos);
+        bool at_goal = true;
+        for (int e = 0; e < num_exits; e++)
+            if (pos[e] != EXITED) { at_goal = false; break; }
+        if (at_goal) break;
+
+        const uint64_t occ = make_occ(pos, n);
+        bool found = false;
+        for (int ridx = 0; ridx < n && !found; ridx++) {
+            for (int d = 0; d < NUM_DIRS && !found; d++) {
+                int nc, bi; State ns;
+                if (!forward_move(pos, n, num_exits, ridx, d, nc, bi, ns, occ))
+                    continue;
+                int edge_cost = (ridx == last_mover) ? 0 : 1;
+                int new_remaining = remaining - edge_cost;
+                if (new_remaining < 0) continue;
+
+                // Look up the successor's cost directly from the compact map.
+                int landing = (ridx < num_exits && nc == CTR) ? EXITED : nc;
+                State ns_canon = canonical(ns, n, num_exits);
+                int landing_idx = find_landing_idx_in_canonical(
+                    ns_canon, ns, landing, n, num_exits);
+                if (landing_idx < 0) continue;
+
+                size_t slot = const_cast<FlatMapWide&>(compact_dist)
+                    .find_or_insert(ns_canon, false);
+                if (slot >= compact_dist.cap()) continue;
+                int succ_remaining = (int)compact_dist.data_[slot].costs[landing_idx];
+                if (succ_remaining != new_remaining) continue;
+
+                // Cycle detection: don't revisit canonical states.
+                State ns_canon_check = canonical(ns, n, num_exits);
+                if (visited.count(ns_canon_check)) continue;
+
+                sol.push_back({(int8_t)ridx, (int8_t)d, (int8_t)bi});
+                cur = ns;
+                last_mover = ridx;
+                remaining = new_remaining;
+                visited.insert(ns_canon_check);
+                found = true;
+            }
+        }
+        if (!found) return {};
+    }
+    return sol;
+}
+
 // ── Stabilise solution indices ─────────────────────────────────────────────
 // The DP and greedy traces record Move indices relative to the decoded
 // position array at each step.  But forward_move() re-sorts helpers after
@@ -2868,14 +2959,13 @@ static std::vector<int> prefilter_diverse(
     return kept;
 }
 
-static void emit(FlatMap dist, int n, int num_exits,
+static void emit(FlatMapWide& compact_dist, int n, int num_exits,
                  int min_moves, int max_moves, int max_per_bucket,
                  int& id, std::unordered_set<uint64_t>& seen_sigs,
                  std::unordered_set<uint64_t>& seen_pruned_canons,
                  std::unordered_set<uint64_t>& seen_dp_sigs,
                  std::unordered_set<uint64_t>& seen_state_sets,
-                 int& emitted, int& deduped,
-                 FlatMapWide* compact_dist = nullptr)
+                 int& emitted, int& deduped)
 {
     using Clock = std::chrono::steady_clock;
     auto t0 = Clock::now();
@@ -2884,17 +2974,22 @@ static void emit(FlatMap dist, int n, int num_exits,
     reset_peak_rss();
     log_mem("emit_start");
 
-    // ── Pass 1: collect initial states (all canonical from BFS) ──
+    // ── Pass 1: collect initial states from compact map ──
+    // For each base state, compute grouped-move cost and filter.
     std::vector<Rec> recs;
-    recs.reserve(dist.size() / 4);
-    for (auto [s, d] : dist) {
-        if (d == 0 || d < (uint8_t)min_moves || d > (uint8_t)max_moves) continue;
+    recs.reserve(compact_dist.size() / 4);
+    for (size_t slot = 0; slot < compact_dist.cap(); slot++) {
+        if (compact_dist.data_[slot].key == FlatMapWide::EMPTY_KEY) continue;
+        const State s = compact_dist.data_[slot].key;
         int r[10]; decode(s, n, r);
-        bool ok = true;
+        // Skip goal states (all exits EXITED).
+        bool is_goal = true;
         for (int e = 0; e < num_exits; e++)
-            if (r[e] == EXITED) { ok = false; break; }
-        if (!ok) continue;
-        recs.push_back({s, d});
+            if (r[e] != EXITED) { is_goal = false; break; }
+        if (is_goal) continue;
+        int d = lookup_grouped_cost(compact_dist, s, n, num_exits);
+        if (d <= 0 || d < min_moves || d > max_moves) continue;
+        recs.push_back({s, (uint8_t)d});
     }
 
     std::sort(recs.begin(), recs.end(), [](const Rec& a, const Rec& b) {
@@ -2920,8 +3015,9 @@ static void emit(FlatMap dist, int n, int num_exits,
     #pragma omp parallel for schedule(dynamic, 256)
 #endif
     for (int i = 0; i < p2_total; i++) {
-        auto sol = trace_solution_greedy(recs[i].s, n, num_exits, dist);
-        if (sol.size() != (size_t)recs[i].d) {
+        auto tr_p2 = solve_from_compact(compact_dist, recs[i].s, n, num_exits);
+        auto sol = std::move(tr_p2.moves);
+        if (count_grouped_moves(sol) != (int)recs[i].d) {
             // Greedy trace failure — this indicates a bug (likely in the
             // symmetry group or canonicalization).  Dump debug info and abort.
             int pos[10]; decode(recs[i].s, n, pos);
@@ -2998,8 +3094,7 @@ static void emit(FlatMap dist, int n, int num_exits,
     // Free the pass 2 dedup map (~30 bytes/entry × tens of millions for large combos).
     std::unordered_map<uint64_t, int>().swap(local_best);
 
-    // Pass 3 doesn't need the retrograde BFS map — free it now to save memory.
-    dist = FlatMap(0);
+    // (Base retrograde map is not used — compact map provides all costs.)
 
     auto t2 = Clock::now();
     std::cerr << "  pass 2 (greedy dedup): " << survivors.size() << " unique, "
@@ -3108,9 +3203,7 @@ static void emit(FlatMap dist, int n, int num_exits,
         const State survivor_state = survivor_states[j];
         // Solve for minimum grouped moves (0-1 BFS, allows more raw slides).
         auto solve_t0 = Clock::now();
-        auto tr = compact_dist
-            ? solve_from_compact(*compact_dist, survivor_state, n, num_exits)
-            : solve_min_grouped(survivor_state, n, num_exits);
+        auto tr = solve_from_compact(compact_dist, survivor_state, n, num_exits);
         solve_times_us[j] =
             std::chrono::duration<double, std::micro>(Clock::now() - solve_t0).count();
         if (tr.moves.empty()) continue;
@@ -4044,27 +4137,29 @@ int main(int argc, char* argv[]) {
                       << "  total=" << nt << " ===\n";
 
             reset_peak_rss();
-            auto dist = retrograde(ne, nh);
-
-            const double bfs_secs = std::chrono::duration<double>(
-                std::chrono::steady_clock::now() - t0).count();
-            std::cerr << "  BFS done: " << dist.size() << " states, "
-                      << bfs_secs << "s\n";
-            log_mem("bfs_done");
+            size_t base_count;
+            {
+                auto dist = retrograde(ne, nh);
+                base_count = dist.size();
+                const double bfs_secs = std::chrono::duration<double>(
+                    std::chrono::steady_clock::now() - t0).count();
+                std::cerr << "  BFS done: " << dist.size() << " states, "
+                          << bfs_secs << "s\n";
+                log_mem("bfs_done");
+            }  // base FlatMap freed here — only keep the count
 
             // Run compact augmented BFS for grouped-move costs.
-            const size_t base_count = dist.size();
             auto compact = retrograde_grouped_compact(ne, nh, base_count);
             const double compact_secs = std::chrono::duration<double>(
-                std::chrono::steady_clock::now() - t0).count() - bfs_secs;
+                std::chrono::steady_clock::now() - t0).count();
             std::cerr << "  compact BFS done: " << compact.size() << " states, "
                       << compact_secs << "s\n";
             log_mem("compact_done");
 
             int k_emitted = 0, k_deduped = 0;
-            emit(std::move(dist), ne + nh, ne, min_moves, max_moves, max_per_bucket,
+            emit(compact, ne + nh, ne, min_moves, max_moves, max_per_bucket,
                  id, seen_sigs, seen_pruned_canons, seen_dp_sigs,
-                 seen_state_sets, k_emitted, k_deduped, &compact);
+                 seen_state_sets, k_emitted, k_deduped);
 
             std::cerr << "  emitted: " << k_emitted
                       << "  deduped by collision sig: " << k_deduped << "\n";
