@@ -411,3 +411,17 @@ The compact version remains a promising future optimization but needs more desig
 4. Solution tracing from augmented map (cheap forward DFS per puzzle) ✓
 
 **Next:** implement pre-sizing in the expanded version and integrate into the main pipeline.
+
+### 2026-04-18T10:00Z — Root cause found: canonical_with_perm vs canonical_aug use different winning transforms
+
+**The fundamental conflict:** when a base state has non-trivial automorphisms (multiple D4 transforms produce the same canonical encoding), `canonical_with_perm` picks one transform (based on lex-min of positions only) while `canonical_aug` picks a potentially different one (based on lex-min of positions + cell). The cost array in the compact version stores costs indexed by robot index, but the "correct" robot index depends on which transform was used.
+
+Cross-reference confirmed: compact cost arrays match the expanded BFS for most robots but have EXTRA entries (lower costs) for robots at indices that don't correspond to valid (state, cell) pairs in the expanded version. These are "phantom" states created by applying the wrong symmetry transform's permutation.
+
+**This is a fundamental limitation of the compact approach with symmetry.** The compact representation wants ONE transform per base state (for the cost array indexing), but the augmented representation needs per-(state, cell) transform choices.
+
+**Possible fixes:**
+1. **Don't use symmetry for the compact version.** Works (12/12 pass without symmetry) but 7-35× more states.
+2. **Use the identity transform only for states with automorphisms.** Detect self-symmetric states and skip symmetry for them. Complex but targeted.
+3. **Store costs indexed by CELL not by robot index.** Avoids the permutation problem entirely but needs 49 bytes per state (sparse) or a variable-length encoding.
+4. **Accept the expanded approach and use a 64 GB machine.** Pre-size the FlatMap from the base BFS count.
