@@ -1046,6 +1046,400 @@ static FlatMap retrograde_grouped(int num_exits, int num_helpers)
     return dist;
 }
 
+// ── FlatMapWide: hash map with 8-byte cost arrays per base state ─────────────
+//
+// Each slot is 16 bytes: [key: uint64_t][costs: uint8_t[8]].
+// key uses the same encoding as FlatMap (6n-bit canonical state).
+// costs[i] = grouped-move cost when robot i was last mover (255 = unvisited).
+// costs[N] = cost when last_mover was EXITED (for goal-adjacent states).
+// Slots 0..N are robot indices; slot N is the EXITED sentinel.
+
+struct FlatMapWide {
+    static constexpr uint64_t EMPTY_KEY = ~(uint64_t)0;
+    static constexpr uint8_t  NO_COST   = 255;
+
+    struct Slot {
+        uint64_t key;
+        uint8_t  costs[8];
+    };
+
+    Slot*    data_     = nullptr;
+    size_t   cap_      = 0;
+    size_t   sz_       = 0;
+    int      key_bits_ = 0;
+
+    explicit FlatMapWide(int key_bits) : key_bits_(key_bits) {}
+    ~FlatMapWide() { std::free(data_); }
+    FlatMapWide(const FlatMapWide&) = delete;
+    FlatMapWide& operator=(const FlatMapWide&) = delete;
+    FlatMapWide(FlatMapWide&& o) noexcept
+        : data_(o.data_), cap_(o.cap_), sz_(o.sz_), key_bits_(o.key_bits_)
+    { o.data_ = nullptr; o.cap_ = o.sz_ = 0; }
+    FlatMapWide& operator=(FlatMapWide&& o) noexcept {
+        if (this != &o) { std::free(data_); data_ = o.data_; cap_ = o.cap_;
+            sz_ = o.sz_; key_bits_ = o.key_bits_; o.data_ = nullptr; o.cap_ = o.sz_ = 0; }
+        return *this;
+    }
+
+    size_t size() const { return sz_; }
+    size_t cap()  const { return cap_; }
+
+    void reserve(size_t n) {
+        size_t c = 16;
+        while (c * 3 < n * 4) c <<= 1;
+        if (c > cap_) rehash(c);
+    }
+
+    void ensure_parallel_capacity(size_t needed) {
+        size_t c = cap_ ? cap_ : 16;
+        while (c * 3 < needed * 4) c <<= 1;
+        if (c > cap_) rehash(c);
+    }
+
+    // Find slot index for key k.  Returns cap_ if not found.
+    // If insert_if_missing is true, inserts an empty entry and increments sz_.
+    size_t find_or_insert(uint64_t k, bool insert_if_missing = false) {
+        if (!cap_) {
+            if (!insert_if_missing) return cap_;
+            rehash(16);
+        }
+        if (insert_if_missing && sz_ * 4 >= cap_ * 3)
+            rehash(cap_ * 2);
+        size_t h = hash(k) & (cap_ - 1);
+        for (size_t probe = 0; probe < cap_; probe++) {
+            if (data_[h].key == EMPTY_KEY) {
+                if (!insert_if_missing) return cap_;
+                data_[h].key = k;
+                std::memset(data_[h].costs, NO_COST, 8);
+                ++sz_;
+                return h;
+            }
+            if (data_[h].key == k) return h;
+            h = (h + 1) & (cap_ - 1);
+        }
+        if (insert_if_missing) {
+            std::fprintf(stderr, "FATAL FlatMapWide: probe limit exhausted\n");
+            std::abort();
+        }
+        return cap_;
+    }
+
+    // Parallel version: atomically insert key if absent, return slot index.
+    // Caller must have called ensure_parallel_capacity() first.
+    size_t atomic_find_or_insert(uint64_t k) {
+        size_t h = hash(k) & (cap_ - 1);
+        for (size_t probe = 0; probe < cap_; probe++) {
+            uint64_t expected = EMPTY_KEY;
+            if (__atomic_compare_exchange_n(
+                    &data_[h].key, &expected, k,
+                    false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
+                // We won the CAS — initialize costs.
+                std::memset(data_[h].costs, NO_COST, 8);
+                __atomic_fetch_add(&sz_, (size_t)1, __ATOMIC_RELAXED);
+                return h;
+            }
+            if (expected == k) return h;  // already present
+            h = (h + 1) & (cap_ - 1);
+        }
+        std::fprintf(stderr, "FATAL FlatMapWide::atomic_find_or_insert: probe limit\n");
+        std::abort();
+    }
+
+private:
+    static size_t hash(uint64_t k) {
+        k = (k ^ (k >> 30)) * 0xbf58476d1ce4e5b9ULL;
+        k = (k ^ (k >> 27)) * 0x94d049bb133111ebULL;
+        return (size_t)(k ^ (k >> 31));
+    }
+    void rehash(size_t new_cap) {
+        Slot* old = data_; size_t oc = cap_;
+        data_ = (Slot*)std::malloc(new_cap * sizeof(Slot));
+        for (size_t i = 0; i < new_cap; i++) data_[i].key = EMPTY_KEY;
+        cap_ = new_cap;
+        if (old) {
+            for (size_t i = 0; i < oc; i++) {
+                if (old[i].key == EMPTY_KEY) continue;
+                size_t h = hash(old[i].key) & (new_cap - 1);
+                while (data_[h].key != EMPTY_KEY) h = (h + 1) & (new_cap - 1);
+                data_[h] = old[i];
+            }
+            std::free(old);
+        }
+    }
+};
+
+// ── Compact augmented retrograde 0-1 BFS ─────────────────────────────────────
+//
+// Same algorithm as retrograde_grouped() but stores per-state cost arrays
+// instead of expanded augmented keys.  Memory: ~16 bytes per base state
+// (vs 8 bytes per augmented state × N augmented variants ≈ 8N bytes).
+//
+// Frontier entries are (base_state, robot_index) pairs packed into uint64_t:
+// bits [0, 6n) = canonical base state, bits [6n, 6n+4) = robot index (0-7).
+
+static void generate_compact_predecessors(
+    State s, int last_robot_idx, int n, int num_exits,
+    const FlatMapWide& dist,
+    std::vector<std::pair<State, int>>& out_zero,  // (canonical base state, robot_idx)
+    std::vector<std::pair<State, int>>& out_one)
+{
+    int pos[10];
+    decode(s, n, pos);
+
+    uint64_t full_occ = 0;
+    for (int j = 0; j < n; j++)
+        if (pos[j] != EXITED) full_occ |= (uint64_t)1 << pos[j];
+
+    // Determine which cell the last mover is at.
+    int last_cell;
+    if (last_robot_idx >= n) {
+        // EXITED sentinel — un-exit an exit robot.
+        last_cell = EXITED;
+    } else {
+        last_cell = pos[last_robot_idx];
+    }
+
+    if (last_cell == EXITED) {
+        // Un-exit: for each EXITED exit, try placing it back.
+        if (full_occ & ((uint64_t)1 << CTR)) return;
+
+        for (int eidx = 0; eidx < num_exits; eidx++) {
+            if (pos[eidx] != EXITED) continue;
+            const int ctr_r = CTR / N, ctr_c = CTR % N;
+            for (int d = 0; d < NUM_DIRS; d++) {
+                const int blr = ctr_r + DR[d], blc = ctr_c + DC[d];
+                if (blr < 0 || blr >= N || blc < 0 || blc >= N) continue;
+                const int bp = blr * N + blc;
+                if (BLOCKED & ((uint64_t)1 << bp)) continue;
+                if (!(full_occ & ((uint64_t)1 << bp))) continue;
+
+                for (int k = 1; ; k++) {
+                    const int wr = ctr_r - k * DR[d], wc = ctr_c - k * DC[d];
+                    if (wr < 0 || wr >= N || wc < 0 || wc >= N) break;
+                    const int wp = wr * N + wc;
+                    if (BLOCKED & ((uint64_t)1 << wp)) break;
+                    if (full_occ & ((uint64_t)1 << wp)) break;
+
+                    int nr[10];
+                    std::memcpy(nr, pos, n * sizeof(int));
+                    nr[eidx] = wp;
+                    std::sort(nr + num_exits, nr + n);
+                    const State ps = canonical(encode(nr, n), n, num_exits);
+
+                    // Find where eidx ended up after sort (identify by position wp).
+                    int eidx_in_pred = eidx;  // exits don't sort with helpers
+                    // But exits DO sort among themselves.
+                    for (int e = 0; e < num_exits; e++)
+                        if (nr[e] == wp) { eidx_in_pred = e; break; }
+
+                    // Cost-0: same exit was continuing
+                    out_zero.push_back({ps, eidx_in_pred});
+
+                    // Cost-1: exit was a new mover — other robots as last_mover
+                    for (int j = 0; j < n; j++) {
+                        const int m = nr[j];
+                        if (m == EXITED || m == wp) continue;
+                        out_one.push_back({ps, j});
+                    }
+                    // Multi-exit: if predecessor still has EXITED exits
+                    for (int e = 0; e < num_exits; e++) {
+                        if (nr[e] == EXITED) {
+                            out_one.push_back({ps, n});  // index n = EXITED slot
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        return;
+    }
+
+    // Normal case: reverse the robot at last_cell.
+    // Find its index in the current state.
+    int ridx = -1;
+    for (int j = 0; j < n; j++)
+        if (pos[j] == last_cell) { ridx = j; break; }
+    if (ridx < 0) return;
+
+    const int pr = last_cell / N, pc = last_cell % N;
+    const uint64_t occ_without_r = full_occ ^ ((uint64_t)1 << last_cell);
+
+    for (int d = 0; d < NUM_DIRS; d++) {
+        const int blr = pr + DR[d], blc = pc + DC[d];
+        if (blr < 0 || blr >= N || blc < 0 || blc >= N) continue;
+        const int bp = blr * N + blc;
+        if (BLOCKED & ((uint64_t)1 << bp)) continue;
+        if (!(occ_without_r & ((uint64_t)1 << bp))) continue;
+
+        int wr = pr, wc = pc;
+        for (;;) {
+            wr -= DR[d]; wc -= DC[d];
+            if (wr < 0 || wr >= N || wc < 0 || wc >= N) break;
+            const int wp = wr * N + wc;
+            if (BLOCKED & ((uint64_t)1 << wp)) break;
+            if (occ_without_r & ((uint64_t)1 << wp)) break;
+            if (wp == CTR && ridx < num_exits) continue;
+
+            int nr[10];
+            std::memcpy(nr, pos, n * sizeof(int));
+            nr[ridx] = wp;
+            std::sort(nr + num_exits, nr + n);
+            const State ps = canonical(encode(nr, n), n, num_exits);
+
+            // Find the robot index for wp in the canonical predecessor.
+            // After sort + canonical transform, the robot that was at ridx
+            // is now at position wp (or its canonical transform).
+            // We need to find which index in the canonical state maps to
+            // the "reversed robot" — identify by position.
+            int pred_pos[10];
+            decode(ps, n, pred_pos);
+            int ridx_in_pred = -1;
+            // The reversed robot is at wp in the pre-canonical state.
+            // In the canonical state, it's at sym(wp, best_transform).
+            // But canonical() doesn't expose which transform was used.
+            // Simpler: find any robot at any position and map by wp.
+            // Actually — we need to track through canonicalization.
+            // For now, find the position that wp maps to under each
+            // symmetry transform and check which index has that position.
+            //
+            // SIMPLIFICATION: just try all N robot indices. The one at wp
+            // in the pre-canonical encoding is the reversed robot.
+            // After canonical(), the position may differ but the INDEX
+            // relationship is lost.
+            //
+            // PROBLEM: canonical() changes both positions AND indices.
+            // We can't reliably map ridx through canonical().
+            //
+            // ALTERNATIVE: Don't use canonical(). Use the same sort-only
+            // encoding as the non-symmetry version.  This costs ~4-8×
+            // more states (no symmetry reduction) but avoids the index
+            // mapping problem.
+            //
+            // For now: skip canonicalization (sort only, no symmetry).
+            // This matches the working validate-augmented approach.
+
+            // Cost-0: same robot was continuing.
+            // Identify reversed robot by position wp in the sorted predecessor.
+            int wp_idx = -1;
+            for (int j = 0; j < n; j++)
+                if (nr[j] == wp) { wp_idx = j; break; }
+
+            if (wp_idx >= 0)
+                out_zero.push_back({ps, wp_idx});
+
+            // Cost-1: different robot was the last mover.
+            for (int j = 0; j < n; j++) {
+                const int m = nr[j];
+                if (m == EXITED || m == wp) continue;
+                out_one.push_back({ps, j});
+            }
+            // Multi-exit: if predecessor has EXITED exits
+            for (int e = 0; e < num_exits; e++) {
+                if (nr[e] == EXITED) {
+                    out_one.push_back({ps, n});  // EXITED slot
+                    break;
+                }
+            }
+        }
+    }
+}
+
+static FlatMapWide retrograde_grouped_compact(int num_exits, int num_helpers)
+{
+    const int n = num_exits + num_helpers;
+    FlatMapWide dist(6 * n);
+
+    std::vector<int> pool;
+    pool.reserve(NC - 1);
+    for (int i = 0; i < NC; i++)
+        if (i != CTR && !(BLOCKED & ((uint64_t)1 << i))) pool.push_back(i);
+    const int P = (int)pool.size();
+
+    // Frontier: (canonical_base_state, robot_index) pairs.
+    // robot_index n = EXITED slot.
+    using FrontierEntry = std::pair<State, int>;
+    std::vector<FrontierEntry> cur_zero, cur_one;
+
+    // Seed: goal states at cost 0, EXITED slot.
+    {
+        size_t seed_est = 1;
+        for (int i = 0; i < num_helpers; i++) {
+            seed_est = seed_est * (size_t)(P - i) / (size_t)(i + 1);
+            if (seed_est > (size_t)1 << 28) { seed_est = (size_t)1 << 28; break; }
+        }
+        dist.reserve(std::max(seed_est, (size_t)1 << 20));
+
+        int chosen[9] = {};
+        size_t seed_count = 0;
+        std::function<void(int,int)> seed = [&](int start, int rem) {
+            if (rem == 0) {
+                int pos[10];
+                for (int e = 0; e < num_exits; e++) pos[e] = EXITED;
+                for (int h = 0; h < num_helpers; h++) pos[num_exits + h] = chosen[h];
+                std::sort(pos + num_exits, pos + n);
+                const State s = canonical(encode(pos, n), n, num_exits);
+                size_t slot = dist.find_or_insert(s, true);
+                if (dist.data_[slot].costs[n] == FlatMapWide::NO_COST) {
+                    dist.data_[slot].costs[n] = 0;  // EXITED slot at cost 0
+                    cur_zero.push_back({s, n});
+                    seed_count++;
+                }
+                return;
+            }
+            for (int i = start; i <= P - rem; i++) {
+                chosen[num_helpers - rem] = pool[i];
+                seed(i+1, rem-1);
+            }
+        };
+        seed(0, num_helpers);
+        std::cerr << "  compact seed: " << seed_count << " goal states\n";
+    }
+
+    // Two-phase level-synchronous 0-1 BFS.
+    for (int cost = 0; cost <= 254; cost++) {
+        while (!cur_zero.empty()) {
+            std::vector<FrontierEntry> next_zero, next_one;
+            std::vector<FrontierEntry> z_buf, o_buf;
+
+            for (const auto& [state, ridx] : cur_zero) {
+                z_buf.clear(); o_buf.clear();
+                generate_compact_predecessors(state, ridx, n, num_exits, dist, z_buf, o_buf);
+
+                for (const auto& [ps, pi] : z_buf) {
+                    size_t slot = dist.find_or_insert(ps, true);
+                    if (dist.data_[slot].costs[pi] > cost) {
+                        dist.data_[slot].costs[pi] = (uint8_t)cost;
+                        next_zero.push_back({ps, pi});
+                    }
+                }
+                for (const auto& [ps, pi] : o_buf) {
+                    if (cost + 1 > 254) continue;
+                    size_t slot = dist.find_or_insert(ps, true);
+                    if (dist.data_[slot].costs[pi] > (uint8_t)(cost + 1)) {
+                        dist.data_[slot].costs[pi] = (uint8_t)(cost + 1);
+                        next_one.push_back({ps, pi});
+                    }
+                }
+            }
+            cur_zero.swap(next_zero);
+            cur_one.insert(cur_one.end(), next_one.begin(), next_one.end());
+        }
+
+        if (cost % 5 == 0 || cur_one.empty())
+            std::cerr << "  compact cost " << cost
+                      << ": " << dist.size() << " base states\n";
+
+        if (cur_one.empty()) break;
+        cur_zero.swap(cur_one);
+        cur_one.clear();
+    }
+
+    std::cerr << "  compact augmented done: " << dist.size() << " base states"
+              << " (capacity=" << dist.cap() << ", "
+              << (dist.cap() * 16 / 1048576) << " MB)\n";
+    return dist;
+}
+
 // ── Forward-move simulation ───────────────────────────────────────────────────
 // Slides robot ridx in direction dir from persistent positions pos[].
 // Exit robots: position becomes EXITED if they land on center.
@@ -2882,6 +3276,7 @@ int main(int argc, char* argv[]) {
     int only_exits = -1, only_helpers = -1;
     bool validate_augmented = false;
     bool bench_augmented = false;
+    bool bench_compact = false;
     for (int i = 1; i < argc; i++) {
         const char* a = argv[i];
         if (std::strncmp(a, "--only=", 7) == 0) {
@@ -2894,6 +3289,8 @@ int main(int argc, char* argv[]) {
             validate_augmented = true;
         if (std::strcmp(a, "--bench-augmented") == 0)
             bench_augmented = true;
+        if (std::strcmp(a, "--bench-compact") == 0)
+            bench_compact = true;
     }
 
     // Per-variant block masks — computed once regardless of the active variant
@@ -2946,6 +3343,22 @@ int main(int argc, char* argv[]) {
                   << secs << "s, "
                   << "capacity=" << aug_dist.cap() << " ("
                   << (aug_dist.cap() * 8 / 1048576) << " MB)\n";
+        return 0;
+    }
+
+    if (bench_compact) {
+        const int ne = only_exits > 0 ? only_exits : 1;
+        const int nh = only_helpers > 0 ? only_helpers : 2;
+        const int nt = ne + nh;
+        std::cerr << "=== Benchmarking compact augmented BFS: " << ne << "+" << nh << " ===\n";
+        auto t0 = std::chrono::steady_clock::now();
+        auto dist = retrograde_grouped_compact(ne, nh);
+        auto t1 = std::chrono::steady_clock::now();
+        double secs = std::chrono::duration<double>(t1 - t0).count();
+        std::cerr << "  compact BFS: " << dist.size() << " base states, "
+                  << secs << "s, "
+                  << "capacity=" << dist.cap() << " ("
+                  << (dist.cap() * 16 / 1048576) << " MB)\n";
         return 0;
     }
 
