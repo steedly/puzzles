@@ -479,3 +479,17 @@ The following bugs should have regression tests:
 6. **Greedy trace cycling** (cost-0 edges cause infinite loops without cycle detection)
 
 These should be added to `test_enumerate.cpp` as specific test cases using known states that trigger each bug. TODO after the trace bug is fixed.
+
+### 2026-04-18 11:30 PDT — DFS trace bug fixed (cost-0 edges at target_cost)
+
+**Bug:** `forward_dfs_trace_compact` returned false when `cur_cost == target_cost`, even though cost-0 edges (same robot continuing) don't increase cost and could still reach the goal. Example: exit slides up (cost 1 = target), then continues left to center (cost 0) — the second slide was never explored.
+
+**Fix:** change `if (cur_cost >= target_cost) return false` to `if (cur_cost > target_cost) return false`.
+
+**Also fixed:** extracted `lookup_compact_cost()` helper for automorphism-safe cost lookups, used by all trace and lookup functions.
+
+**Results:**
+- 1-exit combos: fully working (1+3 standard: 52 puzzles PASS validate_solutions.py)
+- Multi-exit combos: trace works but produces puzzles with already-EXITED exits in starting positions. Validator rejects these. Need to filter pass 1 to skip states with pre-exited exits.
+
+**Remaining:** multi-exit filtering in pass 1 (should skip states where any exit is already EXITED — those aren't valid puzzle starting positions).
