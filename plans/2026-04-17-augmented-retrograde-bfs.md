@@ -395,3 +395,19 @@ The `canonical_with_perm()` function itself produces correct canonical states (v
 3. Use the compact version without symmetry on a 64 GB box (works, 12/12 pass, but more states)
 
 Commit: `44d44d2`
+
+### 2026-04-18T09:00Z — Decision: proceed with expanded version + pre-sizing
+
+The compact version's permutation-through-canonicalization bug produces INCORRECT costs (both too high and too low). The too-low case is particularly dangerous — it means the BFS reports costs lower than the actual minimum. Root cause: the index-based cost array approach fundamentally conflicts with symmetry canonicalization's index rewriting in subtle ways that are hard to debug.
+
+**Decision:** proceed with the validated **expanded augmented BFS** (12/12 pass with full symmetry canonicalization). Use pre-sizing from the base BFS state count to avoid the rehash memory peak. Target: 64 GB EC2 instance for the 4+3 production run (~$1 cost).
+
+The compact version remains a promising future optimization but needs more design work on the index-tracking problem. A possible solution: store costs indexed by CELL POSITION (a sparse set per base state) rather than ROBOT INDEX, avoiding the permutation issue entirely. But this is a bigger redesign.
+
+**Current production-ready pipeline:**
+1. Base retrograde BFS: 356M states, ~96s, ~4 GB ✓
+2. Augmented retrograde 0-1 BFS: ~2.4B states, ~15 min, ~27 GB (pre-sized on 64 GB) ✓
+3. Dedup/filter using grouped-move costs from augmented map ✓
+4. Solution tracing from augmented map (cheap forward DFS per puzzle) ✓
+
+**Next:** implement pre-sizing in the expanded version and integrate into the main pipeline.
