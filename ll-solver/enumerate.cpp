@@ -308,6 +308,34 @@ static State canonical_with_perm(State s, int n, int num_exits, int* perm) {
                 perm[helpers[hi].orig_idx] = num_exits + hi;
         }
     }
+    // Self-check: verify perm is consistent.
+    {
+        int cr[10]; decode(best, n, cr);
+        for (int i = 0; i < n; i++) {
+            // r[i] is the original position. After the winning transform + sort,
+            // it should be at canonical index perm[i]. Verify:
+            // canonical_pos[perm[i]] should equal transform(original_pos[i]).
+            // We don't know the winning transform here, but we can check that
+            // perm is a valid permutation (within exits, within helpers).
+            if (perm[i] < 0 || perm[i] >= n) {
+                std::fprintf(stderr, "PERM BUG: perm[%d]=%d out of range (n=%d)\n", i, perm[i], n);
+                std::abort();
+            }
+        }
+        // Check that perm maps exits to exits and helpers to helpers.
+        for (int e = 0; e < num_exits; e++) {
+            if (perm[e] >= num_exits) {
+                std::fprintf(stderr, "PERM BUG: exit %d mapped to helper index %d\n", e, perm[e]);
+                std::abort();
+            }
+        }
+        for (int h = num_exits; h < n; h++) {
+            if (perm[h] < num_exits) {
+                std::fprintf(stderr, "PERM BUG: helper %d mapped to exit index %d\n", h, perm[h]);
+                std::abort();
+            }
+        }
+    }
     return best;
 }
 
@@ -3346,6 +3374,10 @@ int main(int argc, char* argv[]) {
         const int nt = ne + nh;
         std::cerr << "=== Validating compact augmented BFS: " << ne << "+" << nh << " ===\n";
 
+        // Run BOTH compact and expanded BFS for cross-reference.
+        auto aug_expanded = retrograde_grouped(ne, nh);
+        std::cerr << "  expanded: " << aug_expanded.size() << " augmented states\n";
+
         // Run compact augmented BFS.
         auto dist = retrograde_grouped_compact(ne, nh);
         std::cerr << "  compact: " << dist.size() << " base states\n";
@@ -3404,9 +3436,42 @@ int main(int argc, char* argv[]) {
 
             if (min_compact != fwd_cost && min_compact != 999) {
                 mismatches++;
-                std::cerr << "  MISMATCH: state " << s
-                          << " compact=" << min_compact << " fwd=" << fwd_cost << "\n";
-                if (mismatches >= 20) { std::cerr << "  ... stopping\n"; break; }
+                int dp[10]; decode(s, nt, dp);
+                std::cerr << "  MISMATCH: state " << s << " compact=" << min_compact << " fwd=" << fwd_cost;
+                std::cerr << "  pos:";
+                for (int j=0;j<nt;j++) std::cerr << " " << dp[j];
+                std::cerr << "\n";
+                // Show which successor gave the min_compact value.
+                for (int ridx2=0;ridx2<nt;ridx2++) for (int d2=0;d2<NUM_DIRS;d2++) {
+                    int nc2,bi2; State ns2;
+                    if (!forward_move(pos,nt,ne,ridx2,d2,nc2,bi2,ns2,occ)) continue;
+                    int sp2[10]; canonical_with_perm(ns2,nt,ne,sp2);
+                    int li2 = (ridx2<ne&&nc2==CTR) ? nt : sp2[ridx2];
+                    State ns2c = canonical_with_perm(ns2,nt,ne,sp2);
+                    size_t sl2 = dist.find_or_insert(ns2c,false);
+                    if (sl2>=dist.cap()) continue;
+                    int sc2 = (int)dist.data_[sl2].costs[li2];
+                    if (sc2<255 && 1+sc2==min_compact) {
+                        std::cerr << "    via robot " << ridx2 << " dir " << d2
+                                  << " → succ=" << ns2c << " landing_idx=" << li2
+                                  << " succ_cost=" << sc2 << "\n";
+                        // Print full cost array of successor
+                        std::cerr << "    succ costs:";
+                        for (int ci=0;ci<=nt;ci++) std::cerr << " [" << ci << "]=" << (int)dist.data_[sl2].costs[ci];
+                        std::cerr << "\n";
+                        // Cross-check with expanded BFS
+                        int sp3[10]; decode(ns2c, nt, sp3);
+                        for (int ci=0;ci<nt;ci++) {
+                            if (sp3[ci] == EXITED) continue;
+                            uint64_t aug_key = canonical_aug(ns2c, sp3[ci], nt, ne, 6*nt);
+                            uint8_t aug_val;
+                            if (aug_expanded.find_val(aug_key, &aug_val))
+                                std::cerr << "    expanded[robot " << ci << " cell " << sp3[ci] << "]=" << (int)aug_val << "\n";
+                        }
+                        break;
+                    }
+                }
+                if (mismatches >= 5) { std::cerr << "  ... stopping\n"; break; }
             } else if (min_compact == 999) {
                 mismatches++;
                 std::cerr << "  MISS: state " << s << " (no successor found)\n";
