@@ -364,4 +364,17 @@ Commit: `f64b9d4`
 - 356M base states × ~1× (exits at fixed indices, no permutation blowup for the COMPACT version since we're not storing per-permutation entries — just one entry per configuration with exits at their natural indices)
 - Wait — actually need to verify: does not sorting exits create MORE base states than the base retrograde BFS finds? The base BFS DOES sort exits via canonical(). So the compact BFS without exit sorting will find MORE states (exit permutations that canonical() would collapse).
 
-**TODO:** measure the actual state count for a multi-exit combo to quantify the no-exit-sort overhead. For 4+3 (4 exits): could be up to 4! = 24× more states, which would blow the memory budget. May need to add exit-sorting back with correct index tracking.
+**Measured exit-permutation overhead (no exit sort, no symmetry):**
+
+| Combo | Base retro (canonical) | Compact (no sort/sym) | Ratio |
+|-------|----------------------|----------------------|-------|
+| 1+3 | 5,136 | 39,512 | 7.7× |
+| 2+2 | 464 | 5,472 | 11.8× |
+| 2+3 | 20,622 | 306,464 | 14.9× |
+| 3+2 | 869 | 30,048 | 34.6× |
+
+**Without symmetry, the compact version has MORE entries than the expanded version with symmetry.** For 4+3, the ratio would be ~96× (4! exits × 4 Klein transforms), making the compact approach WORSE than the expanded one.
+
+**Conclusion:** the compact per-state cost array approach REQUIRES symmetry canonicalization. Need to implement `canonical_with_perm()` that returns the canonical state AND the index permutation, so the cost array can be permuted to match.
+
+**Next:** implement canonical-with-permutation tracking.
