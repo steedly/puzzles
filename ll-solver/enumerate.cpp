@@ -1224,9 +1224,8 @@ static void generate_compact_predecessors(
                     std::memcpy(nr, pos, n * sizeof(int));
                     nr[eidx] = wp;
                     std::sort(nr + num_exits, nr + n);
-                    // Sort-only encoding (no symmetry transforms) so that
-                    // robot indices in nr[] directly correspond to cost array indices.
-                    std::sort(nr, nr + num_exits);
+                    // Sort helpers only (exits keep fixed indices, matching
+                    // forward_move convention). No symmetry transforms.
                     const State ps = encode(nr, n);
 
                     // Find where the un-exited exit ended up after sort.
@@ -1348,7 +1347,8 @@ static FlatMapWide retrograde_grouped_compact(int num_exits, int num_helpers)
                 for (int e = 0; e < num_exits; e++) pos[e] = EXITED;
                 for (int h = 0; h < num_helpers; h++) pos[num_exits + h] = chosen[h];
                 std::sort(pos + num_exits, pos + n);
-                std::sort(pos, pos + num_exits);
+                // Don't sort exits — keep fixed indices matching forward_move.
+                // Helpers are already sorted by the seed enumeration.
                 const State s = encode(pos, n);
                 size_t slot = dist.find_or_insert(s, true);
                 if (dist.data_[slot].costs[n] == FlatMapWide::NO_COST) {
@@ -3336,11 +3336,10 @@ int main(int argc, char* argv[]) {
                     int nc, bi; State ns;
                     if (!forward_move(pos, nt, ne, ridx, d, nc, bi, ns, occ))
                         continue;
-                    // Re-sort exits in successor (compact BFS sorts exits).
+                    // Decode successor — exits at fixed indices, helpers sorted
+                    // by forward_move. No exit re-sort needed (compact BFS
+                    // doesn't sort exits either).
                     int spos[10]; decode(ns, nt, spos);
-                    std::sort(spos, spos + ne);  // sort exits
-                    // helpers already sorted by forward_move
-                    ns = encode(spos, nt);
 
                     // Find which robot index the mover landed at.
                     int landing = (ridx < ne && nc == CTR) ? EXITED : nc;

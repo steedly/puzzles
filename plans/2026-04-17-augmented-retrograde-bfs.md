@@ -346,3 +346,22 @@ The 3.2× speed advantage comes from fewer hash probes (10M unique keys vs 58M) 
 **Status:** compiles and runs but not yet validated against solve_min_grouped. Need to add validation and fix the robot-index mapping through symmetry canonicalization.
 
 Commit: `f64b9d4`
+
+### 2026-04-18T06:00Z — Compact BFS validated: 12/12 PASS
+
+**Bug found and fixed:** exits were sorted in the un-exit predecessor generation and seed, but NOT in the normal reverse-slide code or forward_move. This caused inconsistent state encodings for multi-exit puzzles — the same board configuration stored with different exit orderings depending on which code path discovered it. Fix: don't sort exits anywhere (keep fixed indices matching forward_move). Helpers-only sorting is sufficient.
+
+**Trade-off:** without exit sorting, exit-permutation states don't collapse. For 2-exit puzzles: up to 2× more states. For 4-exit: up to 24×. This increases memory for multi-exit combos but correctness is now validated.
+
+**12/12 combos PASS** (9 standard + 3 beehive).
+
+**Measured 1+5 beehive:**
+- Compact: 10.1M base states, 7.2s, 256 MB FlatMap, 1.6 GB RSS
+- Expanded: 58.5M aug states, 23.1s, 1 GB FlatMap, 2.5 GB RSS
+- **3.2× faster, 4× less FlatMap memory**
+
+**4+3 beehive projection (without exit sorting):**
+- 356M base states × ~1× (exits at fixed indices, no permutation blowup for the COMPACT version since we're not storing per-permutation entries — just one entry per configuration with exits at their natural indices)
+- Wait — actually need to verify: does not sorting exits create MORE base states than the base retrograde BFS finds? The base BFS DOES sort exits via canonical(). So the compact BFS without exit sorting will find MORE states (exit permutations that canonical() would collapse).
+
+**TODO:** measure the actual state count for a multi-exit combo to quantify the no-exit-sort overhead. For 4+3 (4 exits): could be up to 4! = 24× more states, which would blow the memory budget. May need to add exit-sorting back with correct index tracking.
