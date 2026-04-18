@@ -319,3 +319,30 @@ Throughput degrades significantly with map size (cache misses). **Revised 4+3 es
 **Only two approaches fit on 32 GB:** Robin Hood pre-sized (if multiplier estimate is accurate enough to avoid rehash) and two-pass MPH (doubles BFS time but uses 3 GB).
 
 The pre-sized approach works if we use a conservative multiplier (7×) based on the measured 6.8× at 1+6. Risk: if 4+3's multiplier exceeds 7×, the pre-sized map is too small and rehash blows 32 GB. Safety margin is thin.
+
+### 2026-04-18T05:00Z — Compact per-state cost array variant implemented and measured
+
+**Key insight:** the 7× memory blowup comes from storing 7 copies of the same 42-bit board state key, each with a different 6-bit last_mover suffix. Instead: store each base state ONCE with an 8-byte cost array (one byte per robot index + EXITED sentinel).
+
+**Implementation:** `retrograde_grouped_compact()` uses a new `FlatMapWide` (16-byte slots: 8-byte key + 8-byte cost array). The BFS frontier entries are `(base_state, robot_index)` pairs. Predecessor generation updates cost array bytes within existing map entries rather than inserting new augmented keys.
+
+**Measured results on 1+5 beehive (Mac, single-threaded):**
+
+| Metric | Compact | Expanded | Ratio |
+|--------|---------|----------|-------|
+| Hash entries | 10.1M | 58.5M | **5.8× fewer** |
+| Time | 7.2s | 23.1s | **3.2× faster** |
+| FlatMap | 256 MB | 1,024 MB | 4× smaller |
+| RSS | 1.6 GB | 2.5 GB | 1.5× less |
+
+**4+3 beehive projection:**
+- 356M base states × 16 bytes / 0.75 load → 512M pow2 slots × 16 = **8.2 GB**
+- With frontiers/overhead: **~10 GB total**
+- **Fits comfortably on 32 GB** (vs 34.4 GB for expanded version)
+- Estimated time: 356M/10.1M × 7.2s × (cache_penalty) ≈ **250-400s single-threaded**, ~60-100s on 16 cores
+
+The 3.2× speed advantage comes from fewer hash probes (10M unique keys vs 58M) and better cache coherence (256 MB working set vs 1 GB).
+
+**Status:** compiles and runs but not yet validated against solve_min_grouped. Need to add validation and fix the robot-index mapping through symmetry canonicalization.
+
+Commit: `f64b9d4`
