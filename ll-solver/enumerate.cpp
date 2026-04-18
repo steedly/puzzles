@@ -2095,6 +2095,176 @@ static TraceResult solve_min_grouped(State start, int n, int num_exits) {
     return {std::move(sol), best_goal_cost};
 }
 
+// ── Solve from compact augmented BFS map ─────────────────────────────────────
+// Looks up the grouped-move cost from the compact FlatMapWide, then traces
+// the optimal solution via forward DFS guided by the cost array.
+//
+// Cost lookup: try all first moves from start, take 1 + min(costs[landing_idx]).
+// Trace: at each step, pick a move where the successor's cost matches
+//        current_cost - edge_cost.
+
+// Helper: look up grouped-move cost for a base state from the compact map.
+// Returns the minimum grouped-move cost, or -1 if not found.
+static int lookup_grouped_cost(const FlatMapWide& compact_dist,
+                                State start, int n, int num_exits)
+{
+    int pos[10]; decode(start, n, pos);
+    // Check if already at goal.
+    bool at_goal = true;
+    for (int e = 0; e < num_exits; e++)
+        if (pos[e] != EXITED) { at_goal = false; break; }
+    if (at_goal) return 0;
+
+    const uint64_t occ = make_occ(pos, n);
+    int min_cost = 999;
+    for (int ridx = 0; ridx < n; ridx++) {
+        for (int d = 0; d < NUM_DIRS; d++) {
+            int nc, bi; State ns;
+            if (!forward_move(pos, n, num_exits, ridx, d, nc, bi, ns, occ))
+                continue;
+            // Canonicalize successor and find landing index.
+            int spos[10]; decode(ns, n, spos);
+            State ns_canon = canonical(ns, n, num_exits);
+            int landing = (ridx < num_exits && nc == CTR) ? EXITED : nc;
+            int landing_idx = -1;
+            if (landing == EXITED) {
+                landing_idx = n;  // EXITED slot
+            } else {
+                // Find which canonical index the mover landed at.
+                for (int ti = 0; ti < NUM_SYMS && landing_idx < 0; ti++) {
+                    const int t = SYM_INDICES[ti];
+                    int tr[10];
+                    for (int e = 0; e < num_exits; e++)
+                        tr[e] = (spos[e] == EXITED) ? EXITED : sym(spos[e], t);
+                    for (int h = num_exits; h < n; h++)
+                        tr[h] = sym(spos[h], t);
+                    std::sort(tr, tr + num_exits);
+                    std::sort(tr + num_exits, tr + n);
+                    if (encode(tr, n) == ns_canon) {
+                        int landing_canon = sym(landing, t);
+                        int cpos[10]; decode(ns_canon, n, cpos);
+                        for (int j = 0; j < n; j++)
+                            if (cpos[j] == landing_canon) { landing_idx = j; break; }
+                        break;
+                    }
+                }
+            }
+            if (landing_idx < 0) continue;
+
+            size_t slot = const_cast<FlatMapWide&>(compact_dist).find_or_insert(ns_canon, false);
+            if (slot >= compact_dist.cap()) continue;
+            int succ_cost = (int)compact_dist.data_[slot].costs[landing_idx];
+            if (succ_cost < 255) {
+                min_cost = std::min(min_cost, 1 + succ_cost);
+            }
+        }
+    }
+    return min_cost < 999 ? min_cost : -1;
+}
+
+// Forward DFS trace using the compact map.
+static bool forward_dfs_trace_compact(
+    const FlatMapWide& compact_dist,
+    State cur_state, int cur_robot_idx, int cur_cost, int target_cost,
+    int n, int num_exits,
+    std::unordered_set<uint64_t>& in_path,
+    std::vector<Move>& sol)
+{
+    int pos[10]; decode(cur_state, n, pos);
+
+    // Goal check.
+    bool at_goal = true;
+    for (int e = 0; e < num_exits; e++)
+        if (pos[e] != EXITED) { at_goal = false; break; }
+    if (at_goal && cur_cost == target_cost) return true;
+    if (cur_cost >= target_cost) return false;
+
+    const uint64_t occ = make_occ(pos, n);
+
+    for (int ridx = 0; ridx < n; ridx++) {
+        for (int d = 0; d < NUM_DIRS; d++) {
+            int nc, bi; State ns;
+            if (!forward_move(pos, n, num_exits, ridx, d, nc, bi, ns, occ))
+                continue;
+
+            const int mover_cell = pos[ridx];
+            const int last_cell = (cur_robot_idx >= 0) ? pos[cur_robot_idx] : EXITED;
+            const int edge_cost = (mover_cell == last_cell) ? 0 : 1;
+            const int new_cost = cur_cost + edge_cost;
+            if (new_cost > target_cost) continue;
+
+            // Canonicalize successor and find landing index.
+            State ns_canon = canonical(ns, n, num_exits);
+            int landing = (ridx < num_exits && nc == CTR) ? EXITED : nc;
+
+            // Check if this successor exists in the compact map with the right cost.
+            int expected_remaining = target_cost - new_cost;
+            int landing_idx = -1;
+
+            if (landing == EXITED) {
+                landing_idx = n;
+            } else {
+                int spos[10]; decode(ns, n, spos);
+                for (int ti = 0; ti < NUM_SYMS && landing_idx < 0; ti++) {
+                    const int t = SYM_INDICES[ti];
+                    int tr[10];
+                    for (int e = 0; e < num_exits; e++)
+                        tr[e] = (spos[e] == EXITED) ? EXITED : sym(spos[e], t);
+                    for (int h = num_exits; h < n; h++)
+                        tr[h] = sym(spos[h], t);
+                    std::sort(tr, tr + num_exits);
+                    std::sort(tr + num_exits, tr + n);
+                    if (encode(tr, n) == ns_canon) {
+                        int landing_canon = sym(landing, t);
+                        int cpos[10]; decode(ns_canon, n, cpos);
+                        for (int j = 0; j < n; j++)
+                            if (cpos[j] == landing_canon) { landing_idx = j; break; }
+                        break;
+                    }
+                }
+            }
+            if (landing_idx < 0) continue;
+
+            // Check cost in compact map.
+            size_t slot = const_cast<FlatMapWide&>(compact_dist).find_or_insert(ns_canon, false);
+            if (slot >= compact_dist.cap()) continue;
+            int succ_remaining = (int)compact_dist.data_[slot].costs[landing_idx];
+            if (succ_remaining != expected_remaining) continue;
+
+            // Avoid cycles using state + robot_idx as key.
+            uint64_t path_key = ns_canon ^ ((uint64_t)landing_idx << 50);
+            if (in_path.count(path_key)) continue;
+
+            sol.push_back({(int8_t)ridx, (int8_t)d, (int8_t)bi});
+            in_path.insert(path_key);
+
+            if (forward_dfs_trace_compact(compact_dist, ns, ridx, new_cost,
+                                           target_cost, n, num_exits, in_path, sol))
+                return true;
+
+            in_path.erase(path_key);
+            sol.pop_back();
+        }
+    }
+    return false;
+}
+
+static TraceResult solve_from_compact(const FlatMapWide& compact_dist,
+                                       State start, int n, int num_exits)
+{
+    int cost = lookup_grouped_cost(compact_dist, start, n, num_exits);
+    if (cost <= 0) return {{}, cost};
+
+    std::vector<Move> sol;
+    std::unordered_set<uint64_t> in_path;
+    if (!forward_dfs_trace_compact(compact_dist, start, -1, 0, cost,
+                                    n, num_exits, in_path, sol)) {
+        std::cerr << "COMPACT_TRACE_FAIL start=" << start << " cost=" << cost << "\n";
+        return {{}, 0};
+    }
+    return {std::move(sol), cost};
+}
+
 // ── Fast greedy solution trace ───────────────────────────────────────────────
 // Picks the first valid forward move at each step (no DP, no per-layer maps).
 // Used for collision-signature dedup — much faster than the DP trace.
@@ -2704,7 +2874,8 @@ static void emit(FlatMap dist, int n, int num_exits,
                  std::unordered_set<uint64_t>& seen_pruned_canons,
                  std::unordered_set<uint64_t>& seen_dp_sigs,
                  std::unordered_set<uint64_t>& seen_state_sets,
-                 int& emitted, int& deduped)
+                 int& emitted, int& deduped,
+                 FlatMapWide* compact_dist = nullptr)
 {
     using Clock = std::chrono::steady_clock;
     auto t0 = Clock::now();
@@ -2937,7 +3108,9 @@ static void emit(FlatMap dist, int n, int num_exits,
         const State survivor_state = survivor_states[j];
         // Solve for minimum grouped moves (0-1 BFS, allows more raw slides).
         auto solve_t0 = Clock::now();
-        auto tr = solve_min_grouped(survivor_state, n, num_exits);
+        auto tr = compact_dist
+            ? solve_from_compact(*compact_dist, survivor_state, n, num_exits)
+            : solve_min_grouped(survivor_state, n, num_exits);
         solve_times_us[j] =
             std::chrono::duration<double, std::micro>(Clock::now() - solve_t0).count();
         if (tr.moves.empty()) continue;
@@ -3879,11 +4052,19 @@ int main(int argc, char* argv[]) {
                       << bfs_secs << "s\n";
             log_mem("bfs_done");
 
+            // Run compact augmented BFS for grouped-move costs.
+            const size_t base_count = dist.size();
+            auto compact = retrograde_grouped_compact(ne, nh, base_count);
+            const double compact_secs = std::chrono::duration<double>(
+                std::chrono::steady_clock::now() - t0).count() - bfs_secs;
+            std::cerr << "  compact BFS done: " << compact.size() << " states, "
+                      << compact_secs << "s\n";
+            log_mem("compact_done");
 
             int k_emitted = 0, k_deduped = 0;
             emit(std::move(dist), ne + nh, ne, min_moves, max_moves, max_per_bucket,
                  id, seen_sigs, seen_pruned_canons, seen_dp_sigs,
-                 seen_state_sets, k_emitted, k_deduped);
+                 seen_state_sets, k_emitted, k_deduped, &compact);
 
             std::cerr << "  emitted: " << k_emitted
                       << "  deduped by collision sig: " << k_deduped << "\n";
