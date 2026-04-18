@@ -39,7 +39,7 @@ If the augmented approach proves infeasible (memory, correctness), the existing 
 
 ## Status log
 
-### 2026-04-17 07:10 PDT — Design doc committed
+### 2026-04-17 07:10 AM PDT — Design doc committed
 
 Design doc at `ll-solver/docs/2026-04-augmented-retrograde-bfs-design.md` covers:
 - Algorithm: augmented state (positions, last_mover_cell), retrograde 0-1 BFS
@@ -50,7 +50,7 @@ Design doc at `ll-solver/docs/2026-04-augmented-retrograde-bfs-design.md` covers
 
 Commit: `428cbbe`
 
-### 2026-04-17 07:27 PDT — Initial implementation, 1+2 PASS, 1+3 FAIL
+### 2026-04-17 07:27 AM PDT — Initial implementation, 1+2 PASS, 1+3 FAIL
 
 Implemented `retrograde_grouped()` and `--validate-augmented` flag.
 
@@ -72,7 +72,7 @@ Example: helpers at cells A and B. After a D4 transform, A and B might swap. Sta
 
 Commit: `e9b745c`
 
-### 2026-04-17 07:35 PDT — Validation note: cost semantics
+### 2026-04-17 07:35 AM PDT — Validation note: cost semantics
 
 Discovered during validation that the augmented retrograde BFS doesn't naturally produce costs comparable to `solve_min_grouped`. The forward solver starts with `last_cell = EXITED` (no previous mover), so the first move always costs 1. The augmented map stores costs assuming "you're already in a grouped move with the robot at L."
 
@@ -80,7 +80,7 @@ Discovered during validation that the augmented retrograde BFS doesn't naturally
 
 This means the final pipeline will need a thin wrapper: for each puzzle's starting state, try all first moves, look up the augmented cost of each result, and take `1 + min`. This replaces the full per-puzzle BFS with a single O(ND) lookup.
 
-### 2026-04-17 07:38 PDT — Canonicalization ruled out; core BFS bug confirmed
+### 2026-04-17 07:38 AM PDT — Canonicalization ruled out; core BFS bug confirmed
 
 Disabled symmetry canonicalization entirely (sort only, no D4/Klein transforms) to isolate the bug. **Same mismatches persist.** The bug is in the core BFS logic, not canonicalization.
 
@@ -92,7 +92,7 @@ Decoded example: exit at (3,4), helpers at (2,1), (2,5), (4,2). Forward solver f
 
 **Next steps:** add detailed debug tracing for the specific mismatch state to see what the forward solver's optimal path is, and whether the augmented BFS's reverse exploration covers it. The issue may be in how multi-exit un-exit interacts with helper positions, or in the cost-0/cost-1 edge generation for the un-exit case.
 
-### 2026-04-17 07:56 PDT — Two bugs found and fixed, all 1-exit combos PASS
+### 2026-04-17 07:56 AM PDT — Two bugs found and fixed, all 1-exit combos PASS
 
 **Bug 1 — insert_new doesn't update higher costs.** Within Phase A, a state could be discovered at cost `c+1` (via a cost-1 edge) before being discovered at cost `c` (via a cost-0 edge from a different state at the same level). `insert_new` ignores the second insertion. Fix: check-and-upsert — update the stored cost if the new cost is lower.
 
@@ -115,7 +115,7 @@ Multi-exit failures are all MISS (states not found in augmented map), not MISMAT
 
 Commit: `223820e`
 
-### 2026-04-17 07:59 PDT — Multi-exit bug fixed, ALL combos PASS
+### 2026-04-17 07:59 AM PDT — Multi-exit bug fixed, ALL combos PASS
 
 **Root cause of multi-exit MISS:** The BFS only enters the un-exit branch when `last_cell == EXITED`. For multi-exit puzzles, intermediate states where some (not all) exits have exited need `last_cell = EXITED` to trigger un-exiting of earlier exits. But `last_cell = EXITED` was never generated as a cost-1 predecessor — the cost-1 loop skips EXITED values.
 
@@ -142,7 +142,7 @@ The augmented retrograde 0-1 BFS is **correct** for all tested combinations on b
 
 **Next:** re-enable symmetry canonicalization and validate. Then test larger combos (1+5, 2+4) for performance/memory measurements. Finally, integrate into the main pipeline.
 
-### 2026-04-17 08:00 PDT — Symmetry canonicalization re-enabled, 12/12 PASS
+### 2026-04-17 08:00 AM PDT — Symmetry canonicalization re-enabled, 12/12 PASS
 
 Re-enabled D4 (standard, 8 transforms) and Klein (beehive, 4 transforms) symmetry canonicalization for augmented states. Both positions AND last_mover_cell are transformed by each symmetry before taking the lex-min. EXITED values are preserved through transforms (not a spatial position).
 
@@ -150,7 +150,7 @@ Re-enabled D4 (standard, 8 transforms) and Klein (beehive, 4 transforms) symmetr
 
 **Next:** performance and memory measurements on larger combos to validate the design doc's projections. Then Phase 4: integrate into the main pipeline.
 
-### 2026-04-17 08:47 PDT — Compute and memory analysis for all combos
+### 2026-04-17 08:47 AM PDT — Compute and memory analysis for all combos
 
 Measured base retrograde state counts vs augmented state counts, computed multipliers, and projected to the 4+3 hex target.
 
@@ -206,7 +206,7 @@ Memory formula: `aug_states / 0.75 load_factor × 8 bytes/slot`.
 - Augmented retrograde: estimated 10-20 minutes on 16 cores.
 - **Speedup: ~1,000-2,000×.**
 
-### 2026-04-17 10:02 PDT — Corrected memory analysis with power-of-2 FlatMap sizing
+### 2026-04-17 10:02 AM PDT — Corrected memory analysis with power-of-2 FlatMap sizing
 
 The initial projections used `aug_states / 0.75 × 8 bytes` which underestimates actual memory. FlatMap uses power-of-2 capacity, and there's ~50% overhead for frontier vectors, recs, and other allocations. Also, follow-up pipeline stages (collect, dedup) can DOUBLE peak memory.
 
@@ -243,7 +243,7 @@ The initial projections used `aug_states / 0.75 × 8 bytes` which underestimates
 - 4+3: 356,117,053 — fewer base states (EXITED exits don't occupy cells, reducing combinations)
 - Both round up to the same 4B-slot FlatMap capacity for the augmented version
 
-### 2026-04-17 12:05 PDT — Measured timing and memory on Mac, FlatMap sizing analysis
+### 2026-04-17 12:05 PM PDT — Measured timing and memory on Mac, FlatMap sizing analysis
 
 **Measured results (Mac, single-threaded, no OpenMP):**
 
@@ -285,7 +285,7 @@ The problem: 2.3B entries is just past the 2B→4B boundary. **74% of the alloca
 
 **Recommendation:** Option 1 (non-pow2 FlatMap) is the simplest change with the biggest impact. One-time pre-allocation from the base BFS count, modulo indexing, no rehash. Saves 10+ GB for the critical combos.
 
-### 2026-04-17 12:52 PDT — 1+6 beehive measured; throughput scaling; memory approach analysis
+### 2026-04-17 12:52 PM PDT — 1+6 beehive measured; throughput scaling; memory approach analysis
 
 **1+6 beehive measured on Mac (16 GB, single-threaded):**
 - 705M augmented states (6.80× multiplier over 103.8M base)
@@ -320,7 +320,7 @@ Throughput degrades significantly with map size (cache misses). **Revised 4+3 es
 
 The pre-sized approach works if we use a conservative multiplier (7×) based on the measured 6.8× at 1+6. Risk: if 4+3's multiplier exceeds 7×, the pre-sized map is too small and rehash blows 32 GB. Safety margin is thin.
 
-### 2026-04-18 07:05 PDT — Compact per-state cost array variant implemented and measured
+### 2026-04-18 07:05 AM PDT — Compact per-state cost array variant implemented and measured
 
 **Key insight:** the 7× memory blowup comes from storing 7 copies of the same 42-bit board state key, each with a different 6-bit last_mover suffix. Instead: store each base state ONCE with an 8-byte cost array (one byte per robot index + EXITED sentinel).
 
@@ -347,7 +347,7 @@ The 3.2× speed advantage comes from fewer hash probes (10M unique keys vs 58M) 
 
 Commit: `f64b9d4`
 
-### 2026-04-18 07:18 PDT — Compact BFS validated: 12/12 PASS
+### 2026-04-18 07:18 AM PDT — Compact BFS validated: 12/12 PASS
 
 **Bug found and fixed:** exits were sorted in the un-exit predecessor generation and seed, but NOT in the normal reverse-slide code or forward_move. This caused inconsistent state encodings for multi-exit puzzles — the same board configuration stored with different exit orderings depending on which code path discovered it. Fix: don't sort exits anywhere (keep fixed indices matching forward_move). Helpers-only sorting is sufficient.
 
@@ -379,7 +379,7 @@ Commit: `f64b9d4`
 
 **Next:** implement canonical-with-permutation tracking.
 
-### 2026-04-18 07:22 PDT — canonical_with_perm implemented, 8/12 pass, perm tracking has a bug
+### 2026-04-18 07:22 AM PDT — canonical_with_perm implemented, 8/12 pass, perm tracking has a bug
 
 Implemented `canonical_with_perm()` that returns both the canonical state and the robot index permutation. Updated `generate_compact_predecessors` and validation to use it. Result: 8/12 pass.
 
@@ -396,7 +396,7 @@ The `canonical_with_perm()` function itself produces correct canonical states (v
 
 Commit: `44d44d2`
 
-### 2026-04-18 07:25 PDT — Decision: proceed with expanded version + pre-sizing
+### 2026-04-18 07:25 AM PDT — Decision: proceed with expanded version + pre-sizing
 
 The compact version's permutation-through-canonicalization bug produces INCORRECT costs (both too high and too low). The too-low case is particularly dangerous — it means the BFS reports costs lower than the actual minimum. Root cause: the index-based cost array approach fundamentally conflicts with symmetry canonicalization's index rewriting in subtle ways that are hard to debug.
 
@@ -412,7 +412,7 @@ The compact version remains a promising future optimization but needs more desig
 
 **Next:** implement pre-sizing in the expanded version and integrate into the main pipeline.
 
-### 2026-04-18 07:35 PDT — Root cause found: canonical_with_perm vs canonical_aug use different winning transforms
+### 2026-04-18 07:35 AM PDT — Root cause found: canonical_with_perm vs canonical_aug use different winning transforms
 
 **The fundamental conflict:** when a base state has non-trivial automorphisms (multiple D4 transforms produce the same canonical encoding), `canonical_with_perm` picks one transform (based on lex-min of positions only) while `canonical_aug` picks a potentially different one (based on lex-min of positions + cell). The cost array in the compact version stores costs indexed by robot index, but the "correct" robot index depends on which transform was used.
 
@@ -426,7 +426,7 @@ Cross-reference confirmed: compact cost arrays match the expanded BFS for most r
 3. **Store costs indexed by CELL not by robot index.** Avoids the permutation problem entirely but needs 49 bytes per state (sparse) or a variable-length encoding.
 4. **Accept the expanded approach and use a 64 GB machine.** Pre-size the FlatMap from the base BFS count.
 
-### 2026-04-18 07:40 PDT — Compact BFS with symmetry FIXED AND VALIDATED: 12/12 PASS
+### 2026-04-18 07:40 AM PDT — Compact BFS with symmetry FIXED AND VALIDATED: 12/12 PASS
 
 **The automorphism fix:** when a state has non-trivial automorphisms (multiple D4/Klein transforms produce the same canonical encoding), the reversed robot maps to DIFFERENT canonical indices under different transforms. The previous code picked ONE transform; the fix emits cost-0 predecessors for ALL valid canonical indices.
 
@@ -453,7 +453,7 @@ Compact is **2.5× faster** and uses **4× less FlatMap memory** than expanded.
 
 **The compact approach is production-ready for 4+3 beehive on a 32 GB machine.**
 
-### 2026-04-18 08:47 PDT — Pipeline integration: compact-only emit()
+### 2026-04-18 08:47 AM PDT — Pipeline integration: compact-only emit()
 
 Rewrote the main loop and emit() to use ONLY the compact FlatMapWide:
 - Base retrograde FlatMap freed immediately after extracting state count
@@ -468,7 +468,7 @@ Rewrote the main loop and emit() to use ONLY the compact FlatMapWide:
 
 **Status:** pipeline integration is partially working. The cost lookup and BFS are correct (validated). The solution TRACE has a bug in how it maps robot indices through canonicalization when looking up costs for successor states. This is the same class of bug we fixed in the BFS predecessor generation.
 
-### 2026-04-18 11:12 PDT — Regression tests needed
+### 2026-04-18 11:12 AM PDT — Regression tests needed
 
 The following bugs should have regression tests:
 1. **Insert_new not updating higher costs** (upsert fix)
@@ -480,7 +480,7 @@ The following bugs should have regression tests:
 
 These should be added to `test_enumerate.cpp` as specific test cases using known states that trigger each bug. TODO after the trace bug is fixed.
 
-### 2026-04-18 11:30 PDT — DFS trace bug fixed (cost-0 edges at target_cost)
+### 2026-04-18 11:30 AM PDT — DFS trace bug fixed (cost-0 edges at target_cost)
 
 **Bug:** `forward_dfs_trace_compact` returned false when `cur_cost == target_cost`, even though cost-0 edges (same robot continuing) don't increase cost and could still reach the goal. Example: exit slides up (cost 1 = target), then continues left to center (cost 0) — the second slide was never explored.
 
