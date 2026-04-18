@@ -1157,6 +1157,15 @@ struct FlatMapWide {
     size_t size() const { return sz_; }
     size_t cap()  const { return cap_; }
 
+    // Pre-allocate to hold exactly `n` entries at the given load factor.
+    // Uses non-power-of-2 capacity for minimal memory waste.
+    void reserve_exact(size_t n, double load = 0.85) {
+        size_t c = (size_t)(n / load) + 1;
+        if (c < 16) c = 16;
+        if (c > cap_) rehash(c);
+    }
+
+    // Legacy pow2 reserve (used when exact count isn't known).
     void reserve(size_t n) {
         size_t c = 16;
         while (c * 3 < n * 4) c <<= 1;
@@ -1176,9 +1185,9 @@ struct FlatMapWide {
             if (!insert_if_missing) return cap_;
             rehash(16);
         }
-        if (insert_if_missing && sz_ * 4 >= cap_ * 3)
-            rehash(cap_ * 2);
-        size_t h = hash(k) & (cap_ - 1);
+        if (insert_if_missing && sz_ * 100 >= cap_ * 95)
+            rehash(cap_ + cap_ / 2);  // grow 1.5× when > 95% full
+        size_t h = hash(k) % cap_;
         for (size_t probe = 0; probe < cap_; probe++) {
             if (data_[h].key == EMPTY_KEY) {
                 if (!insert_if_missing) return cap_;
@@ -1188,10 +1197,10 @@ struct FlatMapWide {
                 return h;
             }
             if (data_[h].key == k) return h;
-            h = (h + 1) & (cap_ - 1);
+            h = (h + 1) % cap_;
         }
         if (insert_if_missing) {
-            std::fprintf(stderr, "FATAL FlatMapWide: probe limit exhausted\n");
+            std::fprintf(stderr, "FATAL FlatMapWide: probe limit exhausted sz=%zu cap=%zu\n", sz_, cap_);
             std::abort();
         }
         return cap_;
@@ -1200,7 +1209,7 @@ struct FlatMapWide {
     // Parallel version: atomically insert key if absent, return slot index.
     // Caller must have called ensure_parallel_capacity() first.
     size_t atomic_find_or_insert(uint64_t k) {
-        size_t h = hash(k) & (cap_ - 1);
+        size_t h = hash(k) % cap_;
         for (size_t probe = 0; probe < cap_; probe++) {
             uint64_t expected = EMPTY_KEY;
             if (__atomic_compare_exchange_n(
@@ -1212,7 +1221,7 @@ struct FlatMapWide {
                 return h;
             }
             if (expected == k) return h;  // already present
-            h = (h + 1) & (cap_ - 1);
+            h = (h + 1) % cap_;
         }
         std::fprintf(stderr, "FATAL FlatMapWide::atomic_find_or_insert: probe limit\n");
         std::abort();
@@ -1232,8 +1241,8 @@ private:
         if (old) {
             for (size_t i = 0; i < oc; i++) {
                 if (old[i].key == EMPTY_KEY) continue;
-                size_t h = hash(old[i].key) & (new_cap - 1);
-                while (data_[h].key != EMPTY_KEY) h = (h + 1) & (new_cap - 1);
+                size_t h = hash(old[i].key) % new_cap;
+                while (data_[h].key != EMPTY_KEY) h = (h + 1) % new_cap;
                 data_[h] = old[i];
             }
             std::free(old);
@@ -1415,7 +1424,8 @@ static void generate_compact_predecessors(
     }
 }
 
-static FlatMapWide retrograde_grouped_compact(int num_exits, int num_helpers)
+static FlatMapWide retrograde_grouped_compact(int num_exits, int num_helpers,
+                                                size_t pre_alloc_count = 0)
 {
     const int n = num_exits + num_helpers;
     FlatMapWide dist(6 * n);
@@ -1431,6 +1441,14 @@ static FlatMapWide retrograde_grouped_compact(int num_exits, int num_helpers)
     using FrontierEntry = std::pair<State, int>;
     std::vector<FrontierEntry> cur_zero, cur_one;
 
+    // Pre-allocate if we know the expected state count (from base retrograde BFS).
+    if (pre_alloc_count > 0) {
+        dist.reserve_exact(pre_alloc_count, 0.85);
+        std::cerr << "  pre-allocated for " << pre_alloc_count
+                  << " states → capacity=" << dist.cap()
+                  << " (" << (dist.cap() * 16 / 1048576) << " MB)\n";
+    }
+
     // Seed: goal states at cost 0, EXITED slot.
     {
         size_t seed_est = 1;
@@ -1438,7 +1456,8 @@ static FlatMapWide retrograde_grouped_compact(int num_exits, int num_helpers)
             seed_est = seed_est * (size_t)(P - i) / (size_t)(i + 1);
             if (seed_est > (size_t)1 << 28) { seed_est = (size_t)1 << 28; break; }
         }
-        dist.reserve(std::max(seed_est, (size_t)1 << 20));
+        if (pre_alloc_count == 0)
+            dist.reserve(std::max(seed_est, (size_t)1 << 20));
 
         int chosen[9] = {};
         size_t seed_count = 0;
@@ -3567,8 +3586,13 @@ int main(int argc, char* argv[]) {
         const int nh = only_helpers > 0 ? only_helpers : 2;
         const int nt = ne + nh;
         std::cerr << "=== Benchmarking compact augmented BFS: " << ne << "+" << nh << " ===\n";
+        // Run base retrograde first to get state count for pre-allocation.
+        auto base_dist = retrograde(ne, nh);
+        size_t base_count = base_dist.size();
+        std::cerr << "  base retrograde: " << base_count << " states\n";
+        base_dist = FlatMap(6 * nt);  // free base map
         auto t0 = std::chrono::steady_clock::now();
-        auto dist = retrograde_grouped_compact(ne, nh);
+        auto dist = retrograde_grouped_compact(ne, nh, base_count);
         auto t1 = std::chrono::steady_clock::now();
         double secs = std::chrono::duration<double>(t1 - t0).count();
         std::cerr << "  compact BFS: " << dist.size() << " base states, "
